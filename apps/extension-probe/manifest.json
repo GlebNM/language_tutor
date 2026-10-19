@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Language Tutor — проверка субтитров",
+  "version": "0.1.0",
+  "description": "Исследование полной английской дорожки и кликабельного слоя YouTube.",
+  "minimum_chrome_version": "116",
+  "permissions": ["sidePanel", "scripting"],
+  "host_permissions": ["https://www.youtube.com/*"],
+  "background": {"service_worker": "service-worker.js", "type": "module"},
+  "action": {"default_title": "Открыть проверку субтитров"},
+  "side_panel": {"default_path": "panel.html"},
+  "content_scripts": [{
+    "matches": ["https://www.youtube.com/*"],
+    "js": ["content.js"],
+    "css": ["content.css"],
+    "run_at": "document_idle"
+  }]
+}
