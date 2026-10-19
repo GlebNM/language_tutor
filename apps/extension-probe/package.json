@@ -1,0 +1,6 @@
+{
+  "name": "language-tutor-caption-probe",
+  "private": true,
+  "type": "module",
+  "engines": {"node": ">=20"}
+}
