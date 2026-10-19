@@ -11,7 +11,7 @@ function render(state) {
   el("status").textContent = state.message;
   el("metadata").replaceChildren();
   const transcript = state.transcript;
-  const failure = state.status === "error" && state.evidence ? failureReport(state) : null;
+  const failure = state.status === "error" ? failureReport(state) : null;
   const rows = [["Видео", state.video_id ?? "Нет видео"]];
   if (transcript) rows.push(
     ["Источник", sourceLabel[transcript.source]], ["Язык", state.evidence.track_language],
@@ -19,7 +19,7 @@ function render(state) {
     ["Реплик", String(transcript.cues.length)], ["SHA-256", transcript.transcript_hash],
     ["Проверено", state.evidence.checked_at]
   );
-  if (state.status === "error") rows.push(["Код ошибки", failureReport(state).code]);
+  if (failure) rows.push(["Код ошибки", failure.code]);
   if (failure) rows.push(
     ["Источник", sourceLabel[failure.evidence.source] ?? "Неизвестен"],
     ["Язык дорожки", failure.evidence.track_language ?? "Неизвестен"],
@@ -63,7 +63,7 @@ for (const action of ["start", "stop"]) el(action).addEventListener("click", asy
   catch { render({status: "error", code: "extension-unavailable", message: "Расширение недоступно в этой вкладке. Откройте или обновите страницу YouTube."}); }
 });
 el("export").addEventListener("click", () => {
-  if (!snapshot?.transcript && !(snapshot?.status === "error" && snapshot.evidence)) return;
+  if (!snapshot?.transcript && snapshot?.status !== "error") return;
   const failed = !snapshot.transcript;
   const output = failed ? failureReport(snapshot)
     : {transcript: snapshot.transcript, evidence: snapshot.evidence, selection: snapshot.selection};

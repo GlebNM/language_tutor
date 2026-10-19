@@ -6,7 +6,7 @@ const failureCodes = new Set([
 
 // A page result is external data: copy only bounded public fields into error reports.
 export function failureReport(state) {
-  const evidence = state.evidence ?? {};
+  const evidence = {video_id: state.video_id, ...state.evidence};
   const integer = (value, min, max) => Number.isSafeInteger(value) && value >= min && value <= max ? value : null;
   const boundedString = (value, pattern, maxLength) => typeof value === "string"
     && value.length <= maxLength && pattern.test(value) ? value : null;
