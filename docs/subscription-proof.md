@@ -1,64 +1,74 @@
 # Local subscription proof — ticket #1
 
-Checked on 19 October 2026. The implementation supplies a runnable candidate and controlled evidence. **Ticket #1 remains blocked on a supported access contract and a live host-browser/Compose subscription run. A16 and A17 have not passed.** No real subscription credentials, authorization codes, or Codex CLI credential files were read during implementation.
+Checked on 19 October 2026. The selected route is **official Sign in with ChatGPT (SIWC) for local open-source applications**. The application implements that public registration and inference contract. Controlled OAuth, SDK, schema and real MCP transport tests pass. **Live host-browser consent and subscription execution remain unverified, so ticket #1, A16 and A17 remain open.** No real credentials or Codex CLI credential files were read during implementation.
 
-## Access contract
+## Supported access contract
 
-The executable candidate uses Pydantic AI's documented `OpenAICodexOAuthFlow`, `OpenAICodexProvider`, and `OpenAICodexModel`. This is the library's Codex public-client flow. The browser redirect stays exactly `http://localhost:1455/auth/callback`; only the application's container listener binds `0.0.0.0`. The provider uses Codex subscription inference, and receives an explicit application credential source. [Pydantic's Codex guide](https://pydantic.dev/docs/ai/models/openai-codex/), [v2.57.0 provider source](https://raw.githubusercontent.com/pydantic/pydantic-ai/v2.57.0/pydantic_ai_slim/pydantic_ai/providers/openai_codex.py).
+SIWC public dynamic registration uses `client_id=dynamic_agent_client` on first authorization and requires no client secret or partner key. Language Tutor saves a stable host UUID, supplies its actual application name, receives the issued client ID from the callback, and retains that registration for later authorization. Fresh state, nonce and S256 PKCE values belong to each attempt. The callback uses `http://127.0.0.1:<AI_CALLBACK_PORT>/auth/callback`. The application verifies the ID token's JWKS signature, issuer, audience, expiration, nonce and returning subject before saving credentials. It separately checks the granted `chatgpt.tokens.use.direct` permission before inference. Identity without that permission cannot power AI. [Official registration and sign-in](https://developers.openai.com/siwc/token-sharing-open-source/sign-in).
 
-Official Sign in with ChatGPT for local open-source applications describes dynamic client registration, a stable host identifier, validated OIDC identity, and granted `chatgpt.tokens.use.direct` permission. It specifies a `127.0.0.1` callback and separate authorization/token endpoints. Those registration rules do not describe this Codex candidate. [Official registration and sign-in](https://developers.openai.com/siwc/token-sharing-open-source/sign-in).
+Inference uses only the official `https://api.openai.com/v1/responses` endpoint with `store:false` and `stream:true`. The authenticated account's `/v1/models` catalog supplies eligible slugs; with an empty `AI_MODEL`, the proof selects the first visible model in server order. A configured slug must appear in that catalog. Completion requires the terminal `response.completed` event. An interrupted, incomplete or late-failed stream cannot count as a successful card. [Official models and inference](https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference).
 
-Official SIWC inference uses the Responses API at `api.openai.com/v1` and explicitly directs clients away from ChatGPT `backend-api` endpoints. Exchanging a Codex token and changing the API URL would not implement that contract. This spike does **not** claim SIWC support or establish that OpenAI supports this third-party application's use of the Codex public registration. Resolve that question before closing #1 or starting tickets that depend on successful subscription feasibility. An official SIWC adapter would need its own registration, validation, refresh and wire-format work. [Official models and inference](https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference).
+SIWC requires function tools in namespaces or `additional_tools` input items. The application uses the latter: a dedicated HTTP transport moves Pydantic's local MCP and structured-output function definitions into a developer `additional_tools` input item. Tool names and returned call IDs stay intact. Unsupported request fields and hosted tools are excluded; server-side continuation settings are rejected before Pydantic could trim history. Pydantic's ordinary Responses adapter still owns message mapping, stream parsing, model/tool turns, MCP dispatch and Pydantic output validation. [Official preview limitations](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations).
 
-## Resolved dependency set
+An earlier implementation investigated Pydantic's Codex public-client provider. That candidate has been removed from product code. Its fixed `localhost:1455` registration and ChatGPT backend endpoint are different from SIWC and are not used by this application. The official loopback URI permits another port, so the default is now 1456. [Pydantic's distinct Codex integration](https://pydantic.dev/docs/ai/models/openai-codex/).
 
-`pyproject.toml` pins the integration libraries, and `uv.lock` locks all transitive dependencies. The Pydantic AI package release is 2.57.0; the local agent skill's version is unrelated. Python 3.12 keeps the language adapter and the AI host on one runtime. The controlled tests ran with CPython 3.12.11 on macOS arm64.
+## Resolved dependencies
+
+`pyproject.toml` pins the integration libraries and `uv.lock` locks all transitive packages. Controlled checks ran with CPython 3.12.11 on macOS arm64. Python 3.12 also supports the selected language-processing dependencies. The Pydantic agent skill's own version is unrelated to the library pin.
 
 | Component | Version |
 | --- | --- |
 | Python runtime series | 3.12 |
-| pydantic-ai-slim, pydantic-graph | 2.57.0 |
+| pydantic-ai-slim / pydantic-graph | 2.57.0 |
 | OpenAI SDK | 3.35.1 |
-| Official MCP server SDK | 1.30.0 |
-| FastMCP slim client used by Pydantic AI | 3.4.9 |
+| Official MCP SDK | 1.30.0 |
+| FastMCP slim client | 3.4.9 |
 | Pydantic | 2.14.1 |
+| HTTPX / HTTPX2 | 0.28.1 / 2.14.0 |
+| PyJWT with cryptography | 2.15.1 |
 | FastAPI / Uvicorn | 0.148.0 / 0.54.0 |
 | spaCy / en_core_web_sm | 3.8.11 / 3.8.0 |
 
-The published Pydantic release supports Python 3.11+, requires OpenAI 3.26.0 or later, and supports the selected FastMCP client range. The installed 2.57.0 signatures and runtime tests, including its `MCPToolset`, were checked directly. This version uses `result.usage` as a property and has no `instrument` Agent constructor argument. [Published release metadata](https://pypi.org/pypi/pydantic-ai-slim/2.57.0/json).
+The published Pydantic release supports Python 3.11+, OpenAI SDK 3.26.0 or later, and the selected MCP client range. Installed signatures and runtime behavior were checked against 2.57.0, including `MCPToolset`, model profiles and the Responses implementation. [Release metadata](https://pypi.org/pypi/pydantic-ai-slim/2.57.0/json).
 
 ## Runnable boundary
 
-The application includes `create_ai_router(data_dir=..., mcp_url=..., model_name=...)`. The default model is `gpt-5.6-luna`, taken from Pydantic's Codex example; `AI_MODEL` can select another model in the app configuration. Availability to the learner's subscription remains unverified.
+The backend includes `create_ai_router(data_dir=..., mcp_url=..., model_name=..., callback_port=...)`. Keep `AI_MODEL` empty to use the first eligible catalog entry, or set an account-supported slug explicitly.
 
 | Operation | Route |
 | --- | --- |
 | Inspect connection | `GET /api/ai/connection` |
-| Start browser login | `POST /api/ai/connection/start` |
-| Cancel pending login | `POST /api/ai/connection/cancel` |
-| Disconnect and remove local credentials | `DELETE /api/ai/connection` |
-| Run the authored proof card via subscription and MCP | `POST /api/ai/proof` |
+| Start browser authorization | `POST /api/ai/connection/start` |
+| Cancel pending authorization | `POST /api/ai/connection/cancel` |
+| Disconnect and remove local tokens | `DELETE /api/ai/connection` |
+| Run authored proof card via subscription and MCP | `POST /api/ai/proof` |
 
-Start returns an authorization URL only after the callback socket is listening. The host UI opens that URL. The callback checks state before errors or code exchange; the library supplies S256 PKCE. A completed, denied, cancelled or timed-out attempt releases the listener. The wait expires after five minutes. Callback access logging is disabled so authorization codes are not logged. If 1455 is already occupied inside the backend's network namespace, start returns `callback_port_in_use` with a Russian explanation.
+Use the callback-enabled Compose command in the README. The host app and callback ports publish only on loopback; MCP has no published port. `AI_CALLBACK_PORT` defaults to 1456. Its host publication, container listener and redirect URI must use the same port. The listener binds `0.0.0.0` inside the container while the browser sees `127.0.0.1` on the host. The existing unrelated service on 1455 is unaffected.
 
-The default Compose setup must publish the app and callback only on host loopback and leave MCP unpublished. Use the README's callback-enabled Compose command when attempting browser authorization. Docker rejects a published host-port conflict before Python starts; the backend cannot catch that error. During this implementation, an unrelated local development container already owned host `127.0.0.1:1455`. It was left running. The library's fixed redirect cannot use another port, and no host-browser OAuth success was recorded.
+The UI's **Continue with ChatGPT** action obtains an authorization URL only after the listener is ready. State is checked before OAuth error handling or code exchange. Authorization is consumed once; denial, cancellation and a five-minute timeout release the listener. Callback access logging is disabled, so authorization codes are not logged. A callback port occupied inside the container returns `callback_port_in_use`; a published host-port conflict is reported by Docker before Python starts. Choose another free `AI_CALLBACK_PORT` in that case.
 
-Credential files live under the configured persistent data directory in `credentials/subscription.json`, outside learning tables and Codex CLI storage. The directory is `0700` and temporary files are created as `0600`; a completed atomic replacement saves all credential fields together. Disconnect invalidates the credential source, removes its file and cancels active proof tasks. The same provider instance serves the one backend process, sharing Pydantic's refresh lock. The service closes its HTTP client at shutdown. Multiple backend worker processes are unsupported; use one worker.
+Protected application storage lives in `data_dir/credentials/`: the token set, a separate registration mapping, and a stable host identifier. The directory is `0700`; atomic replacement files start as `0600`, flush and fsync before replacement. Tokens remain outside learning tables and browser storage. Access, refresh, retained ID token, grant scopes and expiry are saved together. The optional `id_token_hint` is deliberately omitted from authorization URLs returned to the UI, so returning authorization uses the account selector.
 
-The proof server starts with `uv run --frozen --no-dev python -m backend.mcp_server`. It serves Streamable HTTP on container port 8001 at `/mcp`; `MCP_HOST` and `MCP_PORT` configure test/runtime binding. Its single read-only `get_proof_context` tool validates the three related IDs and returns the authored sentence “She gave up smoking.” It is deliberately a small feasibility fixture, with no learner database or future chat tools.
+One token manager serializes refresh for the single backend process, rereads the latest saved token set and atomically persists each rotation. Confirmed unusable refresh grants remove the unusable token file while retaining the registration. Temporary failures preserve credentials. A missing plan permission is visible as `reauth_required` with `plan_permission_missing`. Disconnect invalidates the local token source, removes tokens and cancels active proof tasks; it retains the issued client/account mapping and host identifier for later sign-in. Multiple backend workers are unsupported. Remote session revocation is deferred; local disconnect does not claim that OpenAI's remote session was revoked. [Official refresh and session lifecycle](https://developers.openai.com/siwc/token-sharing-open-source/profiles-and-sessions).
 
-The named `subscription_contextual_card_proof` Agent obtains the tool descriptions through Pydantic AI's real `MCPToolset`. The model selects the tool, the host executes the HTTP MCP call, and the result reaches the next model turn. Pydantic validates translation, explanation, expression and example with `output_type=ContextualCard`. A final output without a successful context tool is rejected. Runs use fresh selection dependencies, request IDs and tool traces, with a 30-second total timeout, at most four model turns and three ordinary tool calls. SDK request retries are disabled. The one required tool is loaded eagerly; deferred discovery would not help this small proof.
+## Agent and actual MCP
 
-Responses expose request ID, model, route, elapsed time, validated card, tool names, tool success and tool duration. Local tool logs contain only request ID and those tool measurements. No prompt bodies, conversations, full subtitles or tokens are logged, and no hosted telemetry is configured, as required by SPEC §12.3. The generated example is an exercise, not an attributed video quote.
+`uv run --frozen --no-dev python -m backend.mcp_server` serves Streamable HTTP on container port 8001 at `/mcp`. Its single read-only `get_proof_context` validates the related material/cue/token IDs and returns the authored sentence “She gave up smoking.” This is a feasibility fixture; later learner/database tools remain separate tickets.
+
+The named `subscription_contextual_card_proof` Agent obtains tool descriptions through Pydantic AI's actual `MCPToolset`. The model selects the tool, the host executes its HTTP MCP call, and the result reaches the next model turn. `output_type=ContextualCard` validates translation, explanation, expression and example. A final output without a successful context call is rejected. Each run has fresh selection dependencies, a request ID and tool traces. Catalog lookup, refresh and inference share a 30-second bound. At most four model turns and three ordinary tool calls are permitted; SDK retries are disabled.
+
+Responses expose only the validated card and request/model/tool timing metadata. Logs record request ID, tool name, success and duration; they do not record prompt bodies, full subtitles, conversations or tokens. No hosted telemetry is configured, as SPEC §12.3 requires. The example is an exercise, not an attributed video quote.
 
 ## Controlled evidence
 
-Run `uv sync --frozen` then `uv run pytest backend/tests/test_ai_connection.py backend/tests/test_ai_proof.py -q`. The suite uses a controlled Pydantic `FunctionModel` and forbids live model requests in the agent tests. A separate official MCP server subprocess is reached over actual local TCP/HTTP. No direct Python call replaces that transport.
+Run `uv sync --frozen`, then `uv run pytest backend/tests/test_ai_connection.py backend/tests/test_siwc.py backend/tests/test_ai_proof.py -q`. These are controlled remote-model responses. No test uses a real subscription. The MCP tests launch a separate official SDK server process and communicate over local HTTP/TCP.
 
-The checks cover disconnected access, ready callback and PKCE URL, wrong state, denial, occupied callback port, cancellation, timeout and retry, application storage across restart, atomic credential rotation and permissions, disconnect preventing further saves, model-selected HTTP MCP calls and consumption of the returned sentence, invalid output retry, and rejection of unrelated material IDs over MCP. A valid controlled run takes two model turns; the invalid-output test takes three. These are controlled results, not subscription acceptance evidence.
+The checks cover callback readiness/state/PKCE/denial/cancellation/timeout/port conflict, restart/disconnect and protected atomic storage, signed JWT identity/nonce/audience/expiry/signature rejection, declined plan permission, reuse of the issued client ID and stable host identity, two concurrent requests sharing one refresh, the actual OpenAI SDK's supported SIWC wire request and final output parsing, rejection of interrupted/incomplete/late-failed streams, MCP ID validation and output-schema retry.
 
-## Remaining live evidence
+One combined test exercises the complete controlled path: **official SDK request → SIWC tool declaration → model-selected real HTTP MCP call → returned cue in the next SDK request → validated output function**. This verifies the adapter and Agent/MCP integration together. It does not establish account eligibility or live provider success.
 
-No live model name, real subscription completion, production latency or live MCP trace is recorded. The required human acceptance is to resolve the supported access route, free the fixed callback port without disrupting another task, run Compose with callback publication, open connection from the UI, finish browser consent, run the proof, and record only model/version/request ID/completion/tool timing metadata. Check host-loopback reachability and IPv4/IPv6 behavior on the target Docker platform.
+## Remaining acceptance
 
-Real refresh, revocation, quota errors, repeated callback behavior under actual browser timing, disconnect during live work, and concurrent refresh requests need live acceptance. Application-owned rotation storage is tested; the provider's remote refresh and backend error mapping are not established by those tests. Full diagnosis, contextual cards for imported materials, learner chat and their complete MCP tools belong to later tickets. They are not implemented by this fixture.
+No live model name, real consent completion, production latency or live subscription MCP trace is recorded. A human must run the callback-enabled Compose application, select **Continue with ChatGPT**, complete browser consent with an eligible account, run the proof and record model/version/request ID/completion/tool timing metadata. This verifies the actual host-to-container callback path and the account's serving eligibility. The supported API contract is selected and implemented; account-specific runtime acceptance remains pending.
+
+Live refresh/revocation/quota behavior, browser callback replay timing, disconnect during live work and Docker callback networking still need acceptance. Remote sign-out revocation is not implemented. Full diagnosis, contextual cards for imported materials, chat and their complete MCP toolsets belong to later tickets; the authored fixture does not satisfy those full MVP scenarios. Ticket #1 and its AI-dependent tickets remain blocked until the live acceptance evidence exists.

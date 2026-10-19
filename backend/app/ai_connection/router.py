@@ -3,11 +3,11 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import APIRouter, FastAPI
-from pydantic_ai.providers.openai_codex import OpenAICodexOAuthFlow
 
 from backend.app.agents.subscription_proof import ProofResult
 
 from .service import ConnectionService, ConnectionStatus
+from .siwc import SIWCOAuthFlow
 
 
 def create_ai_router(
@@ -15,10 +15,10 @@ def create_ai_router(
     data_dir: Path,
     mcp_url: str,
     callback_host: str = "0.0.0.0",
-    callback_port: int = 1455,
+    callback_port: int = 1456,
     oauth_timeout: float = 300,
-    model_name: str = "gpt-5.6-luna",
-    flow_factory: Callable[[], OpenAICodexOAuthFlow] = OpenAICodexOAuthFlow,
+    model_name: str = "",
+    flow_factory: Callable[..., SIWCOAuthFlow] = SIWCOAuthFlow,
 ) -> APIRouter:
     service = ConnectionService(
         data_dir=data_dir,
@@ -39,7 +39,7 @@ def create_ai_router(
 
     @router.get("/connection")
     async def status() -> ConnectionStatus:
-        return service.state
+        return await service.inspect()
 
     @router.post("/connection/start")
     async def start() -> dict[str, object]:

@@ -35,7 +35,7 @@ class ToolTrace(BaseModel):
 class ProofResult(BaseModel):
     request_id: str
     model: str
-    route: str = "pydantic-codex-candidate"
+    route: str = "siwc"
     card: ContextualCard
     tools: list[ToolTrace]
     model_requests: int
