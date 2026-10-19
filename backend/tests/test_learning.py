@@ -1,5 +1,6 @@
 """Public learning API with controlled models and a real Streamable HTTP MCP server."""
 
+import asyncio
 import os
 import socket
 import subprocess
@@ -72,17 +73,20 @@ def import_selection(client: TestClient, *, text: str = "She gave up smoking.") 
 def test_real_context_card_reuses_context_cache_and_rejects_mismatched_ids(
     learning_mcp: tuple[str, Path],
 ) -> None:
+    from backend.app.ai_connection.settings import AISettings, AISettingsStore
     from backend.app.learning import create_learning_router
 
     mcp_url, database = learning_mcp
     selected: dict[str, str] = {}
     calls = 0
 
+    effort = "low"
+
     def respond(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
         nonlocal calls
         calls += 1
         assert "She gave up smoking." in str(messages)
-        assert info.model_settings and info.model_settings["openai_reasoning_effort"] == "low"
+        assert info.model_settings and info.model_settings["openai_reasoning_effort"] == effort
         return ModelResponse(
             parts=[
                 ToolCallPart(
@@ -103,12 +107,18 @@ def test_real_context_card_reuses_context_cache_and_rejects_mismatched_ids(
         include_ai=False,
         frontend_dist=database.parent / "no-frontend",
     )
+
+    class ControlledConnection:
+        settings_store = AISettingsStore(database.parent)
+
+        async def execute(self, operation, *, settings=None):
+            return await operation(FunctionModel(respond))
+
     app.include_router(
         create_learning_router(
             library=app.state.materials,
-            connection=None,
+            connection=ControlledConnection(),
             mcp_url=mcp_url,
-            model_factory=lambda: FunctionModel(respond),
         )
     )
     with TestClient(app, base_url="http://localhost") as client:
@@ -116,12 +126,73 @@ def test_real_context_card_reuses_context_cache_and_rejects_mismatched_ids(
         response = client.post("/api/cards", json=selected)
         assert response.status_code == 200, response.text
         assert response.json()["card"]["translation"] == "бросила"
+        assert response.json()["reasoning_effort"] == "low"
         assert response.json()["tools"][0]["name"] == "get_subtitle_context"
         again = client.post("/api/cards", json=selected)
         assert again.json()["cached"] is True
         assert calls == 1
+        effort = "medium"
+        ControlledConnection.settings_store.write(AISettings("gpt-6-luna", effort))
+        updated = client.post("/api/cards", json=selected)
+        assert updated.status_code == 200, updated.text
+        assert updated.json()["cached"] is False
+        assert updated.json()["reasoning_effort"] == "medium"
+        assert calls == 2
+        refreshed = client.post("/api/cards", json={**selected, "force_refresh": True})
+        assert refreshed.status_code == 200, refreshed.text
+        assert refreshed.json()["cached"] is False
+        assert calls == 3
         wrong = client.post("/api/cards", json={**selected, "cue_id": "wrong"})
         assert wrong.status_code == 404
+
+
+async def test_queued_chat_keeps_settings_captured_before_conversation_lock(
+    learning_mcp: tuple[str, Path],
+    tmp_path: Path,
+) -> None:
+    from backend.app.agents.learning import ChatAnswer
+    from backend.app.ai_connection.settings import AISettings, AISettingsStore
+    from backend.app.learning import ChatInput, LearningService, SelectionInput
+
+    mcp_url, _ = learning_mcp
+    database = tmp_path / "learning.sqlite3"
+    app = create_app(database_path=database, seed_demo=False, include_ai=False)
+    with TestClient(app, base_url="http://localhost") as client:
+        selection = import_selection(client)
+
+    class ControlledConnection:
+        settings_store = AISettingsStore(tmp_path)
+
+        def __init__(self) -> None:
+            self.used_settings: list[AISettings] = []
+
+        async def execute(self, operation, *, settings=None):
+            self.used_settings.append(settings)
+            return ChatAnswer(answer="Ответ готов."), 0, settings.model
+
+    connection = ControlledConnection()
+    connection.settings_store.write(AISettings("gpt-6-luna", "low"))
+    service = LearningService(
+        library=app.state.materials,
+        connection=connection,
+        mcp_url=mcp_url,
+    )
+    conversation = service.create_conversation(SelectionInput(**selection))
+    lock = service.locks.setdefault("conversation:" + conversation["id"], asyncio.Lock())
+    await lock.acquire()
+    task = asyncio.create_task(
+        service.message(
+            conversation["id"], ChatInput(message="Поясни это", request_id="queued-turn-1")
+        )
+    )
+    await asyncio.sleep(0)
+    assert not task.done()
+    connection.settings_store.write(AISettings("gpt-6-sol", "high"))
+    lock.release()
+    response = await task
+    assert connection.used_settings == [AISettings("gpt-6-luna", "low")]
+    assert response["model"] == "gpt-6-luna"
+    assert response["reasoning_effort"] == "low"
 
 
 def test_chat_persists_retries_and_builds_verified_citations_after_track_replacement(
@@ -207,6 +278,8 @@ def test_chat_persists_retries_and_builds_verified_citations_after_track_replace
         }
         response = client.post(path, json=incoming)
         assert response.status_code == 200, response.text
+        assert response.json()["reasoning_effort"] == "low"
+        assert response.json()["model"]
         quote = response.json()["citations"][0]
         assert quote["text"] == "She gave up smoking."
         assert quote["start_ms"] == 1000

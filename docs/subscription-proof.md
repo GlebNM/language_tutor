@@ -6,7 +6,7 @@ Checked on 19 October 2026. The selected route is **official Sign in with ChatGP
 
 SIWC public dynamic registration uses `client_id=dynamic_agent_client` on first authorization and requires no client secret or partner key. Language Tutor saves a stable host UUID, supplies its actual application name, receives the issued client ID from the callback, and retains that registration for later authorization. Fresh state, nonce and S256 PKCE values belong to each attempt. The callback uses `http://127.0.0.1:<AI_CALLBACK_PORT>/auth/callback`. The application verifies the ID token's JWKS signature, issuer, audience, expiration, nonce and returning subject before saving credentials. It separately checks the granted `chatgpt.tokens.use.direct` permission before inference. Identity without that permission cannot power AI. [Official registration and sign-in](https://developers.openai.com/siwc/token-sharing-open-source/sign-in).
 
-Inference uses only the official `https://api.openai.com/v1/responses` endpoint with `store:false` and `stream:true`. The authenticated account's `/v1/models` catalog supplies eligible slugs; with an empty `AI_MODEL`, the proof selects the first visible model in server order. A configured slug must appear in that catalog. Completion requires the terminal `response.completed` event. An interrupted, incomplete or late-failed stream cannot count as a successful card. [Official models and inference](https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference).
+Inference uses only the official `https://api.openai.com/v1/responses` endpoint with `store:false` and `stream:true`. The authenticated account's `/v1/models` catalog supplies eligible slugs. Following F10, the shared model and reasoning choice comes from AI Settings; `AI_MODEL` seeds the installation's initial model, defaulting to `gpt-6-luna` with `low` reasoning. The chosen slug and effort must be supported by the catalog. Completion requires the terminal `response.completed` event. An interrupted, incomplete or late-failed stream cannot count as a successful card. [Official models and inference](https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference).
 
 SIWC requires function tools in namespaces or `additional_tools` input items. The application uses the latter: a dedicated HTTP transport moves Pydantic's local MCP and structured-output function definitions into a developer `additional_tools` input item. Tool names and returned call IDs stay intact. Unsupported request fields and hosted tools are excluded; server-side continuation settings are rejected before Pydantic could trim history. Pydantic's ordinary Responses adapter still owns message mapping, stream parsing, model/tool turns, MCP dispatch and Pydantic output validation. [Official preview limitations](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations).
 
@@ -33,11 +33,13 @@ The published Pydantic release supports Python 3.11+, OpenAI SDK 3.26.0 or later
 
 ## Runnable boundary
 
-The backend includes `create_ai_router(data_dir=..., mcp_url=..., model_name=..., callback_port=...)`. Keep `AI_MODEL` empty to use the first eligible catalog entry, or set an account-supported slug explicitly.
+The backend includes `create_ai_router(data_dir=..., mcp_url=..., model_name=..., callback_port=...)`. Set `AI_MODEL` to an account-supported initial model or keep the default; subsequent choices are saved in AI Settings and survive container recreation.
 
 | Operation | Route |
 | --- | --- |
 | Inspect connection | `GET /api/ai/connection` |
+| Read account model catalog and compatible reasoning | `GET /api/ai/models` |
+| Read or save the shared model and reasoning choice | `GET /api/ai/settings`, `PUT /api/ai/settings` |
 | Start browser authorization | `POST /api/ai/connection/start` |
 | Cancel pending authorization | `POST /api/ai/connection/cancel` |
 | Disconnect and remove local tokens | `DELETE /api/ai/connection` |

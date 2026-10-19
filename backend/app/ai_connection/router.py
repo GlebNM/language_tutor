@@ -2,12 +2,21 @@ from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, FastAPI, HTTPException
+from openai.types.shared.reasoning_effort import ReasoningEffort
+from pydantic import BaseModel, ConfigDict, Field
 
 from backend.app.agents.subscription_proof import ProofResult
 
-from .service import ConnectionService, ConnectionStatus
+from .service import CatalogModel, ConnectionService, ConnectionStatus
+from .settings import AISettings
 from .siwc import SIWCOAuthFlow
+
+
+class AISettingsInput(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    model: str = Field(min_length=1, max_length=200)
+    reasoning_effort: ReasoningEffort | None = None
 
 
 def create_ai_router(
@@ -17,7 +26,7 @@ def create_ai_router(
     callback_host: str = "0.0.0.0",
     callback_port: int = 1456,
     oauth_timeout: float = 300,
-    model_name: str = "",
+    model_name: str = "gpt-6-luna",
     flow_factory: Callable[..., SIWCOAuthFlow] = SIWCOAuthFlow,
     service: ConnectionService | None = None,
 ) -> APIRouter:
@@ -41,6 +50,29 @@ def create_ai_router(
     @router.get("/connection")
     async def status() -> ConnectionStatus:
         return await service.inspect()
+
+    @router.get("/settings")
+    async def get_settings() -> dict[str, str | None]:
+        current = service.settings_store.read()
+        return {"model": current.model, "reasoning_effort": current.reasoning_effort}
+
+    @router.put("/settings")
+    async def put_settings(settings: AISettingsInput) -> dict[str, str | None]:
+        models = await service.available_models()
+        selected = next((item for item in models if item["id"] == settings.model), None)
+        if selected is None:
+            raise HTTPException(422, "Модель недоступна этой подписке.")
+        efforts = selected["reasoning_efforts"]
+        if settings.reasoning_effort is not None and settings.reasoning_effort not in efforts:
+            raise HTTPException(422, "Этот уровень reasoning недоступен для выбранной модели.")
+        saved = service.settings_store.write(
+            AISettings(model=settings.model, reasoning_effort=settings.reasoning_effort)
+        )
+        return {"model": saved.model, "reasoning_effort": saved.reasoning_effort}
+
+    @router.get("/models")
+    async def models_catalog() -> dict[str, list[CatalogModel]]:
+        return {"models": await service.available_models()}
 
     @router.post("/connection/start")
     async def start() -> dict[str, object]:

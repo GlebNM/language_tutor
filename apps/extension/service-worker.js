@@ -20,6 +20,8 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
     return;
   }
   (async () => {
+    let evidence = null;
+    let stage = "saved-material";
     try {
       if (!message.force_extract) {
         const materials = await api("/materials");
@@ -29,24 +31,29 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
           return;
         }
       }
+      stage = "page-extraction";
       const [execution] = await chrome.scripting.executeScript({
         target:{tabId:sender.tab.id}, world:"MAIN", func:extractOnPage, args:[videoId],
       });
       const result = execution?.result;
       if (!result?.ok) {
-        respond({ok:false,message:result?.message?.replaceAll("в веб-приложении", "в этой панели") ?? "Не удалось извлечь дорожку. Импортируйте SRT/VTT.",evidence:result?.evidence});
+        respond({ok:false,extraction_code:result?.code ?? "extraction-failed",message:result?.message?.replaceAll("в веб-приложении", "в этой панели") ?? "Не удалось извлечь дорожку. Импортируйте SRT/VTT.",evidence:result?.evidence});
         return;
       }
+      evidence = result.evidence ?? null;
+      stage = "transcript-validation";
       const transcript = await makeTranscript(result);
+      stage = "video-validation";
       const currentTab = await chrome.tabs.get(sender.tab.id);
       if (new URL(currentTab.url).searchParams.get("v") !== videoId) {
-        respond({ok:false,message:"Видео изменилось. Дорожка предыдущего видео отброшена."});
+        respond({ok:false,extraction_code:"navigation",message:"Видео изменилось. Дорожка предыдущего видео отброшена.",evidence});
         return;
       }
+      stage = "backend-save";
       const summary = await api("/materials", {method:"POST", body:JSON.stringify(importPayload(transcript, String(message.title ?? "").slice(0,200)))});
       respond({ok:true,material:await api(`/materials/${encodeURIComponent(summary.id)}`), evidence:{...result.evidence,transcript_hash:transcript.transcript_hash},message:"Полная английская дорожка сохранена в общем профиле."});
     } catch (error) {
-      respond({ok:false,message:error.message ?? "Повторите загрузку или импортируйте SRT/VTT."});
+      respond({ok:false,extraction_code:stage,message:error.message ?? "Повторите загрузку или импортируйте SRT/VTT.",evidence});
     }
   })();
   return true;

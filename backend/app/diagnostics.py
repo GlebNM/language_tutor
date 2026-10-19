@@ -138,13 +138,16 @@ class DiagnosticsService:
         answers = json.loads(snapshot["answers_json"])
         if {item["id"] for item in items} != {answer["item_id"] for answer in answers}:
             raise MaterialError("Ответьте на все задания или отметьте их как пропущенные.")
+        settings = connection.settings_store.read()
         result = await connection.execute(
             lambda model: run_diagnosis(
                 model=model,
                 mcp_url=mcp_url,
                 items=items,
                 answers=answers,
-            )
+                reasoning_effort=settings.reasoning_effort,
+            ),
+            settings=settings,
         )
         grades = {grade.item_id: grade.model_dump() for grade in result.grades}
         # Model output is checked again at the application boundary before any writes.
@@ -170,6 +173,8 @@ class DiagnosticsService:
         for group in groups:
             group["inferred"] = group["correct"] >= 3
         summary = {
+            "model": settings.model,
+            "reasoning_effort": settings.reasoning_effort,
             "description": result.description,
             "grades": list(grades.values()),
             "groups": groups,

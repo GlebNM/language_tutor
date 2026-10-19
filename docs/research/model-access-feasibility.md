@@ -10,6 +10,16 @@ This is documentation and source research. No credentials were read, dependencie
 
 The named Pydantic AI Codex classes exist in a current release. Two details still need resolution: its default callback helper binds inside the process's network namespace, and its Codex integration differs from OpenAI's documented Sign in with ChatGPT (SIWC) integration for third-party apps.
 
+## Model and reasoning catalog for F10
+
+Follow-up on 19 October 2026: the current backend reads the SIWC catalog but uses only model slugs and visibility. Its controlled catalog fixtures contain those same fields. The existing model factory and contextual-card Agent both select `low`; user-selectable reasoning must reach all three AI scenarios.
+
+The [official SIWC models guide](https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference) documents `models[]` entries with `slug`, `display_name`, and `visibility`. It directs applications to preserve server order, display the name, and send the slug for inference. It does not establish fields for supported or default reasoning levels.
+
+The separate [Codex app-server model/list RPC](https://learn.chatgpt.com/docs/app-server#list-models-modellist) documents `supportedReasoningEfforts` and `defaultReasoningEffort`. This does not establish that the raw SIWC catalog uses those fields. Implementation of F10 must verify actual capability metadata or use a verified description for the particular model before offering reasoning levels. The pinned SDK's combined reasoning enum is not a compatibility table. This follow-up used source inspection and documentation; no credentials or live provider requests were used.
+
+**Implementation verification, 19 October 2026:** a GET of the connected installation's SIWC catalog returned HTTP 200 and seven visible model entries. The actual response includes `supported_reasoning_levels: [{effort, description}]` and `default_reasoning_level`. All seven offered `low`, `medium`, `high`, `xhigh`, and `max`; the installation's initial `gpt-6-luna` choice supports `low`, while its catalog default was `medium`. Some entries also advertised `ultra` as automatic task delegation; the pinned Responses SDK does not include it as a reasoning effort. F10 therefore intersects each model's returned levels with the SDK-supported efforts, preserving catalog order and names. Tokens and full catalog instructions were not exported; this verification made no inference request.
+
 ## Verified facts
 
 ### Available library version

@@ -3,6 +3,7 @@ import socket
 import subprocess
 import sys
 import time
+from pathlib import Path
 from types import SimpleNamespace
 
 import httpx
@@ -12,6 +13,7 @@ from pydantic_ai import models
 from pydantic_ai.messages import ModelResponse, ToolCallPart, ToolReturnPart
 from pydantic_ai.models.function import FunctionModel
 
+from backend.app.ai_connection.settings import AISettingsStore
 from backend.app.diagnostic_data import pool
 from backend.app.diagnostics import create_diagnostics_router
 from backend.app.knowledge import create_knowledge_router
@@ -83,8 +85,9 @@ def diagnostic_mcp(tmp_path):
         process.wait(timeout=5)
 
 
-def graded_connection(correct_ids, bad_ids=False):
+def graded_connection(correct_ids, bad_ids=False, settings_dir=None):
     def respond(messages, info):
+        assert info.model_settings and info.model_settings["openai_reasoning_effort"] == "low"
         returned = [
             p
             for m in messages
@@ -126,10 +129,13 @@ def graded_connection(correct_ids, bad_ids=False):
             ]
         )
 
-    async def execute(operation):
+    async def execute(operation, *, settings=None):
         return await operation(FunctionModel(respond))
 
-    return SimpleNamespace(execute=execute)
+    return SimpleNamespace(
+        execute=execute,
+        settings_store=AISettingsStore(settings_dir or Path.cwd()),
+    )
 
 
 def answer_all(client, session, overrides=None):
@@ -156,7 +162,9 @@ def test_completed_diagnosis_applies_three_of_four_and_preserves_manual_null(
     app.include_router(create_knowledge_router(app.state.materials))
     app.include_router(
         create_diagnostics_router(
-            app.state.materials, service=graded_connection(correct_ids), mcp_url=diagnostic_mcp
+            app.state.materials,
+            service=graded_connection(correct_ids, settings_dir=tmp_path),
+            mcp_url=diagnostic_mcp,
         )
     )
     app.router.routes.insert(0, app.router.routes.pop())
@@ -176,6 +184,8 @@ def test_completed_diagnosis_applies_three_of_four_and_preserves_manual_null(
         )
         result = client.post(f"/api/diagnostics/{session['id']}/complete", json={})
         assert result.status_code == 200, result.text
+        assert result.json()["summary"]["model"] == "gpt-6-luna"
+        assert result.json()["summary"]["reasoning_effort"] == "low"
         assert [(g["correct"], g["inferred"]) for g in result.json()["summary"]["groups"]] == [
             (3, True),
             (2, False),
@@ -222,12 +232,12 @@ def test_agent_rejects_unexpected_grading_ids_without_changing_profile(
     from pydantic_ai.exceptions import UnexpectedModelBehavior
 
     monkeypatch.setattr(models, "ALLOW_MODEL_REQUESTS", False)
-    provider = graded_connection(set(), bad_ids=True)
+    provider = graded_connection(set(), bad_ids=True, settings_dir=tmp_path)
     original = provider.execute
 
-    async def execute(operation):
+    async def execute(operation, *, settings=None):
         try:
-            return await original(operation)
+            return await original(operation, settings=settings)
         except UnexpectedModelBehavior:
             raise HTTPException(503, "AI вернул недопустимый результат.") from None
 

@@ -53,8 +53,12 @@ export function Diagnostics({onApplied}: {onApplied(): void}) {
 function DiagnosticSummary({summary}: {summary: unknown}) {
   if(typeof summary === "string") return <p>{summary}</p>;
   if(summary && typeof summary === "object" && "description" in summary) {
-    const result = summary as {description: string; groups?: {group: number; correct: number; total: number; inferred: boolean}[]; grades?: {item_id: string; correct: boolean | null; explanation: string}[]};
+    const result = summary as {description: string; model?: string | null; reasoning_effort?: string | null; groups?: {group: number; correct: number; total: number; inferred: boolean}[]; grades?: {item_id: string; correct: boolean | null; explanation: string}[]};
+    const reasoning = Object.prototype.hasOwnProperty.call(result, "reasoning_effort")
+      ? result.reasoning_effort ?? "по умолчанию"
+      : "не записан";
     return <><p>{result.description}</p><h3>Предположения по группам</h3>
+      {result.model && <p className="ai-provenance">Модель: {result.model} · reasoning: {reasoning}</p>}
       {result.groups?.map(group => <p key={group.group}>Группа {group.group}: {group.correct} из {group.total} верно. {group.inferred ? "Для непроверенных слов предполагаем «Узнаю в контексте»." : "Непроверенные слова остаются без оценки."}</p>)}
       <details><summary>Проверенные ответы</summary>{result.grades?.map(grade => <p key={grade.item_id}><strong>{grade.item_id}: {grade.correct === null ? "пропущено" : grade.correct ? "верно" : "пока незнакомо"}</strong><br />{grade.explanation}</p>)}</details>
     </>;

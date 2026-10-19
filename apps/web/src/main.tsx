@@ -12,7 +12,7 @@ import type {
 } from "./api";
 import { Player } from "./Player";
 import type { PlayerHandle } from "./Player";
-import { Dictionary, DifficultyPanel, LearningPanel, knowledgeLabel } from "./Study";
+import { AIModelSettings, Dictionary, DifficultyPanel, LearningPanel, VideoVocabulary, knowledgeLabel } from "./Study";
 import { Diagnostics } from "./Diagnostics";
 import "./style.css";
 
@@ -67,10 +67,23 @@ function App() {
   const [file, setFile] = useState<File | null>(null);
   const [complete, setComplete] = useState(true);
   const [importing, setImporting] = useState(false);
+  const [refreshingMaterial, setRefreshingMaterial] = useState(false);
   const active = useRef(0);
   const selectionRequest = useRef(0);
+  const libraryRefreshRequest = useRef(0);
+  const materialRefreshRequest = useRef(0);
+  const connectionRequest = useRef(0);
+  const aiActionPending = useRef(false);
   const player = useRef<PlayerHandle>(null);
-  const refresh = () => api<MaterialSummary[]>("/materials").then(setLibrary);
+  async function refresh() {
+    const request = ++libraryRefreshRequest.current;
+    try {
+      const result = await api<MaterialSummary[]>("/materials");
+      if (request === libraryRefreshRequest.current) setLibrary(result);
+    } catch (error) {
+      if (request === libraryRefreshRequest.current) throw error;
+    }
+  }
   useEffect(() => {
     refresh()
       .catch((e) => setError(e.message))
@@ -79,16 +92,25 @@ function App() {
   useEffect(() => {
     if (!settings) return;
     const controller = new AbortController();
-    const poll = () =>
-      api<Connection>("/ai/connection", { signal: controller.signal })
-        .then(setConnection)
-        .catch((e) => {
-          if (e.name !== "AbortError") setError(e.message);
-        });
+    let polling = false;
+    const poll = async () => {
+      if (polling || aiActionPending.current) return;
+      polling = true;
+      const request = ++connectionRequest.current;
+      try {
+        const result = await api<Connection>("/ai/connection", { signal: controller.signal });
+        if (request === connectionRequest.current && !aiActionPending.current) setConnection(result);
+      } catch (e) {
+        if ((e as Error).name !== "AbortError" && request === connectionRequest.current) setError((e as Error).message);
+      } finally {
+        polling = false;
+      }
+    };
     void poll();
     const timer = window.setInterval(poll, 3000);
     return () => {
       controller.abort();
+      ++connectionRequest.current;
       window.clearInterval(timer);
     };
   }, [settings]);
@@ -107,6 +129,8 @@ function App() {
   }, []);
   async function open(id: string) {
     const request = ++active.current;
+    ++materialRefreshRequest.current;
+    setRefreshingMaterial(false);
     ++selectionRequest.current;
     player.current?.pause();
     setMaterial(null);
@@ -155,21 +179,30 @@ function App() {
   }
   async function refreshMaterial() {
     if (!material) return;
-    const request = active.current;
-    const result = await api<Material>(`/materials/${material.id}`);
-    if (request !== active.current) return;
-    setMaterial(result);
-    setSelection(previous => {
-      if(!previous) return previous;
-      for(const cue of result.cues) {
-        const token = cue.tokens.find(item => item.id === previous.token.id);
-        if(token) return {material_id:result.id,cue,token,youtube_url:result.youtube_url};
-      }
-      return null;
-    });
+    const activeRequest = active.current;
+    const request = ++materialRefreshRequest.current;
+    setRefreshingMaterial(true);
+    try {
+      const result = await api<Material>(`/materials/${material.id}`);
+      if (activeRequest !== active.current || request !== materialRefreshRequest.current) return;
+      setMaterial(result);
+      setSelection(previous => {
+        if(!previous) return previous;
+        for(const cue of result.cues) {
+          const token = cue.tokens.find(item => item.id === previous.token.id);
+          if(token) return {material_id:result.id,cue,token,youtube_url:result.youtube_url};
+        }
+        return null;
+      });
+    } catch (error) {
+      if (activeRequest === active.current && request === materialRefreshRequest.current) throw error;
+    } finally {
+      if (request === materialRefreshRequest.current) setRefreshingMaterial(false);
+    }
   }
   function navigate(next: string) {
     ++active.current; closeSelection(); setMaterial(null); setLoading(false);
+    ++materialRefreshRequest.current; setRefreshingMaterial(false);
     setSettings(next === "settings"); setSection(next); setError("");
   }
   async function resetData() {
@@ -252,6 +285,8 @@ function App() {
     }
   }
   async function aiAction(action: "start" | "cancel" | "disconnect" | "proof") {
+    aiActionPending.current = true;
+    ++connectionRequest.current;
     setAiBusy(true);
     setError("");
     setProof("");
@@ -259,10 +294,13 @@ function App() {
       if (action === "proof") {
         const result = await api<{
           card: { translation: string; explanation: string; example: string };
+          model?: string;
+          reasoning_effort?: string | null;
         }>("/ai/proof", { method: "POST" });
         setProof(
           [
             "Подписка работает.",
+            ...(result.model ? [`Модель: ${result.model} · reasoning: ${Object.prototype.hasOwnProperty.call(result, "reasoning_effort") ? result.reasoning_effort ?? "по умолчанию" : "не записан"}`] : []),
             result.card.translation,
             result.card.explanation,
             result.card.example,
@@ -276,12 +314,14 @@ function App() {
         const result = await api<Connection>(path, {
           method: action === "disconnect" ? "DELETE" : "POST",
         });
+        ++connectionRequest.current;
         setConnection(result);
         setAuthorizationUrl(result.authorization_url ?? "");
       }
     } catch (e) {
       setError((e as Error).message);
     } finally {
+      aiActionPending.current = false;
       setAiBusy(false);
     }
   }
@@ -383,10 +423,11 @@ function App() {
               className="quiet"
               onClick={() => {
                 setError("");
-                void refresh().catch((e) => setError(e.message));
+                const retry = material ? refreshMaterial() : refresh();
+                void retry.catch((e) => setError((e as Error).message));
               }}
             >
-              Повторить
+              Обновить данные
             </button>
           </div>
         )}
@@ -410,6 +451,7 @@ function App() {
               Подключите ChatGPT для учебных объяснений. Материалы
               доступны сразу.
             </p>
+            <AIModelSettings />
             <div className="settings-card">
               <h2>Подписка ChatGPT</h2>
               <p role="status">{status}</p>
@@ -485,7 +527,7 @@ function App() {
               {resetConfirm ? <><p>Подтвердите полное удаление учебных данных этой локальной установки.</p><div className="actions"><button className="danger" disabled={aiBusy} onClick={() => void resetData()}>Удалить все данные</button><button className="secondary" disabled={aiBusy} onClick={() => setResetConfirm(false)}>Сохранить данные</button></div></> : <button className="danger" onClick={() => setResetConfirm(true)}>Удалить мои данные…</button>}
             </div>
           </section>
-        ) : section === "dictionary" ? <Dictionary /> : section === "diagnostics" ? <Diagnostics onApplied={() => void refresh()} /> : loading ? (
+        ) : section === "dictionary" ? <Dictionary /> : section === "diagnostics" ? <Diagnostics onApplied={() => void refresh().catch(e => setError((e as Error).message))} /> : loading ? (
           <div className="empty" role="status">
             Загружаем материалы…
           </div>
@@ -501,7 +543,7 @@ function App() {
                     " · Неполная дорожка — сложность всего видео недоступна"}
                 </p>
               </div>
-              <div className="actions"><button className="secondary" onClick={() => void refreshMaterial().catch(e => setError(e.message))}>Обновить данные</button><button className="secondary" onClick={() => beginImport(true)}>Заменить дорожку</button></div>
+              <div className="actions"><button className="secondary" disabled={refreshingMaterial} onClick={() => void refreshMaterial().catch(e => setError((e as Error).message))}>{refreshingMaterial ? "Обновляем данные…" : "Обновить данные"}</button><button className="secondary" onClick={() => beginImport(true)}>Заменить дорожку</button></div>
             </div>
             <div className="watch-grid">
               <section className="watch">
@@ -556,6 +598,11 @@ function App() {
                     , CC BY-SA 4.0; исправлен разделитель реплики 28.
                   </p>
                 )}
+                <VideoVocabulary key={material.id} cues={material.cues} onSaved={() => void refreshMaterial().catch(e => setError(e.message))} onOccurrence={(cue, token) => {
+                  player.current?.pause();
+                  player.current?.seek(cue.start_ms);
+                  void select(cue, token);
+                }} />
                 <div className="transcript-heading">
                   <h2>Текст материала</h2>
                   <span>{material.cues.length} реплик</span>
@@ -616,7 +663,7 @@ function App() {
                     >
                       ↗ {time(selection.cue.start_ms)}
                     </button>
-                    <LearningPanel key={selection.token.id} selection={selection} onSaved={() => void refreshMaterial().catch(e => setError(e.message))} onSeek={milliseconds => player.current?.seek(milliseconds)} />
+                    <LearningPanel key={`${selection.material_id}:${selection.cue.id}:${selection.token.id}`} selection={selection} onSaved={() => void refreshMaterial().catch(e => setError((e as Error).message))} onSeek={milliseconds => player.current?.seek(milliseconds)} />
                     <div className="selection-note">
                       <strong>Контекст закреплён</strong>
                       <p>

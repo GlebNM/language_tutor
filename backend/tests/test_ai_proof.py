@@ -313,7 +313,20 @@ async def test_provider_errors_preserve_connection_unless_authorization_expired(
     async def remote(request: httpx2.Request) -> httpx2.Response:
         if request.url.path == "/v1/models":
             return httpx2.Response(
-                200, json={"models": [{"slug": "test-siwc", "visibility": "list"}]}
+                200,
+                json={
+                    "models": [
+                        {
+                            "slug": "test-siwc",
+                            "display_name": "Controlled SIWC model",
+                            "visibility": "list",
+                            "default_reasoning_level": "low",
+                            "supported_reasoning_levels": [
+                                {"effort": "low", "description": "controlled fixture"}
+                            ],
+                        }
+                    ]
+                },
             )
         assert request.url.path == "/v1/responses"
         return httpx2.Response(status, json={"error": {"message": "Controlled failure"}})
@@ -329,7 +342,9 @@ async def test_provider_errors_preserve_connection_unless_authorization_expired(
         monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: oauth_client)
 
     app = FastAPI()
-    app.include_router(create_ai_router(data_dir=tmp_path, mcp_url=mcp_url))
+    app.include_router(
+        create_ai_router(data_dir=tmp_path, mcp_url=mcp_url, model_name="test-siwc")
+    )
     with TestClient(app) as client, models.override_allow_model_requests(True):
         response = client.post("/api/ai/proof")
         assert response.status_code == response_status, response.text

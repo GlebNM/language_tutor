@@ -7,7 +7,7 @@ services:
     environment:
       DATA_DIR: /data
       MCP_URL: http://mcp:8001/mcp
-      AI_MODEL: "${AI_MODEL:-}"
+      AI_MODEL: "${AI_MODEL:-gpt-6-luna}"
       AI_CALLBACK_PORT: ${AI_CALLBACK_PORT:-1456}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:8765,http://127.0.0.1:8765}
     volumes:

@@ -89,14 +89,14 @@ def create_app(
             oauth_timeout=300,
             flow_factory=SIWCOAuthFlow,
             mcp_url=mcp_url,
-            model_name=os.getenv("AI_MODEL", ""),
+            model_name=os.getenv("AI_MODEL", "gpt-6-luna"),
         )
         app.state.connection = connection
         app.include_router(
             create_ai_router(
                 data_dir=data_dir,
                 mcp_url=mcp_url,
-                model_name=os.getenv("AI_MODEL", ""),
+                model_name=os.getenv("AI_MODEL", "gpt-6-luna"),
                 callback_port=int(os.getenv("AI_CALLBACK_PORT", "1456")),
                 service=connection,
             )
@@ -146,6 +146,7 @@ def create_app(
         if connection is not None:
             await connection.disconnect()
             connection.store.forget_registration()
+            connection.settings_store.reset()
         library.reset_learning_data()
         return {"status": "reset"}
 

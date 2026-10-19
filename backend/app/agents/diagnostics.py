@@ -8,12 +8,14 @@ import time
 import uuid
 from typing import Any
 
+from openai.types.shared.reasoning_effort import ReasoningEffort
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent, ModelRetry, RunContext
 from pydantic_ai.capabilities import Caching
 from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai.mcp import CallToolFunc, MCPToolset, ToolResult
 from pydantic_ai.models import Model
+from pydantic_ai.models.openai import OpenAIResponsesModelSettings
 from pydantic_ai.usage import UsageLimits
 
 logger = logging.getLogger(__name__)
@@ -36,6 +38,7 @@ async def run_diagnosis(
     mcp_url: str,
     items: list[dict[str, Any]],
     answers: list[dict[str, Any]],
+    reasoning_effort: ReasoningEffort | None = "low",
 ) -> DiagnosticResult:
     request_id = str(uuid.uuid4())
     expected = {item["id"] for item in items}
@@ -90,6 +93,7 @@ async def run_diagnosis(
         output_type=DiagnosticResult,
         toolsets=[tools],
         capabilities=[Caching()],
+        model_settings=OpenAIResponsesModelSettings(openai_reasoning_effort=reasoning_effort),
         instructions=(
             "Проверь ответы русскоязычного учащегося по проверенной подборке. "
             "Сначала получи все реальные задания через MCP get_diagnostic_items: "

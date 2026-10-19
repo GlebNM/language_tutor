@@ -5,8 +5,9 @@ from collections.abc import AsyncIterator
 from urllib.request import getproxies_environment, proxy_bypass
 
 import httpx2
+from openai.types.shared.reasoning_effort import ReasoningEffort
 from pydantic_ai.exceptions import UnexpectedModelBehavior
-from pydantic_ai.models.openai import OpenAIResponsesModel
+from pydantic_ai.models.openai import OpenAIResponsesModel, OpenAIResponsesModelSettings
 from pydantic_ai.profiles.openai import OpenAIModelProfile
 from pydantic_ai.providers.openai import OpenAIProvider
 
@@ -141,10 +142,15 @@ class SIWCTransport(httpx2.AsyncBaseTransport):
         await self.transport.aclose()
 
 
-def siwc_model(model_name: str, provider: OpenAIProvider) -> OpenAIResponsesModel:
+def siwc_model(
+    model_name: str,
+    provider: OpenAIProvider,
+    reasoning_effort: ReasoningEffort | None = "low",
+) -> OpenAIResponsesModel:
     return OpenAIResponsesModel(
         model_name,
         provider=provider,
+        settings=OpenAIResponsesModelSettings(openai_reasoning_effort=reasoning_effort),
         profile=OpenAIModelProfile(
             openai_responses_requires_streaming=True,
             openai_responses_requires_store_false=True,

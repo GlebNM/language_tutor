@@ -33,6 +33,7 @@
       const result = await chrome.runtime.sendMessage({type:"lt:load",video_id:currentId,title:title(),force_extract:forceExtract});
       if (request !== generation || videoId() !== currentId) return;
       state = {...state,status:result?.ok ? "ready" : "error",material:result?.material,evidence:result?.evidence,
+        extraction_code:result?.extraction_code,
         message:result?.message ?? "Расширение не ответило. Обновите страницу YouTube."};
     } catch {
       if (request !== generation) return;
@@ -52,10 +53,19 @@
       const cue = message.material.cues.find(item => item.id === selected?.cue.id);
       const token = cue?.tokens.find(item => item.id === selected?.token.id);
       state = {...state,status:"ready",enabled:true,video_id:videoId(),title:title(),material:message.material,
-        selection:cue && token ? {...selected,cue,token} : null,message:"Материал общего профиля обновлён."};
+        selection:cue && token ? {...selected,cue,token} : null,evidence:null,extraction_code:null,message:"Материал общего профиля обновлён."};
       publish();respond({ok:true});return;
     }
     if (message.type === "lt:close") {state={...state,selection:null};publish();respond({ok:true});return;}
+    if (message.type === "lt:select-occurrence") {
+      if (message.video_id !== videoId() || message.material_id !== state.material?.id) {respond({ok:false});return;}
+      const cue=state.material.cues.find(item=>item.id===message.cue_id);
+      const token=cue?.tokens.find(item=>item.id===message.token_id);
+      const video=document.querySelector("#movie_player video");
+      if (!cue || !token || !video) {respond({ok:false});return;}
+      video.currentTime=cue.start_ms/1000;video.pause();
+      state={...state,selection:{material_id:state.material.id,cue,token,clicked_at_ms:cue.start_ms}};publish("lt:selection");respond({ok:true});return;
+    }
     if (["lt:seek","lt:resume"].includes(message.type)) {
       if (message.video_id !== videoId()) {respond({ok:false});return;}
       const video = document.querySelector("#movie_player video");

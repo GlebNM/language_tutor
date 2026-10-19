@@ -6,13 +6,12 @@ No browser profile, cookies, credentials, package installs, or third-party proxy
 """
 
 import argparse
-from datetime import datetime, timezone
 import json
 import re
+from datetime import UTC, datetime
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 from urllib.request import Request, urlopen
-
 
 MAX_BYTES = 2_000_000
 
@@ -26,7 +25,7 @@ def get(url):
 def inspect(video_id):
     result = {
         "video_id": video_id,
-        "checked_at": datetime.now(timezone.utc).isoformat(),
+        "checked_at": datetime.now(UTC).isoformat(),
         "environment": "python-public-http-without-browser-cookies",
         "chrome_trial": "blocked-no-chrome-surface",
     }
@@ -39,26 +38,43 @@ def inspect(video_id):
     start = text.find(marker)
     if start < 0:
         return {**result, "outcome": "player-response-unavailable"}
-    player, _ = json.JSONDecoder().raw_decode(text[start + len(marker):])
+    player, _ = json.JSONDecoder().raw_decode(text[start + len(marker) :])
     details = player.get("videoDetails", {})
-    result.update({"title": details.get("title"), "duration_seconds": details.get("lengthSeconds"),
-                   "playability": player.get("playabilityStatus", {}).get("status")})
+    result.update(
+        {
+            "title": details.get("title"),
+            "duration_seconds": details.get("lengthSeconds"),
+            "playability": player.get("playabilityStatus", {}).get("status"),
+        }
+    )
     if details.get("videoId") != video_id:
         return {**result, "outcome": "video-identity-mismatch"}
-    tracks = player.get("captions", {}).get("playerCaptionsTracklistRenderer", {}).get("captionTracks", [])
+    tracks = (
+        player.get("captions", {})
+        .get("playerCaptionsTracklistRenderer", {})
+        .get("captionTracks", [])
+    )
     english = []
     for track in tracks:
         url = urlparse(track.get("baseUrl", ""))
         query = parse_qs(url.query)
-        if (re.fullmatch(r"en(?:-[A-Za-z0-9]+)*", track.get("languageCode", ""))
-                and url.hostname == "www.youtube.com" and url.path == "/api/timedtext"
-                and re.fullmatch(r"en(?:-[A-Za-z0-9]+)*", query.get("lang", [""])[0])
-                and "tlang" not in query and query.get("v") == [video_id]):
+        if (
+            re.fullmatch(r"en(?:-[A-Za-z0-9]+)*", track.get("languageCode", ""))
+            and url.hostname == "www.youtube.com"
+            and url.path == "/api/timedtext"
+            and re.fullmatch(r"en(?:-[A-Za-z0-9]+)*", query.get("lang", [""])[0])
+            and "tlang" not in query
+            and query.get("v") == [video_id]
+        ):
             english.append(track)
     english.sort(key=lambda track: track.get("kind") == "asr")
-    result["english_tracks"] = [{"language": track["languageCode"],
-                                  "source": "youtube-automatic" if track.get("kind") == "asr" else "youtube-authored"}
-                                 for track in english]
+    result["english_tracks"] = [
+        {
+            "language": track["languageCode"],
+            "source": "youtube-automatic" if track.get("kind") == "asr" else "youtube-authored",
+        }
+        for track in english
+    ]
     if not english:
         return {**result, "outcome": "no-english-track"}
     selected = english[0]
@@ -78,9 +94,20 @@ def inspect(video_id):
         return {**result, "outcome": "not-json3", "is_complete": False}
     if not isinstance(events, list):
         return {**result, "outcome": "no-events", "is_complete": False}
-    spoken = [event for event in events if any(segment.get("utf8", "").strip() for segment in event.get("segs", []))]
-    return {**result, "outcome": "json3-response-received-unverified-in-chrome", "event_count": len(spoken),
-            "is_complete": False, "note": "HTTP response availability alone does not verify normalization or Chrome playback."}
+    spoken = [
+        event
+        for event in events
+        if any(segment.get("utf8", "").strip() for segment in event.get("segs", []))
+    ]
+    return {
+        **result,
+        "outcome": "json3-response-received-unverified-in-chrome",
+        "event_count": len(spoken),
+        "is_complete": False,
+        "note": (
+            "HTTP response availability alone does not verify normalization or Chrome playback."
+        ),
+    }
 
 
 def main():

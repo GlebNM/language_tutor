@@ -6,7 +6,7 @@ import socket
 from collections.abc import Awaitable, Callable
 from contextlib import suppress
 from pathlib import Path
-from typing import Any, Literal, TypeVar
+from typing import Any, Literal, TypedDict, TypeVar, get_args, get_origin
 
 import httpx
 import httpx2
@@ -15,6 +15,7 @@ import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from openai import AsyncOpenAI
+from openai.types.shared.reasoning_effort import ReasoningEffort
 from pydantic import BaseModel
 from pydantic_ai.exceptions import ModelHTTPError, UsageLimitExceeded
 from pydantic_ai.models import Model
@@ -22,11 +23,60 @@ from pydantic_ai.providers.openai import OpenAIProvider
 
 from backend.app.agents.subscription_proof import ProofResult, run_proof
 
+from .settings import AISettings, AISettingsStore
 from .siwc import DIRECT_SCOPE, SIWCOAuthFlow, SubscriptionError, TokenManager
 from .siwc_model import SIWCTransport, siwc_model
 from .storage import CredentialStore
 
 RunOutput = TypeVar("RunOutput")
+_SDK_REASONING_LITERAL = next(
+    value for value in get_args(ReasoningEffort) if get_origin(value) is Literal
+)
+SUPPORTED_REASONING_EFFORTS = frozenset(get_args(_SDK_REASONING_LITERAL))
+
+
+class CatalogModel(TypedDict):
+    id: str
+    name: str
+    reasoning_efforts: list[str]
+    default_reasoning_effort: str | None
+
+
+def normalize_model_catalog(raw_models: object) -> list[CatalogModel]:
+    """Expose only SIWC-visible models and reasoning levels accepted by this transport."""
+    if not isinstance(raw_models, list):
+        return []
+    result: list[CatalogModel] = []
+    for item in raw_models:
+        if not isinstance(item, dict) or item.get("visibility") != "list":
+            continue
+        slug = item.get("slug")
+        if not isinstance(slug, str) or not slug:
+            continue
+        raw_efforts = item.get("supported_reasoning_levels")
+        efforts = (
+            [
+                entry["effort"]
+                for entry in raw_efforts
+                if isinstance(entry, dict)
+                and isinstance(entry.get("effort"), str)
+                and entry["effort"] in SUPPORTED_REASONING_EFFORTS
+            ]
+            if isinstance(raw_efforts, list)
+            else []
+        )
+        default = item.get("default_reasoning_level")
+        if not isinstance(default, str) or default not in efforts:
+            default = None
+        result.append(
+            {
+                "id": slug,
+                "name": item.get("display_name") or slug,
+                "reasoning_efforts": efforts,
+                "default_reasoning_effort": default,
+            }
+        )
+    return result
 
 OAuthFailureCategory = Literal[
     "provider",
@@ -89,9 +139,11 @@ class ConnectionService:
         flow_factory: Callable[..., SIWCOAuthFlow],
         mcp_url: str,
         model_name: str,
+        settings_store: AISettingsStore | None = None,
     ) -> None:
         self.mcp_url = mcp_url
         self.model_name = model_name
+        self.settings_store = settings_store or AISettingsStore(data_dir, default_model=model_name)
         self.provider: OpenAIProvider | None = None
         self.http_client: httpx2.AsyncClient | None = None
         self.runs: set[asyncio.Task[Any]] = set()
@@ -254,8 +306,10 @@ class ConnectionService:
         await self.cancel()
         await self.close_provider()
 
-    async def connected_model(self) -> Model:
+    async def _catalog_client(self) -> httpx2.AsyncClient:
         async with asyncio.timeout(30):
+            if self.state.status not in ("connected", "limit_reached"):
+                raise HTTPException(409, "Сначала подключите подписку.")
             async with self.lock:
                 if self.provider is None:
                     await self.store.load()
@@ -272,29 +326,71 @@ class ConnectionService:
                         )
                     )
                 client = self.http_client
-                provider = self.provider
             if client is None:
                 raise HTTPException(503, "Подключение AI недоступно.")
-            catalog_response = await client.get("https://api.openai.com/v1/models")
-            if catalog_response.is_error:
-                if catalog_response.status_code in (401, 403):
-                    raise SubscriptionError(
-                        "model_catalog_unauthorized", catalog_response.status_code
-                    )
-                raise HTTPException(503, "Не удалось получить модели подписки. Повторите запрос.")
-            catalog = catalog_response.json().get("models", [])
-            available = [item["slug"] for item in catalog if item.get("visibility") == "list"]
-            selected = self.model_name or (available[0] if available else "")
-            if not selected or selected not in available:
-                raise HTTPException(409, "Модель недоступна подписке. Проверьте AI_MODEL.")
-            return siwc_model(selected, provider)
+            return client
 
-    async def execute(self, operation: Callable[[Model], Awaitable[RunOutput]]) -> RunOutput:
+    async def available_models(self) -> list[CatalogModel]:
+        try:
+            client = await self._catalog_client()
+            response = await client.get("https://api.openai.com/v1/models")
+            if response.is_error:
+                if response.status_code in (401, 403):
+                    raise SubscriptionError("model_catalog_unauthorized", response.status_code)
+                raise HTTPException(503, "Не удалось получить модели подписки. Повторите запрос.")
+            return normalize_model_catalog(response.json().get("models", []))
+        except SubscriptionError as error:
+            raise self.provider_failure(error) from None
+        except (httpx2.TransportError, httpx2.TimeoutException, TimeoutError):
+            raise HTTPException(
+                503, "Не удалось получить каталог моделей. Повторите запрос."
+            ) from None
+        except ValueError:
+            raise HTTPException(
+                409, "Подключение подписки недоступно. Подключите её заново."
+            ) from None
+
+    async def connected_model(self, settings: AISettings) -> Model:
+        client = await self._catalog_client()
+        catalog_response = await client.get("https://api.openai.com/v1/models")
+        if catalog_response.is_error:
+            if catalog_response.status_code in (401, 403):
+                raise SubscriptionError(
+                    "model_catalog_unauthorized", catalog_response.status_code
+                )
+            raise HTTPException(503, "Не удалось получить модели подписки. Повторите запрос.")
+        available = normalize_model_catalog(catalog_response.json().get("models", []))
+        selected = next((item for item in available if item["id"] == settings.model), None)
+        if selected is None:
+            raise HTTPException(409, "Выбранная модель недоступна подписке. Обновите настройки AI.")
+        if (
+            settings.reasoning_effort is not None
+            and settings.reasoning_effort not in selected["reasoning_efforts"]
+        ):
+            raise HTTPException(
+                409,
+                "Выбранный уровень reasoning недоступен для этой модели. Обновите настройки AI.",
+            )
+        provider = self.provider
+        if provider is None:
+            raise HTTPException(503, "Подключение AI недоступно.")
+        return siwc_model(settings.model, provider, settings.reasoning_effort)
+
+    async def execute(
+        self,
+        operation: Callable[[Model], Awaitable[RunOutput]],
+        *,
+        settings: AISettings | None = None,
+    ) -> RunOutput:
         """Run one subscription operation; timeout and disconnect cover its whole lifetime."""
+
+        # Capture before awaiting credential setup or the model catalogue. A settings
+        # change made while this run waits applies to the next run only.
+        snapshot = settings or self.settings_store.read()
 
         async def connected() -> RunOutput:
             async with asyncio.timeout(30):
-                model = await self.connected_model()
+                model = await self.connected_model(snapshot)
                 return await operation(model)
 
         async with self.lock:

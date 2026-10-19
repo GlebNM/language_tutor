@@ -8,6 +8,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from openai.types.shared.reasoning_effort import ReasoningEffort
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent, ModelRetry, RunContext
 from pydantic_ai.capabilities import Caching
@@ -132,7 +133,11 @@ INSTRUCTIONS = (
 
 
 async def run_card(
-    *, model: Model, mcp_url: str, deps: LearningRun
+    *,
+    model: Model,
+    mcp_url: str,
+    deps: LearningRun,
+    reasoning_effort: ReasoningEffort | None = "low",
 ) -> tuple[ContextualCard, int, str]:
     tools = MCPToolset(
         mcp_url,
@@ -157,7 +162,7 @@ async def run_card(
             )
         ],
         capabilities=[Caching()],
-        model_settings=OpenAIResponsesModelSettings(openai_reasoning_effort="low"),
+        model_settings=OpenAIResponsesModelSettings(openai_reasoning_effort=reasoning_effort),
         instructions=INSTRUCTIONS
         + (
             "Обязательный контекст уже прочитан через MCP и приложен в subtitle_context. "
@@ -229,6 +234,7 @@ async def run_chat(
     deps: LearningRun,
     message: str,
     history: list[ModelMessage],
+    reasoning_effort: ReasoningEffort | None = "low",
 ) -> tuple[ChatAnswer, int, str]:
     agent = Agent(
         model,
@@ -237,6 +243,7 @@ async def run_chat(
         deps_type=LearningRun,
         toolsets=[toolset(mcp_url, deps)],
         capabilities=[Caching()],
+        model_settings=OpenAIResponsesModelSettings(openai_reasoning_effort=reasoning_effort),
         instructions=INSTRUCTIONS
         + (
             "Выбирай нужные MCP-инструменты сам. Для вопроса о предыдущих материалах вызови "

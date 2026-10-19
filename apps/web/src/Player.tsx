@@ -79,7 +79,10 @@ export const Player = forwardRef<
 >(function Player({ videoId, onTime }, ref) {
   const container = useRef<HTMLDivElement>(null);
   const player = useRef<YouTubePlayer | null>(null);
+  const initialized = useRef(false);
   const pauseRequested = useRef(false);
+  const playRequested = useRef(false);
+  const pendingSeek = useRef<number | null>(null);
   const cuedPosition = useRef<number | null>(null);
   const onTimeRef = useRef(onTime);
   onTimeRef.current = onTime;
@@ -91,15 +94,22 @@ export const Player = forwardRef<
     () => ({
       pause: () => {
         pauseRequested.current = true;
-        player.current?.pauseVideo();
+        playRequested.current = false;
+        if (initialized.current) player.current?.pauseVideo();
       },
       play: () => {
         pauseRequested.current = false;
-        player.current?.playVideo();
+        const instance = player.current;
+        if (instance && initialized.current) instance.playVideo();
+        else playRequested.current = true;
       },
       seek: (ms) => {
         const instance = player.current;
-        if (!instance) return;
+        if (!instance || !initialized.current) {
+          pendingSeek.current = ms;
+          onTimeRef.current(ms);
+          return;
+        }
         const state = instance.getPlayerState();
         const keepPaused = pauseRequested.current || ![1, 3].includes(state);
         if (keepPaused && state !== 2) {
@@ -120,6 +130,9 @@ export const Player = forwardRef<
     let interval: number | undefined;
     let readyTimeout: number | undefined;
     pauseRequested.current = false;
+    initialized.current = false;
+    playRequested.current = false;
+    pendingSeek.current = null;
     cuedPosition.current = null;
     setReady(false);
     setError("");
@@ -147,9 +160,22 @@ export const Player = forwardRef<
           events: {
             onReady() {
               if (!active) return;
+              initialized.current = true;
               window.clearTimeout(readyTimeout);
               setReady(true);
               setError("");
+              const queuedSeek = pendingSeek.current;
+              pendingSeek.current = null;
+              if (queuedSeek !== null) {
+                cuedPosition.current = queuedSeek;
+                instance.cueVideoById({ videoId, startSeconds: queuedSeek / 1000 });
+              }
+              if (playRequested.current) {
+                playRequested.current = false;
+                instance.playVideo();
+              } else if (pauseRequested.current) {
+                instance.pauseVideo();
+              }
               interval = window.setInterval(() => {
                 if (active)
                   onTimeRef.current(
@@ -162,6 +188,7 @@ export const Player = forwardRef<
               if (event.data === 1) {
                 // Native player controls count as the learner explicitly resuming.
                 pauseRequested.current = false;
+                playRequested.current = false;
                 cuedPosition.current = null;
               }
               onTimeRef.current(
@@ -170,6 +197,7 @@ export const Player = forwardRef<
             },
             onError(event) {
               if (!active) return;
+              initialized.current = false;
               window.clearTimeout(readyTimeout);
               setReady(false);
               setError(
@@ -192,8 +220,11 @@ export const Player = forwardRef<
       });
     return () => {
       active = false;
+      initialized.current = false;
       window.clearInterval(interval);
       window.clearTimeout(readyTimeout);
+      pendingSeek.current = null;
+      playRequested.current = false;
       player.current?.destroy();
       player.current = null;
     };

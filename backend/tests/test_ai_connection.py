@@ -1,3 +1,4 @@
+import asyncio
 from pathlib import Path
 
 import httpx
@@ -19,6 +20,131 @@ def test_local_learner_can_inspect_connection_without_credentials(tmp_path: Path
         assert response.status_code == 200
         assert response.json()["status"] == "disconnected"
         assert client.post("/api/ai/proof").status_code == 409
+
+
+def test_ai_settings_persist_and_reject_unsupported_reasoning(tmp_path: Path) -> None:
+    from backend.app.ai_connection.settings import AISettingsStore
+
+    class CatalogService:
+        def __init__(self) -> None:
+            self.settings_store = AISettingsStore(tmp_path)
+
+        async def available_models(self) -> list[dict[str, object]]:
+            return [
+                {
+                    "id": "gpt-6-luna",
+                    "name": "GPT-6 Luna",
+                    "reasoning_efforts": ["low", "medium", "high", "xhigh", "max"],
+                    "default_reasoning_effort": "medium",
+                }
+            ]
+
+        async def close(self) -> None:
+            return None
+
+    app = FastAPI()
+    app.include_router(
+        create_ai_router(
+            data_dir=tmp_path,
+            mcp_url="http://mcp:8001/mcp",
+            service=CatalogService(),
+        )
+    )
+    with TestClient(app) as client:
+        assert client.get("/api/ai/settings").json() == {
+            "model": "gpt-6-luna",
+            "reasoning_effort": "low",
+        }
+        assert client.get("/api/ai/models").json()["models"][0]["reasoning_efforts"] == [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max",
+        ]
+        response = client.put(
+            "/api/ai/settings",
+            json={"model": "gpt-6-luna", "reasoning_effort": "ultra"},
+        )
+        assert response.status_code == 422
+        saved = client.put(
+            "/api/ai/settings",
+            json={"model": "gpt-6-luna", "reasoning_effort": "medium"},
+        )
+        assert saved.status_code == 200
+        assert saved.json() == {"model": "gpt-6-luna", "reasoning_effort": "medium"}
+    assert AISettingsStore(tmp_path).read().reasoning_effort == "medium"
+
+
+def test_model_catalog_uses_verified_metadata_and_filters_transport_unsupported_levels() -> None:
+    from backend.app.ai_connection.service import normalize_model_catalog
+
+    models = normalize_model_catalog(
+        [
+            {
+                "slug": "model-a",
+                "display_name": "Model A",
+                "visibility": "list",
+                "default_reasoning_level": "low",
+                "supported_reasoning_levels": [
+                    {"effort": value, "description": "catalog metadata"}
+                    for value in ("low", "medium", "high", "xhigh", "max", "ultra")
+                ],
+            },
+            {"slug": "model-b", "visibility": "list"},
+            {"slug": "hidden", "visibility": "hide"},
+        ]
+    )
+    assert models == [
+        {
+            "id": "model-a",
+            "name": "Model A",
+            "reasoning_efforts": ["low", "medium", "high", "xhigh", "max"],
+            "default_reasoning_effort": "low",
+        },
+        {
+            "id": "model-b",
+            "name": "model-b",
+            "reasoning_efforts": [],
+            "default_reasoning_effort": None,
+        },
+    ]
+
+
+@pytest.mark.asyncio
+async def test_execution_keeps_settings_snapshot_while_waiting_for_catalog(tmp_path: Path) -> None:
+    from backend.app.ai_connection.service import ConnectionService, ConnectionStatus
+    from backend.app.ai_connection.settings import AISettings
+
+    service = ConnectionService(
+        data_dir=tmp_path,
+        callback_host="127.0.0.1",
+        callback_port=0,
+        oauth_timeout=5,
+        flow_factory=SIWCOAuthFlow,
+        mcp_url="http://mcp:8001/mcp",
+        model_name="gpt-6-luna",
+    )
+    service.state = ConnectionStatus(status="connected")
+    waiting = asyncio.Event()
+    resume = asyncio.Event()
+
+    async def delayed_model(settings: AISettings) -> str:
+        waiting.set()
+        await resume.wait()
+        return settings.model
+
+    service.connected_model = delayed_model
+    run = asyncio.create_task(service.execute(lambda model: _return(model)))
+    await waiting.wait()
+    service.settings_store.write(AISettings("gpt-6.1-sol", "high"))
+    resume.set()
+    assert await run == "gpt-6-luna"
+    await service.close()
+
+
+async def _return(value):
+    return value
 
 
 def test_oauth_listener_is_ready_and_rejects_wrong_state_before_denial(tmp_path: Path) -> None:

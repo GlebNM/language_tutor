@@ -1,11 +1,14 @@
 from fastapi.testclient import TestClient
 
+from backend.app.ai_connection.settings import AISettings
 from backend.app.main import create_app
 
 
 def test_reset_requires_confirmation_clears_words_and_survives_restart(tmp_path):
     path = tmp_path / "learning.sqlite3"
-    with TestClient(create_app(path, include_ai=False), base_url="http://localhost:8765") as client:
+    with TestClient(create_app(path), base_url="http://localhost:8765") as client:
+        settings_store = client.app.state.connection.settings_store
+        settings_store.write(AISettings("gpt-6-sol", "high"))
         material = client.get("/api/materials").json()[0]
         loaded = client.get(f"/api/materials/{material['id']}").json()
         cue = next(cue for cue in loaded["cues"] if cue["tokens"])
@@ -23,6 +26,7 @@ def test_reset_requires_confirmation_clears_words_and_survives_restart(tmp_path)
             client.post("/api/data/reset", json={"confirmation": "Удалить мои данные"}).status_code
             == 200
         )
+        assert settings_store.read() == AISettings("gpt-6-luna", "low")
         assert client.get("/api/materials").json() == []
         assert client.get("/api/dictionary").json() == []
         assert client.get(f"/api/materials/{material['id']}").status_code == 404
@@ -34,7 +38,8 @@ def test_reset_requires_confirmation_clears_words_and_survives_restart(tmp_path)
             == 404
         )
         assert client.get("/api/profile").json()["storage_generation"] != generation
-    with TestClient(create_app(path, include_ai=False), base_url="http://localhost:8765") as client:
+    with TestClient(create_app(path), base_url="http://localhost:8765") as client:
+        assert client.app.state.connection.settings_store.read() == AISettings("gpt-6-luna", "low")
         assert client.get("/api/materials").json() == []
         assert client.get("/api/dictionary").json() == []
         example = client.post("/api/materials/demo", json={})
@@ -46,6 +51,8 @@ def test_reset_requires_confirmation_clears_words_and_survives_restart(tmp_path)
 def test_disconnect_preserves_materials_and_manual_assessments(tmp_path):
     path = tmp_path / "learning.sqlite3"
     with TestClient(create_app(path), base_url="http://localhost:8765") as client:
+        settings_store = client.app.state.connection.settings_store
+        settings_store.write(AISettings("gpt-6-sol", "high"))
         material = client.get("/api/materials").json()[0]
         loaded = client.get(f"/api/materials/{material['id']}").json()
         token = next(c["tokens"][0] for c in loaded["cues"] if c["tokens"])
@@ -53,6 +60,7 @@ def test_disconnect_preserves_materials_and_manual_assessments(tmp_path):
         profile = client.get("/api/profile").json()
         dictionary = client.get("/api/dictionary").json()
         assert client.delete("/api/ai/connection").status_code == 200
+        assert settings_store.read() == AISettings("gpt-6-sol", "high")
         assert client.get("/api/profile").json() == profile
         assert client.get("/api/dictionary").json() == dictionary
         assert client.get(f"/api/materials/{material['id']}").status_code == 200

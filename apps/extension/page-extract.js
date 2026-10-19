@@ -2,7 +2,8 @@
 export async function extractOnPage(expectedVideoId) {
   const evidence = {
     checked_at: new Date().toISOString(), video_id: expectedVideoId,
-    source: null, track_language: null, http_status: null, response_bytes: 0
+    source: null, track_language: null, http_status: null, response_bytes: null,
+    content_type: null, content_length: null
   };
   const fail = (code, message) => ({ok: false, code, message, evidence: {...evidence}});
   const currentId = () => location.pathname === "/watch"
@@ -29,7 +30,7 @@ export async function extractOnPage(expectedVideoId) {
   const available = (renderer?.captionTracks ?? []).filter(track => {
     try {
       const url = new URL(track.baseUrl);
-      return /^en(?:-|$)/i.test(track.languageCode) && !url.searchParams.has("tlang")
+      return track.kind !== "forced" && /^en(?:-|$)/i.test(track.languageCode) && !url.searchParams.has("tlang")
         && url.hostname === "www.youtube.com" && url.pathname === "/api/timedtext"
         && /^en(?:-|$)/i.test(url.searchParams.get("lang") ?? "")
         && url.searchParams.get("v") === expectedVideoId;
@@ -49,6 +50,10 @@ export async function extractOnPage(expectedVideoId) {
   try {
     const result = await fetch(url.href, {credentials: "same-origin", signal: controller.signal});
     evidence.http_status = result.status;
+    const contentType = result.headers.get("content-type");
+    evidence.content_type = contentType?.slice(0, 120) ?? null;
+    const contentLength = result.headers.get("content-length");
+    evidence.content_length = /^\d{1,10}$/.test(contentLength ?? "") ? Number(contentLength) : null;
     if (!result.ok) return fail("timedtext-http", `Сервер субтитров вернул HTTP ${result.status}. Доступен импорт SRT/VTT.`);
     const reader = result.body.getReader();
     const chunks = [];
@@ -64,6 +69,7 @@ export async function extractOnPage(expectedVideoId) {
       }
       chunks.push(value);
     }
+    evidence.response_bytes = bytes;
     if (!bytes) return fail("empty-response", "YouTube вернул пустую дорожку. Используйте импорт SRT/VTT.");
     if (currentId() !== expectedVideoId) return fail("navigation", "Видео изменилось во время загрузки.");
     const joined = new Uint8Array(bytes);

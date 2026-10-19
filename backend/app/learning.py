@@ -20,6 +20,7 @@ from pydantic_ai.models import Model
 
 from backend.app.agents.learning import PROMPT_VERSION, LearningRun, run_card, run_chat
 from backend.app.ai_connection.service import ConnectionService
+from backend.app.ai_connection.settings import AISettings
 from backend.app.learning_context import LearningContext
 from backend.app.materials import MaterialLibrary
 
@@ -31,6 +32,7 @@ class SelectionInput(BaseModel):
     material_id: str = Field(min_length=1, max_length=100)
     cue_id: str = Field(min_length=1, max_length=100)
     token_id: str = Field(min_length=1, max_length=100)
+    force_refresh: bool = False
 
 
 class ChatInput(BaseModel):
@@ -71,11 +73,16 @@ class LearningService:
         self.model_factory = model_factory
         self.locks: dict[str, asyncio.Lock] = {}
 
-    async def execute(self, operation: Callable[[Model], Awaitable[RunOutput]]) -> RunOutput:
+    async def execute(
+        self,
+        operation: Callable[[Model], Awaitable[RunOutput]],
+        *,
+        settings: AISettings | None = None,
+    ) -> RunOutput:
         if self.model_factory is None:
             if self.connection is None:
                 raise HTTPException(409, "Сначала подключите подписку.")
-            return await self.connection.execute(operation)
+            return await self.connection.execute(operation, settings=settings)
         # Explicit application construction injects controlled models only in automated tests.
         try:
             async with asyncio.timeout(30):
@@ -94,7 +101,14 @@ class LearningService:
 
     async def card(self, selection: SelectionInput) -> dict[str, Any]:
         started = time.monotonic()
-        selected = self.context.selection(**selection.model_dump())
+        settings = self.connection.settings_store.read() if self.connection else AISettings(
+            model="gpt-6-luna", reasoning_effort="low"
+        )
+        selected = self.context.selection(
+            material_id=selection.material_id,
+            cue_id=selection.cue_id,
+            token_id=selection.token_id,
+        )
         profile = self.library.get_profile()
         cache_key = hashlib.sha256(
             json.dumps(
@@ -102,6 +116,8 @@ class LearningService:
                     "selection": selected,
                     "profile": profile,
                     "prompt": PROMPT_VERSION,
+                    "model": settings.model,
+                    "reasoning_effort": settings.reasoning_effort,
                     "context": self.context.subtitle_context(
                         selection.material_id, selection.cue_id
                     ),
@@ -118,7 +134,7 @@ class LearningService:
                     (cache_key,),
                 ).fetchone()
             request_id = str(uuid4())
-            if cached:
+            if cached and not selection.force_refresh:
                 result = json.loads(cached["result_json"])
                 result.update(
                     request_id=request_id,
@@ -134,11 +150,14 @@ class LearningService:
                     model=model,
                     mcp_url=self.mcp_url,
                     deps=deps,
-                )
+                    reasoning_effort=settings.reasoning_effort,
+                ),
+                settings=settings,
             )
             result = {
                 "request_id": request_id,
                 "model": model_name,
+                "reasoning_effort": settings.reasoning_effort,
                 "selection": selected,
                 "card": card.model_dump(),
                 "tools": [trace.model_dump() for trace in deps.traces],
@@ -159,7 +178,7 @@ class LearningService:
         identity = uuid4().hex
         with self.library.connect() as db:
             db.execute("BEGIN IMMEDIATE")
-            self.context.selection(**selection.model_dump())
+            self.context.selection(**selection.model_dump(exclude={"force_refresh"}))
             db.execute(
                 "INSERT INTO conversations VALUES(?,?,?,?,?)",
                 (
@@ -209,6 +228,9 @@ class LearningService:
     async def message(self, conversation_id: str, incoming: ChatInput) -> dict[str, Any]:
         if not incoming.message.strip():
             raise HTTPException(422, "Введите сообщение.")
+        settings = self.connection.settings_store.read() if self.connection else AISettings(
+            model="gpt-6-luna", reasoning_effort="low"
+        )
         lock = self.locks.setdefault("conversation:" + conversation_id, asyncio.Lock())
         async with lock:
             conversation = self.conversation(conversation_id)
@@ -276,7 +298,9 @@ class LearningService:
                     deps=deps,
                     message=incoming.message,
                     history=history,
-                )
+                    reasoning_effort=settings.reasoning_effort,
+                ),
+                settings=settings,
             )
             citations = self.context.verify_sources(
                 [deps.sources[key] for key in answer.citation_ids]
@@ -287,6 +311,7 @@ class LearningService:
             result = {
                 "request_id": incoming.request_id,
                 "model": model_name,
+                "reasoning_effort": settings.reasoning_effort,
                 "conversation_id": conversation_id,
                 "answer": answer_text,
                 "educational_example": answer.educational_example,

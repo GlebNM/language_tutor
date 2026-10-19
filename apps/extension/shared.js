@@ -30,6 +30,30 @@ export function knowledgeLabel(knowledge) {
   return knowledge?.score == null ? "Пока не оценено" : scores[knowledge.score];
 }
 
+export function videoVocabulary(cues) {
+  const entries = new Map();
+  for (const cue of cues ?? []) for (const token of cue.tokens ?? []) {
+    const key = token.lexeme_id ?? `${token.lemma}\u0000${token.part_of_speech}`;
+    let entry = entries.get(key);
+    if (!entry) {
+      entry = {id:key, lexeme_id:token.lexeme_id ?? token.id, lemma:token.lemma, part_of_speech:token.part_of_speech,
+        forms:new Set(), count:0, knowledge:token.knowledge ?? null, occurrences:[]};
+      entries.set(key, entry);
+    }
+    entry.forms.add(token.surface);
+    entry.count++;
+    if (token.knowledge) entry.knowledge=token.knowledge;
+    entry.occurrences.push({cue_id:cue.id, token_id:token.id, start_ms:cue.start_ms, text:cue.text, surface:token.surface});
+  }
+  return [...entries.values()].map(entry => ({...entry, forms:[...entry.forms], occurrences:entry.occurrences}));
+}
+
+export function orderVideoVocabulary(entries) {
+  const scoreOrder = score => score == null ? -1 : score;
+  return [...entries].sort((a,b) => scoreOrder(a.knowledge?.score)-scoreOrder(b.knowledge?.score)
+    || b.count-a.count || a.lemma.localeCompare(b.lemma) || a.part_of_speech.localeCompare(b.part_of_speech));
+}
+
 export async function api(path, options = {}) {
   const settings = await chrome.storage.local.get({backend: DEFAULT_BACKEND});
   const base = backendUrl(settings.backend);

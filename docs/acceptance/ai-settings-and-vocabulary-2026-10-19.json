@@ -1,0 +1,99 @@
+{
+  "first_card": {
+    "model": "gpt-5.6-luna",
+    "reasoning_effort": "low",
+    "card": {
+      "translation": "машина; здесь: звуки машины (механизма)",
+      "explanation": "Machine — существительное «машина», то есть устройство или механизм, выполняющий работу. В данном контексте речь, вероятно, о конкретном механизме, поэтому естественный перевод — «Прислушайся к звукам машины».",
+      "expression": "Listen to the sounds of the machine.",
+      "example": "The machine is making a strange noise."
+    },
+    "cached": true,
+    "duration_ms": 5,
+    "model_requests": 0,
+    "tools": [],
+    "context": {
+      "text": "Listen… Listen to the sounds of the machine.",
+      "start_ms": 190010,
+      "word": "machine"
+    }
+  },
+  "settings_after_container_recreation": {
+    "model": "gpt-6-luna",
+    "reasoning_effort": "medium"
+  },
+  "live_saved_cards": [
+    {
+      "model": "gpt-5.6-luna",
+      "reasoning_effort": "low",
+      "card": {
+        "translation": "машина; здесь: звуки машины (механизма)",
+        "explanation": "Machine — существительное «машина», то есть устройство или механизм, выполняющий работу. В данном контексте речь, вероятно, о конкретном механизме, поэтому естественный перевод — «Прислушайся к звукам машины».",
+        "expression": "Listen to the sounds of the machine.",
+        "example": "The machine is making a strange noise."
+      },
+      "cached": false,
+      "duration_ms": 11843,
+      "model_requests": 2,
+      "tools": [
+        {
+          "name": "get_subtitle_context",
+          "success": true,
+          "duration_ms": 47
+        },
+        {
+          "name": "get_learning_profile",
+          "success": false,
+          "duration_ms": 0
+        },
+        {
+          "name": "get_word_knowledge",
+          "success": true,
+          "duration_ms": 150
+        }
+      ]
+    },
+    {
+      "model": "gpt-6-luna",
+      "reasoning_effort": "medium",
+      "card": {
+        "translation": "машина; механизм",
+        "explanation": "Здесь machine — существительное: устройство или механизм, который выполняет работу. По фразе «sounds of the machine» речь о каком-то конкретном механизме, но без дополнительного контекста нельзя уточнить, о каком именно.",
+        "expression": "the sounds of the machine",
+        "example": "The machine makes a strange sound."
+      },
+      "cached": false,
+      "duration_ms": 9302,
+      "model_requests": 2,
+      "tools": [
+        {
+          "name": "get_subtitle_context",
+          "success": true,
+          "duration_ms": 28
+        },
+        {
+          "name": "get_word_knowledge",
+          "success": true,
+          "duration_ms": 133
+        }
+      ]
+    }
+  ],
+  "final_settings": {
+    "model": "gpt-6-luna",
+    "reasoning_effort": "low"
+  },
+  "isolated_browser_check": {
+    "unique_words": 143,
+    "rendered_word_buttons": 143,
+    "all_levels_visible": true,
+    "manual_edit_without_subscription": {
+      "word": "machine",
+      "score": 3,
+      "coverage_before_percent": 0,
+      "coverage_after_percent": 0.5
+    },
+    "seek_ms_displayed": "3:10",
+    "color_examples": "Separate isolated data store; additional scores 0, 1, 2 and 3 assigned only there."
+  }
+}
