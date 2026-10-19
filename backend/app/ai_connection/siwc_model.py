@@ -2,6 +2,7 @@
 
 import json
 from collections.abc import AsyncIterator
+from urllib.request import getproxies_environment, proxy_bypass
 
 import httpx2
 from pydantic_ai.exceptions import UnexpectedModelBehavior
@@ -82,7 +83,15 @@ class SIWCTransport(httpx2.AsyncBaseTransport):
         transport: httpx2.AsyncBaseTransport | None = None,
     ) -> None:
         self.manager = manager
-        self.transport = transport or httpx2.AsyncHTTPTransport()
+        proxies = getproxies_environment()
+        proxy = None if proxy_bypass("api.openai.com") else proxies.get("https")
+        # An explicit transport bypasses AsyncClient's environment proxy routing.
+        # trust_env also loads SSL_CERT_FILE in the pinned HTTPX2 TLS configuration.
+        self.transport = transport or httpx2.AsyncHTTPTransport(
+            proxy=proxy,
+            verify=True,
+            trust_env=True,
+        )
 
     async def handle_async_request(self, request: httpx2.Request) -> httpx2.Response:
         if request.url.host != "api.openai.com" or request.url.scheme != "https":

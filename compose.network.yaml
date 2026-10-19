@@ -1,0 +1,15 @@
+# Optional host-resolved HTTPS egress and an existing trusted public CA bundle.
+# Run scripts/openai-connect-relay.py on the host first when using that relay.
+services:
+  app:
+    environment:
+      HTTPS_PROXY: ${OPENAI_HTTPS_PROXY:?Set OPENAI_HTTPS_PROXY for the optional network override}
+      NO_PROXY: localhost,127.0.0.1,::1,mcp
+      SSL_CERT_FILE: /etc/ssl/certs/language-tutor-host-ca.pem
+    volumes:
+      - type: bind
+        source: ${HOST_CA_BUNDLE:?Set HOST_CA_BUNDLE to an existing public CA bundle}
+        target: /etc/ssl/certs/language-tutor-host-ca.pem
+        read_only: true
+        bind:
+          create_host_path: false

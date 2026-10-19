@@ -297,3 +297,69 @@ async def test_concurrent_siwc_requests_share_one_rotating_refresh(
     ]
     assert len(requests) == 1
     assert (await store.load()).refresh_token == "rotated-refresh"
+
+
+@pytest.mark.parametrize("bypass", [False, True])
+async def test_siwc_api_transport_honors_https_proxy_and_no_proxy(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    bypass: bool,
+) -> None:
+    import socket
+    import threading
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    import httpx2
+
+    from backend.app.ai_connection.siwc import TokenManager
+    from backend.app.ai_connection.siwc_credentials import SIWCCredentials
+    from backend.app.ai_connection.siwc_model import SIWCTransport
+
+    attempted = []
+
+    class ControlledProxy(BaseHTTPRequestHandler):
+        def log_message(self, *args: object) -> None:
+            pass
+
+        def do_CONNECT(self) -> None:
+            attempted.append(self.path)
+            self.send_error(403)
+
+    proxy = ThreadingHTTPServer(("127.0.0.1", 0), ControlledProxy)
+    thread = threading.Thread(target=proxy.serve_forever, daemon=True)
+    thread.start()
+    original_resolve = socket.getaddrinfo
+
+    def local_only_resolve(host: object, *args: object, **kwargs: object) -> object:
+        if host in ("api.openai.com", b"api.openai.com"):
+            raise socket.gaierror("Controlled test blocks direct API DNS")
+        return original_resolve(host, *args, **kwargs)
+
+    monkeypatch.setattr(socket, "getaddrinfo", local_only_resolve)
+    monkeypatch.setenv("HTTPS_PROXY", f"http://127.0.0.1:{proxy.server_port}")
+    monkeypatch.delenv("https_proxy", raising=False)
+    monkeypatch.setenv("NO_PROXY", "api.openai.com" if bypass else "localhost,127.0.0.1,mcp")
+    monkeypatch.delenv("no_proxy", raising=False)
+    store = CredentialStore(tmp_path / "credentials")
+    await store.save(
+        SIWCCredentials(
+            access_token="controlled-token",
+            refresh_token="controlled-refresh",
+            id_token="controlled-id",
+            client_id="oaiapp_test",
+            subject="learner",
+            scopes=["chatgpt.tokens.use.direct"],
+            expires_at=time.time() + 3600,
+        )
+    )
+    try:
+        async with httpx2.AsyncClient(
+            transport=SIWCTransport(TokenManager(store)), timeout=2
+        ) as client:
+            with pytest.raises(httpx2.ConnectError if bypass else httpx2.ProxyError):
+                await client.get("https://api.openai.com/v1/models")
+        assert attempted == ([] if bypass else ["api.openai.com:443"])
+    finally:
+        proxy.shutdown()
+        proxy.server_close()
+        thread.join(timeout=2)
