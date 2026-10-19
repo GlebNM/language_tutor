@@ -1,0 +1,5 @@
+# Add this override only when authorizing the subscription from the host browser.
+services:
+  app:
+    ports:
+      - "127.0.0.1:${AI_CALLBACK_PORT:-1456}:${AI_CALLBACK_PORT:-1456}"
