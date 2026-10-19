@@ -27,7 +27,7 @@
     reset("Получаем полную английскую дорожку…");
     if (!/^[A-Za-z0-9_-]{11}$/.test(currentId ?? "")) {
       enabled = false;
-      state = {...state, status: "error", message: "Откройте обычную страницу youtube.com/watch."};
+      state = {...state, status: "error", code: "navigation", message: "Откройте обычную страницу youtube.com/watch."};
       publish();
       return;
     }
@@ -41,10 +41,13 @@
       state = result?.ok
         ? {status: "ready", video_id: currentId, transcript: result.transcript, evidence: result.evidence, selection: null,
           message: "Полная дорожка получена. Нажмите слово в реплике."}
-        : {status: "error", video_id: currentId, code: result?.code, message: result?.message ?? "Расширение не ответило. Повторите проверку."};
+        : {status: "error", video_id: currentId, code: result?.code ?? "no-response", evidence: result?.evidence,
+          message: result?.message ?? "Расширение не ответило. Повторите проверку."};
     } catch {
       if (request !== generation) return;
-      state = {status: "error", video_id: currentId, message: "Расширение перезагружено. Обновите страницу YouTube."};
+      state = {status: "error", video_id: currentId, code: "extension-unavailable",
+        evidence: {checked_at: new Date().toISOString(), video_id: currentId, response_bytes: null},
+        message: "Расширение перезагружено. Обновите страницу YouTube."};
     }
     publish();
   };

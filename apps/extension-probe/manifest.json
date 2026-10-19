@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Language Tutor — проверка субтитров",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Исследование полной английской дорожки и кликабельного слоя YouTube.",
   "minimum_chrome_version": "116",
   "permissions": ["sidePanel", "scripting"],
