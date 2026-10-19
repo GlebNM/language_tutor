@@ -1,0 +1,41 @@
+services:
+  app:
+    build: .
+    init: true
+    ports:
+      - "127.0.0.1:${APP_PORT:-8765}:8765"
+    environment:
+      DATA_DIR: /data
+      MCP_URL: http://mcp:8001/mcp
+      AI_MODEL: "${AI_MODEL:-}"
+      AI_CALLBACK_PORT: ${AI_CALLBACK_PORT:-1456}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:8765,http://127.0.0.1:8765}
+    volumes:
+      - learning-data:/data
+    depends_on:
+      mcp:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", ".venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/api/health', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+  mcp:
+    build: .
+    init: true
+    command: [".venv/bin/python", "-m", "backend.mcp_server"]
+    environment:
+      DATA_DIR: /data
+    volumes:
+      - learning-data:/data
+    healthcheck:
+      test: ["CMD", ".venv/bin/python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8001), timeout=2).close()"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+volumes:
+  learning-data:
