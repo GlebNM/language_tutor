@@ -378,11 +378,11 @@ function App() {
             <p className="eyebrow">ЛИЧНАЯ ПОДПИСКА</p>
             <h1>Настройки AI</h1>
             <p className="lede">
-              Подключите Codex / ChatGPT для учебных объяснений. Материалы
+              Подключите ChatGPT для учебных объяснений. Материалы
               доступны сразу.
             </p>
             <div className="settings-card">
-              <h2>Подписка Codex / ChatGPT</h2>
+              <h2>Подписка ChatGPT</h2>
               <p role="status">{status}</p>
               {connection?.error && (
                 <p>
@@ -391,6 +391,8 @@ function App() {
                       callback_port_in_use:
                         "Порт подключения занят. Освободите порт или измените настройку callback.",
                       oauth_denied: "Вы отменили подключение подписки.",
+                      plan_permission_missing:
+                        "Не разрешено использование подписки для AI. Отключите подключение и повторите вход с разрешением.",
                       oauth_exchange_failed:
                         "Не удалось завершить подключение. Попробуйте ещё раз.",
                       refresh_failed: "Подключите подписку заново.",
@@ -436,8 +438,8 @@ function App() {
                 </a>
               )}
               <p className="help">
-                Для OAuth запустите Compose с файлом compose.oauth.yaml; порт
-                1456 должен быть свободен.
+                Для OAuth запустите Compose с файлом compose.oauth.yaml. Порт
+                AI_CALLBACK_PORT (по умолчанию 1456) должен быть свободен.
               </p>
               <button
                 className="secondary"

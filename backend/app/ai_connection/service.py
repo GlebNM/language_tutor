@@ -96,7 +96,9 @@ class ConnectionService:
                     409,
                     {
                         "code": "callback_port_in_use",
-                        "message": f"Порт OAuth {self.callback_port} занят. Измените AI_CALLBACK_PORT.",
+                        "message": (
+                            f"Порт OAuth {self.callback_port} занят. Измените AI_CALLBACK_PORT."
+                        ),
                     },
                 ) from None
             self.store = CredentialStore(self.data_dir / "credentials")
