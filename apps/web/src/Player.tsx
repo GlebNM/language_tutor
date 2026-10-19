@@ -112,13 +112,14 @@ export const Player = forwardRef<
         }
         const state = instance.getPlayerState();
         const keepPaused = pauseRequested.current || ![1, 3].includes(state);
-        if (keepPaused && state !== 2) {
+        if (keepPaused && [-1, 0, 5].includes(state)) {
           // seekTo starts an unstarted/cued/ended video. Cue its new start instead.
           cuedPosition.current = ms;
           instance.cueVideoById({ videoId, startSeconds: ms / 1000 });
         } else {
           cuedPosition.current = null;
           instance.seekTo(ms / 1000, true);
+          if (keepPaused) instance.pauseVideo();
         }
         onTimeRef.current(ms);
       },

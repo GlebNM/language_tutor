@@ -351,15 +351,7 @@ class ConnectionService:
             ) from None
 
     async def connected_model(self, settings: AISettings) -> Model:
-        client = await self._catalog_client()
-        catalog_response = await client.get("https://api.openai.com/v1/models")
-        if catalog_response.is_error:
-            if catalog_response.status_code in (401, 403):
-                raise SubscriptionError(
-                    "model_catalog_unauthorized", catalog_response.status_code
-                )
-            raise HTTPException(503, "Не удалось получить модели подписки. Повторите запрос.")
-        available = normalize_model_catalog(catalog_response.json().get("models", []))
+        available = await self.available_models()
         selected = next((item for item in available if item["id"] == settings.model), None)
         if selected is None:
             raise HTTPException(409, "Выбранная модель недоступна подписке. Обновите настройки AI.")

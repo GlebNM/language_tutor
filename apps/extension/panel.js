@@ -10,6 +10,7 @@ let videoFilters={search:"",score:"",ignored:""},videoExpandedId=null;
 let aiSettings=null,aiModels=[],aiSettingsLoading=false,aiSettingsError="",aiDraft=null;
 let aiSettingsRequest=0;
 let diagnostic=null,diagnosticLoaded=false,diagnosticAnswer="",busy=false;
+let backendRevision=0;
 const drafts=new Map();
 const node=(tag,attributes={},...children)=>{
   const element=document.createElement(tag);
@@ -27,6 +28,13 @@ const button=(text,onClick,secondary=false)=>node("button",{type:"button",class:
 const paragraph=(text,className="")=>node("p",{class:className},text);
 const selection=()=>state.selection;
 const safeUrl=value=>{try{const url=new URL(value);return url.protocol==="https:"&&["www.youtube.com","youtube.com","youtu.be"].includes(url.hostname)?url.href:null;}catch{return null;}};
+const profileContext=()=>({backend,revision:backendRevision});
+async function profileApi(path,options={},request=profileContext()) {
+  const result=await api(path,options,request.backend);
+  if(request.backend!==backend||request.revision!==backendRevision)
+    throw new Error("Адрес локального сервера изменился. Повторите запрос.");
+  return result;
+}
 async function message(type,extra={}) {
   if(tabId==null)throw new Error("Откройте видео на YouTube.");
   try{return await chrome.tabs.sendMessage(tabId,{type,...extra});}
@@ -39,6 +47,10 @@ async function action(work,{success="",refresh=false}={}) {
   finally{if(version===generation){busy=false;render();}}
 }
 function acceptState(next) {
+  if(next?.backend_origin!==backend&&(next?.enabled||next?.material||next?.selection)) {
+    void message("lt:profile-changed").catch(()=>{});
+    next={status:"idle",enabled:false,video_id:null,selection:null,message:"Адрес общего профиля изменён. Включите учебный режим, чтобы загрузить материал из нового профиля."};
+  }
   const context=`${next?.video_id??""}:${next?.material?.id??""}`;
   if(context!==vocabularyContext){vocabularyContext=context;videoExpandedId=null;videoFilters={search:"",score:"",ignored:""};}
   state=next??{};
@@ -57,19 +69,20 @@ async function syncTab() {
   try{const next=await message("lt:get");if(target===tabId&&!backendResetPending)acceptState(next);}
   catch{if(target===tabId)acceptState({message:"Откройте обычное видео YouTube. Если оно уже открыто, обновите страницу после установки расширения."});}
 }
-async function refreshMaterial() {
+async function refreshMaterial(request=profileContext()) {
   if(!state.material)return;
-  const version=generation,material=await api(`/materials/${encodeURIComponent(state.material.id)}`);
+  const version=generation,material=await profileApi(`/materials/${encodeURIComponent(state.material.id)}`,{},request);
   if(version!==generation)return;
-  await message("lt:material",{material});
+  const applied=await message("lt:material",{material,backend_origin:request.backend});
+  if(!applied?.ok)throw new Error("Адрес общего профиля изменился. Обновите данные и повторите запрос.");
   if(version===generation)acceptState(await message("lt:get"));
 }
 async function loadCard() {
   const selected=selection();if(!selected)return;
-  const version=generation;cardAbort?.abort();cardAbort=new AbortController();
+  const version=generation,request=profileContext();cardAbort?.abort();cardAbort=new AbortController();
   cardBusy=true;cardError="";render();
   try{
-    const result=await api("/cards",{method:"POST",signal:cardAbort.signal,body:JSON.stringify({material_id:selected.material_id,cue_id:selected.cue.id,token_id:selected.token.id,force_refresh:false})});
+    const result=await profileApi("/cards",{method:"POST",signal:cardAbort.signal,body:JSON.stringify({material_id:selected.material_id,cue_id:selected.cue.id,token_id:selected.token.id,force_refresh:false})},request);
     if(version===generation)card=result;
   }catch(e){if(version===generation&&e.name!=="AbortError")cardError=e.message;}
   finally{if(version===generation){cardBusy=false;render();}}
@@ -95,8 +108,9 @@ function familiarity(token,{numericLabels=false}={}) {
   score.value=draft.score;
   const form=node("form",{class:"knowledge",onSubmit:event=>{
     event.preventDefault();void action(async()=>{
-      try{await api(`/lexemes/${encodeURIComponent(id)}/knowledge`,{method:"PUT",body:JSON.stringify({score:draft.score===""?null:Number(draft.score),ignored:draft.ignored})});draft.dirty=false;draft.error="";
-        if(view==="dictionary")await loadDictionary(false);await refreshMaterial();}
+      const request=profileContext();
+      try{await profileApi(`/lexemes/${encodeURIComponent(id)}/knowledge`,{method:"PUT",body:JSON.stringify({score:draft.score===""?null:Number(draft.score),ignored:draft.ignored})},request);draft.dirty=false;draft.error="";
+        if(view==="dictionary")await loadDictionary(false,request);await refreshMaterial(request);}
       catch(e){draft.error=e.message;throw e;}
     },{success:"Знакомость сохранена в общем профиле."});
   }},node("label",{},"Знакомость",score),node("label",{class:"checkbox"},node("input",{type:"checkbox",checked:draft.ignored,onChange:event=>{draft.ignored=event.target.checked;dirty();}}),"Исключить из оценки"),label);
@@ -199,16 +213,16 @@ function importForm() {
   return node("details",{open:state.status==="error"||!state.material},node("summary",{},state.material?"Заменить дорожку SRT/VTT":"Импортировать SRT/VTT"),
     node("form",{onSubmit:event=>{
       event.preventDefault();if(!file){status.textContent="Выберите SRT или VTT.";return;}
-      const version=generation,currentVideo=state.video_id,oldMaterial=state.material;
+      const version=generation,currentVideo=state.video_id,oldMaterial=state.material,request=profileContext();
       void action(async()=>{
         if(file.size>2_000_000)throw new Error("Файл превышает 2 МБ.");
         const format=file.name.toLowerCase().endsWith(".vtt")?"vtt":file.name.toLowerCase().endsWith(".srt")?"srt":null;
         if(!format)throw new Error("Выберите файл SRT или VTT.");
         const content=await file.text();if(version!==generation)return;
         const payload={youtube_url:`https://www.youtube.com/watch?v=${currentVideo}`,title:state.title??"",format,content,language:"en",source:format,is_complete:complete.checked};
-        const summary=await api(oldMaterial?`/materials/${encodeURIComponent(oldMaterial.id)}/track`:"/materials",{method:oldMaterial?"PUT":"POST",body:JSON.stringify(payload)});
-        if(version!==generation)return;const material=await api(`/materials/${encodeURIComponent(summary.id)}`);if(version!==generation)return;
-        await message("lt:material",{material});acceptState(await message("lt:get"));notice="Дорожка проверена и сохранена. Предыдущая версия остаётся в библиотеке.";
+        const summary=await profileApi(oldMaterial?`/materials/${encodeURIComponent(oldMaterial.id)}/track`:"/materials",{method:oldMaterial?"PUT":"POST",body:JSON.stringify(payload)},request);
+        if(version!==generation)return;const material=await profileApi(`/materials/${encodeURIComponent(summary.id)}`,{},request);if(version!==generation)return;
+        const applied=await message("lt:material",{material,backend_origin:request.backend});if(!applied?.ok)throw new Error("Адрес общего профиля изменился. Повторите импорт.");acceptState(await message("lt:get"));notice="Дорожка проверена и сохранена. Предыдущая версия остаётся в библиотеке.";
       });
     }},node("label",{},"Английская дорожка текущего видео",node("input",{type:"file",accept:".srt,.vtt",required:true,onChange:event=>{file=event.target.files[0];}})),
       node("label",{class:"checkbox"},complete,"Это полная дорожка видео"),status,node("button",{disabled:busy||!state.video_id},state.material?"Проверить и заменить":"Проверить и импортировать")));
@@ -221,7 +235,7 @@ function materialView() {
     if(state.enabled){await message("lt:stop");return;}
     if(!await chrome.permissions.request({origins:[permissionOrigin(backend)]}))throw new Error("Для общего профиля нужен доступ к выбранному локальному серверу.");
     backendResetPending=false;
-    await message("lt:start");
+    await message("lt:start",{backend_origin:backend});
   }),state.enabled);enable.disabled=state.status==="loading"||busy;controls.append(enable);
   if(state.material){
     const source={"youtube-authored":"Авторские английские субтитры","youtube-automatic":"Автоматические исходные английские субтитры",srt:"Импорт SRT",vtt:"Импорт VTT",demo:"Подготовленная дорожка"}[state.material.source]??state.material.source;
@@ -229,7 +243,7 @@ function materialView() {
     controls.append(button("Обновить данные профиля",()=>void action(()=>refreshMaterial()),true));
   }
   if(state.video_id){controls.append(importForm());controls.append(button("Повторить автоматическое извлечение",()=>void action(async()=>{
-    if(!await chrome.permissions.request({origins:[permissionOrigin(backend)]}))throw new Error("Разрешите доступ к локальному серверу.");await message("lt:start",{force_extract:true});
+    if(!await chrome.permissions.request({origins:[permissionOrigin(backend)]}))throw new Error("Разрешите доступ к локальному серверу.");await message("lt:start",{force_extract:true,backend_origin:backend});
   }),true));}
   fragment.append(controls);
   const difficulty=difficultyPanel();if(difficulty)fragment.append(difficulty);
@@ -252,7 +266,7 @@ function selectionPanel() {
   panel.append(familiarity(token));
   const lemma=node("input",{value:token.lemma,required:true,maxLength:100}),pos=node("select",{},["NOUN","VERB","ADJ","ADV","PROPN","AUX","PRON","ADP","DET","CCONJ","SCONJ","PART","INTJ","NUM","X"].map(value=>node("option",{value},value)));pos.value=token.part_of_speech;
   panel.append(node("details",{},node("summary",{},"Исправить базовую форму"),node("form",{onSubmit:event=>{
-    event.preventDefault();void action(()=>api(`/materials/${selected.material_id}/occurrences/${token.id}/lexeme`,{method:"PUT",body:JSON.stringify({cue_id:selected.cue.id,lemma:lemma.value,part_of_speech:pos.value})}),{success:"Базовая форма исправлена.",refresh:true});
+    event.preventDefault();void action(()=>profileApi(`/materials/${selected.material_id}/occurrences/${token.id}/lexeme`,{method:"PUT",body:JSON.stringify({cue_id:selected.cue.id,lemma:lemma.value,part_of_speech:pos.value})}),{success:"Базовая форма исправлена.",refresh:true});
   }},node("label",{},"Базовая форма",lemma),node("label",{},"Часть речи",pos),node("button",{disabled:busy},"Сохранить форму"))));
   panel.append(button(chatOpen?"Скрыть диалог":"Обсудить с агентом",()=>{
     chatOpen=!chatOpen;render();if(chatOpen&&!chat)void openChat();
@@ -260,33 +274,33 @@ function selectionPanel() {
 }
 async function loadCardFresh() {
   const selected=selection();if(!selected)return;
-  const version=generation;cardAbort?.abort();cardAbort=new AbortController();cardBusy=true;cardError="";render();
+  const version=generation,request=profileContext();cardAbort?.abort();cardAbort=new AbortController();cardBusy=true;cardError="";render();
   try{
-    const result=await api("/cards",{method:"POST",signal:cardAbort.signal,body:JSON.stringify({material_id:selected.material_id,cue_id:selected.cue.id,token_id:selected.token.id,force_refresh:true})});
+    const result=await profileApi("/cards",{method:"POST",signal:cardAbort.signal,body:JSON.stringify({material_id:selected.material_id,cue_id:selected.cue.id,token_id:selected.token.id,force_refresh:true})},request);
     if(version===generation)card=result;
   }catch(e){if(version===generation&&e.name!=="AbortError")cardError=e.message;}
   finally{if(version===generation){cardBusy=false;render();}}
 }
 async function openChat() {
-  const version=generation,selected=selection();if(!selected)return;chatBusy=true;chatError="";render();
-  try{const value=await selectedConversation(selected);if(version===generation)chat=value;}
+  const version=generation,request=profileContext(),selected=selection();if(!selected)return;chatBusy=true;chatError="";render();
+  try{const value=await selectedConversation(selected,request);if(version===generation)chat=value;}
   catch(e){if(version===generation)chatError=e.message;}
   finally{if(version===generation){chatBusy=false;render();}}
 }
-async function selectedConversation(selected) {
-  const list=await api(`/conversations?material_id=${encodeURIComponent(selected.material_id)}`);
+async function selectedConversation(selected,request=profileContext()) {
+  const list=await profileApi(`/conversations?material_id=${encodeURIComponent(selected.material_id)}`,{},request);
   const saved=list.find(item=>item.cue_id===selected.cue.id&&item.token_id===selected.token.id);
-  return saved?api(`/conversations/${encodeURIComponent(saved.id)}`):api("/conversations",{method:"POST",body:JSON.stringify({material_id:selected.material_id,cue_id:selected.cue.id,token_id:selected.token.id})});
+  return saved?profileApi(`/conversations/${encodeURIComponent(saved.id)}`,{},request):profileApi("/conversations",{method:"POST",body:JSON.stringify({material_id:selected.material_id,cue_id:selected.cue.id,token_id:selected.token.id})},request);
 }
 async function sendChat() {
   const text=question.trim();if(!text||chatBusy)return;
-  const version=generation,selected=selection(),payload=retry?.message===text?retry:{message:text,request_id:crypto.randomUUID()};retry=payload;chatBusy=true;chatError="";render();
+  const version=generation,request=profileContext(),selected=selection(),payload=retry?.message===text?retry:{message:text,request_id:crypto.randomUUID()};retry=payload;chatBusy=true;chatError="";render();
   try{
-    const current=chat??await selectedConversation(selected);
+    const current=chat??await selectedConversation(selected,request);
     if(version!==generation)return;chat=current;
-    await api(`/conversations/${encodeURIComponent(current.id)}/messages`,{method:"POST",body:JSON.stringify(payload)});
+    await profileApi(`/conversations/${encodeURIComponent(current.id)}/messages`,{method:"POST",body:JSON.stringify(payload)},request);
     if(version!==generation)return;
-    const value=await api(`/conversations/${encodeURIComponent(current.id)}`);
+    const value=await profileApi(`/conversations/${encodeURIComponent(current.id)}`,{},request);
     if(version===generation){chat=value;question="";retry=null;}
   }catch(e){if(version===generation)chatError=e.message;}
   finally{if(version===generation){chatBusy=false;render();}}
@@ -314,11 +328,11 @@ function chatPanel() {
   if(chatError)panel.append(paragraph(chatError,"warning"));
   panel.append(node("form",{onSubmit:event=>{event.preventDefault();void sendChat();}},node("label",{},"Ваш вопрос",input),submit));return panel;
 }
-async function loadDictionary(showBusy=true) {
+async function loadDictionary(showBusy=true,request=profileContext()) {
   const query=new URLSearchParams();for(const [key,value]of Object.entries(filters))if(value)query.set(key,value);
   if(showBusy)busy=true;render();
-  try{dictionary=await api(`/dictionary?${query}`);dictionaryLoaded=true;}
-  finally{if(showBusy)busy=false;render();}
+  try{const result=await profileApi(`/dictionary?${query}`,{},request);if(request.revision===backendRevision&&request.backend===backend){dictionary=result;dictionaryLoaded=true;}}
+  finally{if(request.revision===backendRevision&&request.backend===backend){if(showBusy)busy=false;render();}}
 }
 function dictionaryView() {
   const panel=node("section",{},node("h2",{},"Мои слова"),paragraph("Словарь общий с веб-приложением. Ручные оценки имеют приоритет над диагностикой.","help"));
@@ -328,8 +342,8 @@ function dictionaryView() {
   for(const entry of dictionary)panel.append(node("article",{},node("h3",{},`${entry.lemma} · ${entry.part_of_speech}`),familiarity(entry)));return panel;
 }
 const sessionFrom=result=>result?.session??result;
-async function loadDiagnostic() {
-  diagnostic=(await api("/diagnostics")).session;diagnosticLoaded=true;render();
+async function loadDiagnostic(request=profileContext()) {
+  diagnostic=(await profileApi("/diagnostics",{},request)).session;diagnosticLoaded=true;render();
 }
 function diagnosticView() {
   const panel=node("section",{},node("h2",{},"Стартовая диагностика"),paragraph("Диагностика предлагает предварительную знакомость. Её можно пропустить и исправлять оценки во время просмотра.","help"));
@@ -340,41 +354,45 @@ function diagnosticView() {
       if(aiMeta(diagnostic.summary)||aiMeta(diagnostic))panel.append(paragraph(aiMeta(diagnostic.summary)||aiMeta(diagnostic),"help"));
       for(const grade of diagnostic.summary.grades??[])panel.append(paragraph(grade.explanation,"help"));}
     if(diagnostic?.status==="skipped")panel.append(paragraph("Вы начали без начальной оценки."));
-    panel.append(button(diagnostic?"Пройти диагностику заново":"Начать диагностику",()=>void action(async()=>{diagnostic=sessionFrom(await api("/diagnostics",{method:"POST",body:"{}"}));})),
-      button("Начать без оценки",()=>void action(async()=>{const value=sessionFrom(await api("/diagnostics",{method:"POST",body:"{}"}));diagnostic=sessionFrom(await api(`/diagnostics/${value.id}/skip`,{method:"POST",body:"{}"}));await refreshMaterial();}),true));return panel;
+    panel.append(button(diagnostic?"Пройти диагностику заново":"Начать диагностику",()=>void action(async()=>{diagnostic=sessionFrom(await profileApi("/diagnostics",{method:"POST",body:"{}"}));})),
+      button("Начать без оценки",()=>void action(async()=>{const request=profileContext();const value=sessionFrom(await profileApi("/diagnostics",{method:"POST",body:"{}"},request));diagnostic=sessionFrom(await profileApi(`/diagnostics/${value.id}/skip`,{method:"POST",body:"{}"},request));await refreshMaterial(request);}),true));return panel;
   }
   const answered=new Set((diagnostic.answers??[]).map(answer=>answer.item_id)),item=diagnostic.items.find(value=>!answered.has(value.id));
   panel.append(paragraph(`Пройдено ${answered.size} из ${diagnostic.items.length}`,"help"));
   const answer=async(actionName)=>{
-    diagnostic=sessionFrom(await api(`/diagnostics/${diagnostic.id}/answers`,{method:"POST",body:JSON.stringify({item_id:item.id,answer:actionName==="answer"?diagnosticAnswer:"",action:actionName})}));diagnosticAnswer="";
+    diagnostic=sessionFrom(await profileApi(`/diagnostics/${diagnostic.id}/answers`,{method:"POST",body:JSON.stringify({item_id:item.id,answer:actionName==="answer"?diagnosticAnswer:"",action:actionName})}));diagnosticAnswer="";
   };
   if(item){panel.append(node("h3",{},item.kind==="sentence"?"Объясните реплику":"Как вы понимаете слово?"),paragraph(item.prompt,"quote"),node("form",{onSubmit:event=>{event.preventDefault();void action(()=>answer("answer"));}},
     node("label",{},"Ваш ответ",node("textarea",{value:diagnosticAnswer,required:true,maxLength:2000,onInput:event=>{diagnosticAnswer=event.target.value;}})),node("button",{disabled:busy},"Сохранить ответ")),
     node("div",{class:"row"},button("Не знаю",()=>void action(()=>answer("dont_know")),true),button("Пропустить вопрос",()=>void action(()=>answer("skip")),true)));
-  }else panel.append(button("Получить оценку с агентом",()=>void action(async()=>{diagnostic=sessionFrom(await api(`/diagnostics/${diagnostic.id}/complete`,{method:"POST",body:"{}"}));await refreshMaterial();},{success:"Диагностика сохранена. Знакомость и сложность обновлены."})));
-  panel.append(button("Пропустить диагностику",()=>void action(async()=>{diagnostic=sessionFrom(await api(`/diagnostics/${diagnostic.id}/skip`,{method:"POST",body:"{}"}));await refreshMaterial();}),true));return panel;
+  }else panel.append(button("Получить оценку с агентом",()=>void action(async()=>{const request=profileContext();diagnostic=sessionFrom(await profileApi(`/diagnostics/${diagnostic.id}/complete`,{method:"POST",body:"{}"},request));await refreshMaterial(request);},{success:"Диагностика сохранена. Знакомость и сложность обновлены."})));
+  panel.append(button("Пропустить диагностику",()=>void action(async()=>{const request=profileContext();diagnostic=sessionFrom(await profileApi(`/diagnostics/${diagnostic.id}/skip`,{method:"POST",body:"{}"},request));await refreshMaterial(request);}),true));return panel;
 }
 function settingsView() {
   const input=node("input",{type:"url",required:true,value:backend});
   const settings=node("section",{},node("h2",{},"Локальный сервер"),paragraph("Панель использует тот же единственный учебный профиль, что и приложение. Подписка подключается в локальном приложении.","help"),
-    node("form",{onSubmit:event=>{event.preventDefault();void action(async()=>{
-      const next=backendUrl(input.value);
-      if(!await chrome.permissions.request({origins:[permissionOrigin(next)]}))throw new Error("Доступ к локальному серверу не разрешён.");
-      await chrome.storage.local.set({backend:next});await backendChanged(next);await api("/health");
-    },{success:"Локальный сервер подключён."});}},node("label",{},"Адрес backend",input),node("button",{disabled:busy},"Сохранить и проверить")),
+    node("form",{onSubmit:event=>{event.preventDefault();let revision=backendRevision;error="";notice="";busy=true;render();void (async()=>{
+      try{
+        const next=backendUrl(input.value);
+        if(!await chrome.permissions.request({origins:[permissionOrigin(next)]}))throw new Error("Доступ к локальному серверу не разрешён.");
+        await chrome.storage.local.set({backend:next});await backendChanged(next);revision=backendRevision;
+        await profileApi("/health",{},profileContext());if(revision===backendRevision)notice="Локальный сервер подключён.";
+      }catch(e){if(revision===backendRevision)error=e.message;}
+      finally{if(revision===backendRevision){busy=false;render();}}
+    })();}},node("label",{},"Адрес backend",input),node("button",{disabled:busy},"Сохранить и проверить")),
     paragraph("Разрешите точный origin расширения в ALLOWED_ORIGINS и пересоздайте app, как описано в инструкции установки.","help"),node("code",{},chrome.runtime.getURL("").replace(/\/$/,"")),
     node("div",{class:"links"},node("a",{href:backend,target:"_blank",rel:"noreferrer"},"Открыть приложение и подписку ↗")));
   settings.append(aiSettingsPanel());return settings;
 }
 async function loadAISettings() {
-  const request=++aiSettingsRequest,requestedBackend=backend;
+  const request=++aiSettingsRequest,profile=profileContext();
   aiSettingsLoading=true;aiSettingsError="";render();
   try {
-    const [settings,catalog]=await Promise.all([api("/ai/settings"),api("/ai/models")]);
-    if(request!==aiSettingsRequest||requestedBackend!==backend)return;
+    const [settings,catalog]=await Promise.all([profileApi("/ai/settings",{},profile),profileApi("/ai/models",{},profile)]);
+    if(request!==aiSettingsRequest||profile.revision!==backendRevision||profile.backend!==backend)return;
     aiSettings=settings;aiModels=catalog.models??[];aiDraft={model:settings.model,reasoning_effort:settings.reasoning_effort};
-  }catch(error){if(request===aiSettingsRequest&&requestedBackend===backend)aiSettingsError=error.message;}
-  finally{if(request===aiSettingsRequest&&requestedBackend===backend){aiSettingsLoading=false;render();}}
+  }catch(error){if(request===aiSettingsRequest&&profile.revision===backendRevision&&profile.backend===backend)aiSettingsError=error.message;}
+  finally{if(request===aiSettingsRequest&&profile.revision===backendRevision&&profile.backend===backend){aiSettingsLoading=false;render();}}
 }
 function aiSettingsPanel() {
   const panel=node("section",{},node("h2",{},"Модель и reasoning"),paragraph("Общий выбор применяется к карточкам, диагностике и диалогу. Сохранённые ответы сохраняют свои параметры.","help"));
@@ -391,7 +409,7 @@ function aiSettingsPanel() {
     const effort=node("select",{},node("option",{value:aiDraft.reasoning_effort??"",disabled:true},aiDraft.reasoning_effort??"По умолчанию провайдера"));effort.value=aiDraft.reasoning_effort??"";
     model.addEventListener("change",()=>{const next=aiModels.find(value=>value.id===model.value);aiDraft={model:next.id,reasoning_effort:next.default_reasoning_effort??(next.reasoning_efforts?.[0]??null)};render();});
     panel.append(node("form",{onSubmit:event=>{event.preventDefault();void action(async()=>{
-      aiSettings=await api("/ai/settings",{method:"PUT",body:JSON.stringify(aiDraft)});aiDraft={model:aiSettings.model,reasoning_effort:aiSettings.reasoning_effort};
+      aiSettings=await profileApi("/ai/settings",{method:"PUT",body:JSON.stringify(aiDraft)});aiDraft={model:aiSettings.model,reasoning_effort:aiSettings.reasoning_effort};
     },{success:"Модель и reasoning сохранены для обоих интерфейсов."});}},node("label",{},"Модель",model),node("label",{},"Reasoning",effort),node("button",{type:"submit",disabled:busy},"Сохранить выбор")));
     return panel;
   }
@@ -408,7 +426,7 @@ function aiSettingsPanel() {
   model.addEventListener("change",()=>{const next=aiModels.find(value=>value.id===model.value);aiDraft={model:next.id,reasoning_effort:next.default_reasoning_effort??(next.reasoning_efforts?.[0]??null)};render();});
   effort.addEventListener("change",()=>{aiDraft.reasoning_effort=effort.value===""?null:effort.value;});
   panel.append(node("form",{onSubmit:event=>{event.preventDefault();void action(async()=>{
-    aiSettings=await api("/ai/settings",{method:"PUT",body:JSON.stringify(aiDraft)});aiDraft={model:aiSettings.model,reasoning_effort:aiSettings.reasoning_effort};
+    aiSettings=await profileApi("/ai/settings",{method:"PUT",body:JSON.stringify(aiDraft)});aiDraft={model:aiSettings.model,reasoning_effort:aiSettings.reasoning_effort};
   },{success:"Модель и reasoning сохранены для обоих интерфейсов."});}},node("label",{},"Модель",model),node("label",{},"Reasoning",effort),node("button",{disabled:busy},"Сохранить выбор")));
   return panel;
 }
@@ -426,24 +444,34 @@ function render() {
   if(busy)app.append(node("p",{class:"help",role:"status"},"Выполняем запрос…"));app.append(body);
   app.append(node("div",{class:"links"},node("a",{href:backend,target:"_blank",rel:"noreferrer"},"Общий профиль в приложении ↗")));
 }
+async function invalidateYouTubeTabs() {
+  const tabs=await chrome.tabs.query({url:["https://www.youtube.com/watch*"]});
+  await Promise.all(tabs.filter(tab=>tab.id!=null).map(async tab=>{
+    try{await chrome.tabs.sendMessage(tab.id,{type:"lt:profile-changed"});}catch{}
+  }));
+}
 async function backendChanged(value) {
   let next;
   try{next=backendUrl(value);}catch{return;}
   if(next===backend)return;
-  const wasEnabled=state.enabled;
-  backend=next;aiSettingsRequest++;
+  const wasEnabled=state.enabled,restartTab=tabId;
+  backend=next;backendRevision++;const revision=backendRevision;generation++;aiSettingsRequest++;
   backendResetPending=true;
   aiSettings=null;aiModels=[];aiDraft=null;aiSettingsLoading=false;aiSettingsError="";
   dictionary=[];dictionaryLoaded=false;filters={search:"",score:"",ignored:"false"};
   diagnostic=null;diagnosticLoaded=false;drafts.clear();videoExpandedId=null;videoFilters={search:"",score:"",ignored:""};
   chat=null;chatOpen=false;chatBusy=false;chatError="";question="";retry=null;cardAbort?.abort();
+  card=null;cardError="";cardBusy=false;busy=false;
   acceptState({status:"idle",enabled:false,video_id:null,selection:null,message:"Локальный сервер изменён. Переподключите учебный режим к новому профилю."});
   error="";notice="";render();
-  if(!wasEnabled)return;
+  try{await invalidateYouTubeTabs();}catch{}
+  if(revision!==backendRevision)return;
+  backendResetPending=false;
   try{
+    await syncTab();
+    if(!wasEnabled||tabId!==restartTab)return;
     if(!await chrome.permissions.contains({origins:[permissionOrigin(next)]}))return;
-    backendResetPending=false;
-    await message("lt:start");
+    await message("lt:start",{backend_origin:next});
   }catch{}
 }
 chrome.runtime.onMessage.addListener((message,sender)=>{

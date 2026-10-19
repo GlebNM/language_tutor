@@ -1,6 +1,6 @@
 import {extractOnPage} from "./page-extract.js";
 import {makeTranscript} from "./transcript.js";
-import {api, importPayload} from "./shared.js";
+import {api, backendUrl, DEFAULT_BACKEND, importPayload} from "./shared.js";
 
 chrome.sidePanel.setPanelBehavior({openPanelOnActionClick:true}).catch(() => {});
 
@@ -22,12 +22,18 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
   (async () => {
     let evidence = null;
     let stage = "saved-material";
+    let backendOrigin = null;
     try {
+      const settings = await chrome.storage.local.get({backend:DEFAULT_BACKEND});
+      backendOrigin = backendUrl(settings.backend);
+      if (message.backend_origin && backendUrl(message.backend_origin) !== backendOrigin)
+        throw new Error("Адрес локального сервера изменился. Повторите подключение.");
+      const requestApi = (path, options) => api(path, options, backendOrigin);
       if (!message.force_extract) {
-        const materials = await api("/materials");
+        const materials = await requestApi("/materials");
         const saved = materials.find(item => item.youtube_video_id === videoId);
         if (saved) {
-          respond({ok:true,material:await api(`/materials/${encodeURIComponent(saved.id)}`),message:"Открыт сохранённый материал общего профиля."});
+          respond({ok:true,material:await requestApi(`/materials/${encodeURIComponent(saved.id)}`),backend_origin:backendOrigin,message:"Открыт сохранённый материал общего профиля."});
           return;
         }
       }
@@ -37,7 +43,7 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
       });
       const result = execution?.result;
       if (!result?.ok) {
-        respond({ok:false,extraction_code:result?.code ?? "extraction-failed",message:result?.message?.replaceAll("в веб-приложении", "в этой панели") ?? "Не удалось извлечь дорожку. Импортируйте SRT/VTT.",evidence:result?.evidence});
+        respond({ok:false,extraction_code:result?.code ?? "extraction-failed",message:result?.message?.replaceAll("в веб-приложении", "в этой панели") ?? "Не удалось извлечь дорожку. Импортируйте SRT/VTT.",evidence:result?.evidence,backend_origin:backendOrigin});
         return;
       }
       evidence = result.evidence ?? null;
@@ -46,14 +52,14 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
       stage = "video-validation";
       const currentTab = await chrome.tabs.get(sender.tab.id);
       if (new URL(currentTab.url).searchParams.get("v") !== videoId) {
-        respond({ok:false,extraction_code:"navigation",message:"Видео изменилось. Дорожка предыдущего видео отброшена.",evidence});
+        respond({ok:false,extraction_code:"navigation",message:"Видео изменилось. Дорожка предыдущего видео отброшена.",evidence,backend_origin:backendOrigin});
         return;
       }
       stage = "backend-save";
-      const summary = await api("/materials", {method:"POST", body:JSON.stringify(importPayload(transcript, String(message.title ?? "").slice(0,200)))});
-      respond({ok:true,material:await api(`/materials/${encodeURIComponent(summary.id)}`), evidence:{...result.evidence,transcript_hash:transcript.transcript_hash},message:"Полная английская дорожка сохранена в общем профиле."});
+      const summary = await requestApi("/materials", {method:"POST", body:JSON.stringify(importPayload(transcript, String(message.title ?? "").slice(0,200)))});
+      respond({ok:true,material:await requestApi(`/materials/${encodeURIComponent(summary.id)}`), evidence:{...result.evidence,transcript_hash:transcript.transcript_hash},backend_origin:backendOrigin,message:"Полная английская дорожка сохранена в общем профиле."});
     } catch (error) {
-      respond({ok:false,extraction_code:stage,message:error.message ?? "Повторите загрузку или импортируйте SRT/VTT.",evidence});
+      respond({ok:false,extraction_code:stage,message:error.message ?? "Повторите загрузку или импортируйте SRT/VTT.",evidence,backend_origin:backendOrigin});
     }
   })();
   return true;

@@ -1,0 +1,69 @@
+{
+  "checked_at": "2026-10-19T20:54:22.361401+00:00",
+  "delivery": "Final Compose build with OAuth and existing TLS-verifying network override",
+  "learning_state_unchanged": true,
+  "before": {
+    "public_learning_state_sha256": "eac5b83934b2a1153744d88f2fc0b3c468ea910f9e5044255dfaa98b9a85f254",
+    "material_count": 1,
+    "cue_count": 85,
+    "settings": {
+      "model": "gpt-6-luna",
+      "reasoning_effort": "low"
+    },
+    "connection_status": "connected"
+  },
+  "after": {
+    "public_learning_state_sha256": "eac5b83934b2a1153744d88f2fc0b3c468ea910f9e5044255dfaa98b9a85f254",
+    "material_count": 1,
+    "cue_count": 85,
+    "settings": {
+      "model": "gpt-6-luna",
+      "reasoning_effort": "low"
+    },
+    "connection_status": "connected"
+  },
+  "fresh_subscription_card": {
+    "request_id": "db97b639-a9b5-4776-a61b-f5bd33c8665c",
+    "model": "gpt-6-luna",
+    "reasoning_effort": "low",
+    "selection": {
+      "token_id": "36493bf98ab04be798435755dca416e5",
+      "material_id": "0b6ba0ca287040e28ca07163b3d028ae",
+      "cue_id": "e7456fe839e34cc996f0c4104f3dbc47",
+      "surface": "left",
+      "lexeme_id": "56dfb32dc5594503ac26a28b3ff356f0",
+      "start_offset": 7,
+      "end_offset": 11,
+      "language": "en",
+      "lemma": "left",
+      "part_of_speech": "NOUN",
+      "text": "At the left we can see…",
+      "start_ms": 15000,
+      "end_ms": 18130,
+      "youtube_video_id": "TLkA0RELQ1g",
+      "transcript_hash": "c2f15912a962de35d024c798451f0cb04fa363d0cc7e0f05b8acbb6af77ffa0f",
+      "version": 1
+    },
+    "card": {
+      "translation": "слева",
+      "explanation": "Здесь left — существительное в устойчивом сочетании at the left: «слева», то есть в левой части изображения или сцены. Следующая реплика противопоставляет ему at the right — «справа».",
+      "expression": "at the left",
+      "example": "At the left, you can see a small house."
+    },
+    "tools": [
+      {
+        "name": "get_subtitle_context",
+        "success": true,
+        "duration_ms": 27
+      },
+      {
+        "name": "get_word_knowledge",
+        "success": true,
+        "duration_ms": 204
+      }
+    ],
+    "model_requests": 2,
+    "duration_ms": 8655,
+    "cached": false
+  }
+}

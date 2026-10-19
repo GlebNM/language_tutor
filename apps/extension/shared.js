@@ -54,9 +54,11 @@ export function orderVideoVocabulary(entries) {
     || b.count-a.count || a.lemma.localeCompare(b.lemma) || a.part_of_speech.localeCompare(b.part_of_speech));
 }
 
-export async function api(path, options = {}) {
+export async function api(path, options = {}, expectedBackend = null) {
   const settings = await chrome.storage.local.get({backend: DEFAULT_BACKEND});
-  const base = backendUrl(settings.backend);
+  const configuredBackend = backendUrl(settings.backend);
+  const base = expectedBackend == null ? configuredBackend : backendUrl(expectedBackend);
+  if (base !== configuredBackend) throw new Error("Адрес локального сервера изменился. Повторите запрос.");
   if (!await chrome.permissions.contains({origins:[permissionOrigin(base)]}))
     throw new Error("Разрешите доступ к локальному серверу в настройках панели.");
   let response;
@@ -70,6 +72,9 @@ export async function api(path, options = {}) {
     if (error.name === "AbortError") throw error;
     throw new Error("Локальный сервер недоступен. Проверьте Docker Compose и адрес в настройках.");
   }
+  const latestSettings = await chrome.storage.local.get({backend: DEFAULT_BACKEND});
+  if (expectedBackend != null && backendUrl(latestSettings.backend) !== base)
+    throw new Error("Адрес локального сервера изменился. Повторите запрос.");
   let body;
   try { body = await response.json(); } catch { throw new Error("Сервер вернул непонятный ответ."); }
   if (!response.ok) {

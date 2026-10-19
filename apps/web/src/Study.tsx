@@ -77,8 +77,8 @@ export function DifficultyPanel({ value }: { value?: Difficulty }) {
   </section>;
 }
 
-export function VideoVocabulary({ cues, onSaved, onOccurrence }: {
-  cues: Cue[]; onSaved(): void; onOccurrence(cue: Cue, token: Token): void;
+export function VideoVocabulary({ cues, isComplete, onSaved, onOccurrence }: {
+  cues: Cue[]; isComplete: boolean; onSaved(): void; onOccurrence(cue: Cue, token: Token): void;
 }) {
   const entries = useMemo(() => groupVideoVocabulary(cues), [cues]);
   const [search, setSearch] = useState("");
@@ -94,7 +94,8 @@ export function VideoVocabulary({ cues, onSaved, onOccurrence }: {
     {score: 3, label: scores[3], marker: "3", className: "3"},
   ].filter(level => !score || (score === "unassessed" ? level.score == null : String(level.score) === score));
   return <section className="video-vocabulary" aria-labelledby="video-vocabulary-title">
-    <div className="panel-title"><div><p className="eyebrow">ПОЛНАЯ ДОРОЖКА</p><h2 id="video-vocabulary-title">Слова видео</h2></div><span>{visible.length} из {entries.length}</span></div>
+    <div className="panel-title"><div><p className="eyebrow">{isComplete ? "ПОЛНАЯ ДОРОЖКА" : "НЕПОЛНАЯ ДОРОЖКА"}</p><h2 id="video-vocabulary-title">Слова видео</h2></div><span>{visible.length} из {entries.length}</span></div>
+    {!isComplete && <p className="help">Список содержит только загруженную часть субтитров. Для оценки всего видео нужна полная дорожка.</p>}
     <div className="dictionary-filters video-vocabulary-filters">
       <label>Поиск<input value={search} onChange={event => setSearch(event.target.value)} placeholder="Базовая форма или словоформа" /></label>
       <label>Знакомость<select value={score} onChange={event => setScore(event.target.value)}><option value="">Все оценки</option><option value="unassessed">Пока не оценено</option>{scores.map((label, value) => <option key={value} value={value}>{value} · {label}</option>)}</select></label>

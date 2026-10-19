@@ -598,7 +598,7 @@ function App() {
                     , CC BY-SA 4.0; исправлен разделитель реплики 28.
                   </p>
                 )}
-                <VideoVocabulary key={material.id} cues={material.cues} onSaved={() => void refreshMaterial().catch(e => setError(e.message))} onOccurrence={(cue, token) => {
+                <VideoVocabulary key={material.id} cues={material.cues} isComplete={material.is_complete} onSaved={() => void refreshMaterial().catch(e => setError(e.message))} onOccurrence={(cue, token) => {
                   player.current?.pause();
                   player.current?.seek(cue.start_ms);
                   void select(cue, token);

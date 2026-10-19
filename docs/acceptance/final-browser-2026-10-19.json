@@ -1,0 +1,34 @@
+{
+  "checked_at": "2026-10-19T20:53:52.927505+00:00",
+  "browser": "Codex in-app browser; installed Chrome unavailable",
+  "installation": "Isolated host Uvicorn at localhost:18865, production Vite build, own temporary SQLite directory, no subscription credentials",
+  "main_learning_data_changed": false,
+  "licensed_fixture": "data/demo/elephants-dream.en.srt; first three cues converted to VTT with is_complete=false",
+  "observations": {
+    "full_video_vocabulary_unique_words": 143,
+    "machine_occurrences": 2,
+    "manual_machine_score": 3,
+    "known_coverage_after_manual_edit_percent": 0.5,
+    "ai_unavailable_message": "Сначала подключите подписку.",
+    "card_retry_button": "Повторить разбор",
+    "partial_track_vocabulary_unique_words": 9,
+    "partial_track_label": "НЕПОЛНАЯ ДОРОЖКА",
+    "partial_notice_retained_when_searching": "left",
+    "early_seek_display_seconds": 15,
+    "explicit_continuation_observed": {
+      "current_time_seconds": 26.952255,
+      "paused": false,
+      "ready_state": 4
+    },
+    "occurrence_seek_during_playback_observed": {
+      "current_time_seconds": 15,
+      "paused": true
+    },
+    "closing_selection_retains_pause": true
+  },
+  "screenshot": "screenshots/partial-vocabulary-final.jpg",
+  "limitations": [
+    "Does not replace installed Chrome extension acceptance",
+    "Does not add new live AI evidence; live cards are recorded separately"
+  ]
+}
