@@ -317,7 +317,7 @@ async def test_provider_errors_preserve_connection_unless_authorization_expired(
         assert request.url.path == "/v1/responses"
         return httpx2.Response(status, json={"error": {"message": "Controlled failure"}})
 
-    monkeypatch.setattr(httpx2, "AsyncHTTPTransport", lambda: httpx2.MockTransport(remote))
+    monkeypatch.setattr(httpx2, "AsyncHTTPTransport", lambda **kwargs: httpx2.MockTransport(remote))
     if source == "oauth":
 
         async def oauth_remote(request: httpx.Request) -> httpx.Response:
