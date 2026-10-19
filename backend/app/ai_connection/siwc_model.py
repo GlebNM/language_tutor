@@ -4,12 +4,10 @@ import json
 from collections.abc import AsyncIterator
 
 import httpx2
-from pydantic_ai.exceptions import UnexpectedModelBehavior, UserError
-from pydantic_ai.models import ModelRequestParameters
+from pydantic_ai.exceptions import UnexpectedModelBehavior
 from pydantic_ai.models.openai import OpenAIResponsesModel
 from pydantic_ai.profiles.openai import OpenAIModelProfile
 from pydantic_ai.providers.openai import OpenAIProvider
-from pydantic_ai.settings import ModelSettings
 
 from .siwc import SubscriptionError, TokenManager
 
@@ -132,24 +130,6 @@ class SIWCTransport(httpx2.AsyncBaseTransport):
 
     async def aclose(self) -> None:
         await self.transport.aclose()
-
-
-class SIWCResponsesModel(OpenAIResponsesModel):
-    def prepare_request(
-        self,
-        model_settings: ModelSettings | None,
-        model_request_parameters: ModelRequestParameters,
-    ) -> tuple[ModelSettings | None, ModelRequestParameters]:
-        if model_settings and any(
-            key in model_settings
-            for key in (
-                "openai_previous_response_id",
-                "openai_conversation_id",
-                "openai_background",
-            )
-        ):
-            raise UserError("SIWC requires complete input history without server-side continuation")
-        return super().prepare_request(model_settings, model_request_parameters)
 
 
 def siwc_model(model_name: str, provider: OpenAIProvider) -> OpenAIResponsesModel:

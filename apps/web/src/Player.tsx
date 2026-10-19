@@ -8,8 +8,10 @@ import {
 
 type YouTubePlayer = {
   getCurrentTime(): number;
+  getPlayerState(): number;
   pauseVideo(): void;
   playVideo(): void;
+  cueVideoById(options: { videoId: string; startSeconds: number }): void;
   seekTo(seconds: number, allowSeekAhead: boolean): void;
   destroy(): void;
 };
@@ -77,6 +79,8 @@ export const Player = forwardRef<
 >(function Player({ videoId, onTime }, ref) {
   const container = useRef<HTMLDivElement>(null);
   const player = useRef<YouTubePlayer | null>(null);
+  const pauseRequested = useRef(false);
+  const cuedPosition = useRef<number | null>(null);
   const onTimeRef = useRef(onTime);
   onTimeRef.current = onTime;
   const [error, setError] = useState("");
@@ -85,19 +89,38 @@ export const Player = forwardRef<
   useImperativeHandle(
     ref,
     () => ({
-      pause: () => player.current?.pauseVideo(),
-      play: () => player.current?.playVideo(),
+      pause: () => {
+        pauseRequested.current = true;
+        player.current?.pauseVideo();
+      },
+      play: () => {
+        pauseRequested.current = false;
+        player.current?.playVideo();
+      },
       seek: (ms) => {
-        player.current?.seekTo(ms / 1000, true);
+        const instance = player.current;
+        if (!instance) return;
+        const state = instance.getPlayerState();
+        const keepPaused = pauseRequested.current || ![1, 3].includes(state);
+        if (keepPaused && state !== 2) {
+          // seekTo starts an unstarted/cued/ended video. Cue its new start instead.
+          cuedPosition.current = ms;
+          instance.cueVideoById({ videoId, startSeconds: ms / 1000 });
+        } else {
+          cuedPosition.current = null;
+          instance.seekTo(ms / 1000, true);
+        }
         onTimeRef.current(ms);
       },
     }),
-    [],
+    [videoId],
   );
   useEffect(() => {
     let active = true;
     let interval: number | undefined;
     let readyTimeout: number | undefined;
+    pauseRequested.current = false;
+    cuedPosition.current = null;
     setReady(false);
     setError("");
     onTimeRef.current(0);
@@ -128,11 +151,22 @@ export const Player = forwardRef<
               setReady(true);
               setError("");
               interval = window.setInterval(() => {
-                if (active) onTimeRef.current(instance.getCurrentTime() * 1000);
+                if (active)
+                  onTimeRef.current(
+                    cuedPosition.current ?? instance.getCurrentTime() * 1000,
+                  );
               }, 100);
             },
-            onStateChange() {
-              if (active) onTimeRef.current(instance.getCurrentTime() * 1000);
+            onStateChange(event) {
+              if (!active) return;
+              if (event.data === 1) {
+                // Native player controls count as the learner explicitly resuming.
+                pauseRequested.current = false;
+                cuedPosition.current = null;
+              }
+              onTimeRef.current(
+                cuedPosition.current ?? instance.getCurrentTime() * 1000,
+              );
             },
             onError(event) {
               if (!active) return;

@@ -266,3 +266,75 @@ async def test_siwc_sdk_exchanges_real_mcp_context_before_structured_output(
     assert result.card.translation == "бросила"
     assert result.tools[0].success is True
     assert turns == 2
+
+
+@pytest.mark.parametrize(
+    ("source", "status", "response_status", "connection_status"),
+    [
+        ("oauth", 400, 409, "reauth_required"),
+        ("inference", 400, 503, "connected"),
+        ("inference", 401, 409, "reauth_required"),
+        ("inference", 403, 403, "connected"),
+        ("inference", 429, 429, "limit_reached"),
+        ("inference", 503, 503, "connected"),
+    ],
+)
+async def test_provider_errors_preserve_connection_unless_authorization_expired(
+    tmp_path: Path,
+    mcp_url: str,
+    monkeypatch: pytest.MonkeyPatch,
+    source: str,
+    status: int,
+    response_status: int,
+    connection_status: str,
+) -> None:
+    import httpx2
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from backend.app.ai_connection import create_ai_router
+    from backend.app.ai_connection.siwc_credentials import SIWCCredentials
+    from backend.app.ai_connection.storage import CredentialStore
+
+    store = CredentialStore(tmp_path / "credentials")
+    await store.save(
+        SIWCCredentials(
+            access_token="test-access",
+            refresh_token="test-refresh",
+            id_token="test-id",
+            client_id="oaiapp_test",
+            subject="learner",
+            scopes=["chatgpt.tokens.use.direct"],
+            expires_at=0 if source == "oauth" else time.time() + 3600,
+        )
+    )
+
+    async def remote(request: httpx2.Request) -> httpx2.Response:
+        if request.url.path == "/v1/models":
+            return httpx2.Response(
+                200, json={"models": [{"slug": "test-siwc", "visibility": "list"}]}
+            )
+        assert request.url.path == "/v1/responses"
+        return httpx2.Response(status, json={"error": {"message": "Controlled failure"}})
+
+    monkeypatch.setattr(httpx2, "AsyncHTTPTransport", lambda: httpx2.MockTransport(remote))
+    if source == "oauth":
+
+        async def oauth_remote(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/accounts/oauth/token"
+            return httpx.Response(400, json={"error": "invalid_grant"})
+
+        oauth_client = httpx.AsyncClient(transport=httpx.MockTransport(oauth_remote))
+        monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: oauth_client)
+
+    app = FastAPI()
+    app.include_router(create_ai_router(data_dir=tmp_path, mcp_url=mcp_url))
+    with TestClient(app) as client, models.override_allow_model_requests(True):
+        response = client.post("/api/ai/proof")
+        assert response.status_code == response_status, response.text
+        connection = client.get("/api/ai/connection").json()
+        assert connection["status"] == connection_status
+        if connection_status == "reauth_required":
+            assert connection["error"] == "authorization_expired"
+        elif connection_status == "limit_reached":
+            assert connection["error"] == "subscription_limit"

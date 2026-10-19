@@ -250,36 +250,8 @@ class ConnectionService:
                 raise HTTPException(409, "Подписка отключена.")
             self.state = ConnectionStatus(status="connected", live_verified=True)
             return result
-        except SubscriptionError as error:
-            if error.status == 429:
-                self.state = ConnectionStatus(status="limit_reached", error="subscription_limit")
-                raise HTTPException(429, "Достигнут лимит подписки. Повторите позже.") from None
-            if error.status == 403:
-                raise HTTPException(
-                    403, "Подписка или политика OpenAI не разрешает этот запрос."
-                ) from None
-            if error.status in (400, 401):
-                self.state = ConnectionStatus(
-                    status="reauth_required", error="authorization_expired"
-                )
-                raise HTTPException(409, "Требуется повторное подключение подписки.") from None
-            raise HTTPException(503, "Подписка временно недоступна. Повторите позже.") from None
-        except ModelHTTPError as error:
-            if error.status_code == 429:
-                self.state = ConnectionStatus(status="limit_reached", error="subscription_limit")
-                raise HTTPException(429, "Достигнут лимит подписки. Повторите позже.") from None
-            if error.status_code == 403:
-                raise HTTPException(
-                    403, "Подписка или политика OpenAI не разрешает этот запрос."
-                ) from None
-            if error.status_code == 401:
-                self.state = ConnectionStatus(
-                    status="reauth_required", error="authorization_expired"
-                )
-                raise HTTPException(409, "Требуется повторное подключение подписки.") from None
-            raise HTTPException(
-                503, "Провайдер AI временно недоступен. Повторите запрос."
-            ) from None
+        except (SubscriptionError, ModelHTTPError) as error:
+            raise self.provider_failure(error) from None
         except TimeoutError:
             raise HTTPException(504, "AI не ответил за 30 секунд. Повторите запрос.") from None
         except asyncio.CancelledError:
@@ -292,6 +264,25 @@ class ConnectionService:
             ) from None
         finally:
             self.runs.discard(task)
+
+    def provider_failure(self, error: SubscriptionError | ModelHTTPError) -> HTTPException:
+        subscription_error = isinstance(error, SubscriptionError)
+        status = error.status if isinstance(error, SubscriptionError) else error.status_code
+        if status == 429:
+            self.state = ConnectionStatus(status="limit_reached", error="subscription_limit")
+            return HTTPException(429, "Достигнут лимит подписки. Повторите позже.")
+        if status == 403:
+            return HTTPException(403, "Подписка или политика OpenAI не разрешает этот запрос.")
+        # An OAuth refresh 400 invalidates authorization; an inference 400 does not.
+        if status == 401 or (subscription_error and status == 400):
+            self.state = ConnectionStatus(status="reauth_required", error="authorization_expired")
+            return HTTPException(409, "Требуется повторное подключение подписки.")
+        return HTTPException(
+            503,
+            "Подписка временно недоступна. Повторите позже."
+            if subscription_error
+            else "Провайдер AI временно недоступен. Повторите запрос.",
+        )
 
     async def stop_after_response(self, server: uvicorn.Server | None) -> None:
         await asyncio.sleep(0.05)
