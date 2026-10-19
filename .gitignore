@@ -1,0 +1,67 @@
+# Local agent files
+.agents/
+.codex/
+
+# Environment and credentials
+.env
+.env.*
+!.env.example
+!.env.*.example
+.secrets/
+credentials/
+credentials.json
+auth.json
+*.pem
+*.key
+
+# Python environments, bytecode, and build output
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# JavaScript dependencies and build caches
+node_modules/
+.npm/
+.pnpm-store/
+.vite/
+*.tsbuildinfo
+
+# Test, lint, and type-check caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+.coverage
+.coverage.*
+coverage/
+htmlcov/
+playwright-report/
+test-results/
+
+# Local databases, user data, and diagnostic logs
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+/data/local/
+/data/uploads/
+/data/credentials/
+logs/
+*.log
+
+# Editor and operating-system files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+._*
+Thumbs.db
