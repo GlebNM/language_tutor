@@ -6,6 +6,7 @@ import subprocess
 import sys
 import time
 from collections.abc import Iterator
+from pathlib import Path
 
 import httpx
 import pytest
@@ -150,3 +151,118 @@ async def test_mcp_rejects_selection_from_another_material(mcp_url: str) -> None
                     "token_id": "proof-token",
                 },
             )
+
+
+async def test_siwc_sdk_exchanges_real_mcp_context_before_structured_output(
+    mcp_url: str,
+    tmp_path: Path,
+) -> None:
+    import json
+    from pathlib import Path
+
+    import httpx2
+    from openai import AsyncOpenAI
+    from pydantic_ai.providers.openai import OpenAIProvider
+
+    from backend.app.ai_connection.siwc import TokenManager
+    from backend.app.ai_connection.siwc_credentials import SIWCCredentials
+    from backend.app.ai_connection.siwc_model import SIWCTransport, siwc_model
+    from backend.app.ai_connection.storage import CredentialStore
+
+    store = CredentialStore(Path(tmp_path) / "credentials")
+    await store.save(
+        SIWCCredentials(
+            access_token="test-access",
+            refresh_token="test-refresh",
+            id_token="test-id",
+            client_id="oaiapp_test",
+            subject="learner",
+            scopes=["chatgpt.tokens.use.direct"],
+            expires_at=time.time() + 3600,
+        )
+    )
+    turns = 0
+
+    async def remote(request: httpx2.Request) -> httpx2.Response:
+        nonlocal turns
+        turns += 1
+        body = json.loads(request.content)
+        tools = body["input"][0]["tools"]
+        if turns == 1:
+            assert "get_proof_context" in [tool["name"] for tool in tools]
+            name = "get_proof_context"
+            arguments = {
+                "material_id": "subscription-proof",
+                "cue_id": "proof-cue",
+                "token_id": "proof-token",
+            }
+        else:
+            outputs = [item for item in body["input"] if item.get("type") == "function_call_output"]
+            assert outputs and "She gave up smoking." in str(outputs[0]["output"])
+            name = next(
+                tool["name"]
+                for tool in tools
+                if "translation" in tool["parameters"].get("properties", {})
+            )
+            arguments = {
+                "translation": "бросила",
+                "explanation": "Прекратила привычку.",
+                "expression": "give up",
+                "example": "He gave up smoking.",
+            }
+        item = {
+            "id": f"fc_{turns}",
+            "type": "function_call",
+            "call_id": f"call_{turns}",
+            "name": name,
+            "arguments": json.dumps(arguments),
+            "status": "completed",
+        }
+        response = {
+            "id": f"resp_{turns}",
+            "object": "response",
+            "created_at": time.time(),
+            "model": "test-siwc",
+            "status": "completed",
+            "output": [item],
+        }
+        events = [
+            {
+                "type": "response.output_item.added",
+                "item": {**item, "arguments": ""},
+                "output_index": 0,
+                "sequence_number": 0,
+            },
+            {
+                "type": "response.output_item.done",
+                "item": item,
+                "output_index": 0,
+                "sequence_number": 1,
+            },
+            {"type": "response.completed", "response": response, "sequence_number": 2},
+        ]
+        return httpx2.Response(
+            200,
+            headers={"content-type": "text/event-stream"},
+            content="".join(f"data: {json.dumps(event)}\n\n" for event in events).encode(),
+        )
+
+    async with httpx2.AsyncClient(
+        transport=SIWCTransport(
+            TokenManager(store),
+            transport=httpx2.MockTransport(remote),
+        )
+    ) as client:
+        provider = OpenAIProvider(
+            openai_client=AsyncOpenAI(
+                api_key="subscription-oauth",
+                http_client=client,
+                max_retries=0,
+            )
+        )
+        # Only the controlled SDK transport is enabled; real MCP still uses local TCP.
+        with models.override_allow_model_requests(True):
+            result = await run_proof(model=siwc_model("test-siwc", provider), mcp_url=mcp_url)
+    assert result.card.translation == "бросила"
+    assert result.tools[0].success is True
+    assert turns == 2

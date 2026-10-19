@@ -38,7 +38,7 @@ def test_oauth_listener_is_ready_and_rejects_wrong_state_before_denial(tmp_path:
         start = client.post("/api/ai/connection/start")
         assert start.status_code == 200
         values = parse_qs(urlparse(start.json()["authorization_url"]).query)
-        assert values["redirect_uri"] == ["http://localhost:1455/auth/callback"]
+        assert values["redirect_uri"] == [f"http://127.0.0.1:{port}/auth/callback"]
         assert values["code_challenge_method"] == ["S256"]
         callback = f"http://127.0.0.1:{port}/auth/callback"
         rejected = httpx.get(callback, params={"state": "wrong", "error": "access_denied"})
@@ -79,15 +79,21 @@ def test_subscription_survives_restart_and_disconnect_removes_access(tmp_path: P
     from urllib.parse import parse_qs, urlparse
 
     import httpx
-    from pydantic_ai.providers.openai_codex import OpenAICodexCredentials, OpenAICodexOAuthFlow
 
-    class ControlledOAuth(OpenAICodexOAuthFlow):
-        async def exchange_code(self, code: str) -> OpenAICodexCredentials:
+    from backend.app.ai_connection.siwc import SIWCOAuthFlow
+    from backend.app.ai_connection.siwc_credentials import SIWCCredentials
+
+    class ControlledOAuth(SIWCOAuthFlow):
+        async def exchange_code(self, code: str, **kwargs: object) -> SIWCCredentials:
             assert code == "test-authorization-code"
-            return OpenAICodexCredentials(
+            return SIWCCredentials(
                 access_token="test-secret-access",
                 refresh_token="test-secret-refresh",
-                account_id="test",
+                client_id="oaiapp_test",
+                subject="test",
+                id_token="test-id-token",
+                scopes=["chatgpt.tokens.use.direct"],
+                expires_at=9999999999,
             )
 
     with socket.socket() as probe:
@@ -154,16 +160,31 @@ def test_cancelled_oauth_callback_cannot_reconnect(tmp_path: Path) -> None:
 
 
 async def test_credential_source_rotations_remain_available_after_reopening(tmp_path: Path) -> None:
-    from pydantic_ai.providers.openai_codex import OpenAICodexCredentials
-
+    from backend.app.ai_connection.siwc_credentials import SIWCCredentials
     from backend.app.ai_connection.storage import CredentialStore
 
     source = CredentialStore(tmp_path / "credentials")
     await source.save(
-        OpenAICodexCredentials(access_token="first", refresh_token="refresh1", account_id="x")
+        SIWCCredentials(
+            access_token="first",
+            refresh_token="refresh1",
+            client_id="oaiapp_test",
+            subject="x",
+            id_token="test-id",
+            scopes=["chatgpt.tokens.use.direct"],
+            expires_at=9999999999,
+        )
     )
     await source.save(
-        OpenAICodexCredentials(access_token="rotated", refresh_token="refresh2", account_id="x")
+        SIWCCredentials(
+            access_token="rotated",
+            refresh_token="refresh2",
+            client_id="oaiapp_test",
+            subject="x",
+            id_token="test-id",
+            scopes=["chatgpt.tokens.use.direct"],
+            expires_at=9999999999,
+        )
     )
     restored = await CredentialStore(tmp_path / "credentials").load()
     assert restored.access_token == "rotated"

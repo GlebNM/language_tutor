@@ -2,6 +2,8 @@
 
 Checked on 19 October 2026 for the model-access assumptions originating in SPEC.md §§9.4 and 12.2.
 
+**Implementation update:** the spike now selects and implements official SIWC public dynamic registration, validated identity and scope, and the supported streaming Responses route. The previous Codex candidate was removed from product code. Controlled SDK + real HTTP MCP tests pass; live host-browser consent and subscription acceptance are still pending. See [the executable proof and its acceptance boundaries](../subscription-proof.md). The research below records the earlier source investigation.
+
 **Current scope:** the user has confirmed local Docker Compose for one learner, a shared learning profile across the standalone web app and Chrome extension, and subscription-only model access. Application login, profile switching, public hosting, API-key support, and AI spending tracking are outside MVP scope. This revision focuses on the subscription connection and the browser callback across Docker networking. Earlier public-hosting findings are retained briefly as superseded context.
 
 This is documentation and source research. No credentials were read, dependencies installed, or containers or live model requests run. No subscription login, refresh, structured response, or MCP acceptance test has run for this project. The possible arrangements below are candidates for testing, not product decisions.

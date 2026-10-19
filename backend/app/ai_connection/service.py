@@ -8,26 +8,25 @@ from contextlib import suppress
 from pathlib import Path
 from typing import Literal
 
+import httpx2
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
+from openai import AsyncOpenAI
 from pydantic import BaseModel
 from pydantic_ai.exceptions import ModelHTTPError
-from pydantic_ai.models.openai_codex import OpenAICodexModel
-from pydantic_ai.providers.openai_codex import (
-    CredentialsRefreshError,
-    OpenAICodexOAuthFlow,
-    OpenAICodexProvider,
-)
+from pydantic_ai.providers.openai import OpenAIProvider
 
 from backend.app.agents.subscription_proof import ProofResult, run_proof
 
+from .siwc import DIRECT_SCOPE, SIWCOAuthFlow, SubscriptionError, TokenManager
+from .siwc_model import SIWCTransport, siwc_model
 from .storage import CredentialStore
 
 
 class ConnectionStatus(BaseModel):
     status: Literal["disconnected", "connecting", "connected", "reauth_required", "limit_reached"]
-    route: str = "pydantic-codex-candidate"
+    route: str = "siwc"
     live_verified: bool = False
     error: str | None = None
 
@@ -40,13 +39,14 @@ class ConnectionService:
         callback_host: str,
         callback_port: int,
         oauth_timeout: float,
-        flow_factory: Callable[[], OpenAICodexOAuthFlow],
+        flow_factory: Callable[..., SIWCOAuthFlow],
         mcp_url: str,
         model_name: str,
     ) -> None:
         self.mcp_url = mcp_url
         self.model_name = model_name
-        self.provider: OpenAICodexProvider | None = None
+        self.provider: OpenAIProvider | None = None
+        self.http_client: httpx2.AsyncClient | None = None
         self.runs: set[asyncio.Task[ProofResult]] = set()
         self.data_dir = data_dir
         self.store = CredentialStore(data_dir / "credentials")
@@ -57,11 +57,25 @@ class ConnectionService:
         self.state = ConnectionStatus(
             status="connected" if self.store.path.exists() else "disconnected"
         )
-        self.flow: OpenAICodexOAuthFlow | None = None
+        self.flow: SIWCOAuthFlow | None = None
         self.lock = asyncio.Lock()
         self.server: uvicorn.Server | None = None
         self.server_task: asyncio.Task[None] | None = None
         self.timeout_task: asyncio.Task[None] | None = None
+
+    async def inspect(self) -> ConnectionStatus:
+        if self.state.status == "connected":
+            try:
+                credentials = await self.store.load()
+                if DIRECT_SCOPE not in credentials.scopes:
+                    self.state = ConnectionStatus(
+                        status="reauth_required", error="plan_permission_missing"
+                    )
+            except Exception:
+                self.state = ConnectionStatus(
+                    status="reauth_required", error="connection_unavailable"
+                )
+        return self.state
 
     async def start(self) -> dict[str, object]:
         async with self.lock:
@@ -82,10 +96,16 @@ class ConnectionService:
                     409,
                     {
                         "code": "callback_port_in_use",
-                        "message": "Порт OAuth 1455 занят. Освободите его и повторите подключение.",
+                        "message": (
+                            f"Порт OAuth {self.callback_port} занят. Измените AI_CALLBACK_PORT."
+                        ),
                     },
                 ) from None
-            self.flow = self.flow_factory()
+            self.store = CredentialStore(self.data_dir / "credentials")
+            self.flow = self.flow_factory(
+                store=self.store,
+                redirect_uri=f"http://127.0.0.1:{self.callback_port}/auth/callback",
+            )
             callback = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
             callback.add_api_route("/auth/callback", self.callback, methods=["GET"])
             self.server = uvicorn.Server(
@@ -128,7 +148,9 @@ class ConnectionService:
                 self.timeout_task.cancel()
             try:
                 async with asyncio.timeout(30):
-                    credentials = await flow.exchange_code(code)
+                    credentials = await flow.exchange_code(
+                        code, client_id=request.query_params.get("client_id")
+                    )
                 self.store = CredentialStore(self.data_dir / "credentials")
                 await self.store.save(credentials)
             except Exception:
@@ -139,7 +161,10 @@ class ConnectionService:
                 return HTMLResponse(
                     "Не удалось подключить подписку. Повторите вход в приложении.", 400
                 )
-            self.state = ConnectionStatus(status="connected")
+            self.state = ConnectionStatus(
+                status="connected" if DIRECT_SCOPE in credentials.scopes else "reauth_required",
+                error=None if DIRECT_SCOPE in credentials.scopes else "plan_permission_missing",
+            )
             asyncio.create_task(self.stop_after_response(self.server))
             return HTMLResponse("Подписка подключена. Вернитесь в Language Tutor.")
 
@@ -169,36 +194,55 @@ class ConnectionService:
             task.cancel()
         if pending:
             await asyncio.gather(*pending, return_exceptions=True)
-        if self.provider:
-            await self.provider.__aexit__(None, None, None)
-            self.provider = None
+        if self.http_client:
+            await self.http_client.aclose()
+            self.http_client = None
+        self.provider = None
 
     async def close(self) -> None:
         await self.cancel()
         await self.close_provider()
 
+    async def connected_proof(self) -> ProofResult:
+        async with asyncio.timeout(30):
+            async with self.lock:
+                if self.provider is None:
+                    await self.store.load()
+                    self.http_client = httpx2.AsyncClient(
+                        transport=SIWCTransport(TokenManager(self.store)),
+                        timeout=10,
+                    )
+                    self.provider = OpenAIProvider(
+                        openai_client=AsyncOpenAI(
+                            api_key="subscription-oauth",
+                            base_url="https://api.openai.com/v1",
+                            http_client=self.http_client,
+                            max_retries=0,
+                        )
+                    )
+                client = self.http_client
+                provider = self.provider
+            if client is None:
+                raise HTTPException(503, "Подключение AI недоступно.")
+            catalog_response = await client.get("https://api.openai.com/v1/models")
+            if catalog_response.is_error:
+                if catalog_response.status_code in (401, 403):
+                    raise SubscriptionError(
+                        "model_catalog_unauthorized", catalog_response.status_code
+                    )
+                raise HTTPException(503, "Не удалось получить модели подписки. Повторите запрос.")
+            catalog = catalog_response.json().get("models", [])
+            available = [item["slug"] for item in catalog if item.get("visibility") == "list"]
+            selected = self.model_name or (available[0] if available else "")
+            if not selected or selected not in available:
+                raise HTTPException(409, "Модель недоступна подписке. Проверьте AI_MODEL.")
+            return await run_proof(model=siwc_model(selected, provider), mcp_url=self.mcp_url)
+
     async def proof(self) -> ProofResult:
         async with self.lock:
             if self.state.status not in ("connected", "limit_reached"):
                 raise HTTPException(409, "Сначала подключите подписку.")
-            if self.provider is None:
-                try:
-                    await self.store.load()
-                except Exception:
-                    self.state = ConnectionStatus(
-                        status="reauth_required", error="connection_unavailable"
-                    )
-                    raise HTTPException(409, "Требуется повторное подключение подписки.") from None
-                # Always supply our source: the provider's default reads Codex CLI credentials.
-                self.provider = OpenAICodexProvider(credential_source=self.store)
-                self.provider.client.max_retries = 0
-                await self.provider.__aenter__()
-            task = asyncio.create_task(
-                run_proof(
-                    model=OpenAICodexModel(self.model_name, provider=self.provider),
-                    mcp_url=self.mcp_url,
-                )
-            )
+            task = asyncio.create_task(self.connected_proof())
             self.runs.add(task)
         try:
             result = await task
@@ -206,14 +250,29 @@ class ConnectionService:
                 raise HTTPException(409, "Подписка отключена.")
             self.state = ConnectionStatus(status="connected", live_verified=True)
             return result
-        except CredentialsRefreshError:
-            self.state = ConnectionStatus(status="reauth_required", error="refresh_failed")
-            raise HTTPException(409, "Требуется повторное подключение подписки.") from None
+        except SubscriptionError as error:
+            if error.status == 429:
+                self.state = ConnectionStatus(status="limit_reached", error="subscription_limit")
+                raise HTTPException(429, "Достигнут лимит подписки. Повторите позже.") from None
+            if error.status == 403:
+                raise HTTPException(
+                    403, "Подписка или политика OpenAI не разрешает этот запрос."
+                ) from None
+            if error.status in (400, 401):
+                self.state = ConnectionStatus(
+                    status="reauth_required", error="authorization_expired"
+                )
+                raise HTTPException(409, "Требуется повторное подключение подписки.") from None
+            raise HTTPException(503, "Подписка временно недоступна. Повторите позже.") from None
         except ModelHTTPError as error:
             if error.status_code == 429:
                 self.state = ConnectionStatus(status="limit_reached", error="subscription_limit")
                 raise HTTPException(429, "Достигнут лимит подписки. Повторите позже.") from None
-            if error.status_code in (401, 403):
+            if error.status_code == 403:
+                raise HTTPException(
+                    403, "Подписка или политика OpenAI не разрешает этот запрос."
+                ) from None
+            if error.status_code == 401:
                 self.state = ConnectionStatus(
                     status="reauth_required", error="authorization_expired"
                 )
