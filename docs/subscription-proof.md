@@ -1,6 +1,6 @@
 # Local subscription proof — ticket #1
 
-Checked on 19 October 2026. The selected route is **official Sign in with ChatGPT (SIWC) for local open-source applications**. The application implements that public registration and inference contract. Controlled OAuth, SDK, schema and real MCP transport tests pass. **Live host-browser consent and subscription execution remain unverified, so ticket #1, A16 and A17 remain open.** No real credentials or Codex CLI credential files were read during implementation.
+Checked on 19 October 2026. The selected route is **official Sign in with ChatGPT (SIWC) for local open-source applications**. The application implements that public registration and inference contract. **Ticket #1's live feasibility result passed:** host-browser consent completed, and the named Agent returned a validated contextual card after a real model-selected HTTP MCP call. The same proof passed after app container recreation without another sign-in. Full MVP criteria A16 and A17 remain incomplete because they also cover later AI features and lifecycle scenarios. The agent did not inspect tokens, authorization codes or Codex CLI credential files.
 
 ## Supported access contract
 
@@ -67,8 +67,30 @@ The checks cover callback readiness/state/PKCE/denial/cancellation/timeout/port 
 
 One combined test exercises the complete controlled path: **official SDK request → SIWC tool declaration → model-selected real HTTP MCP call → returned cue in the next SDK request → validated output function**. This verifies the adapter and Agent/MCP integration together. It does not establish account eligibility or live provider success.
 
+## Host sign-in retry and network evidence
+
+The learner attempted sign-in and reported “failed to authorize” on the OpenAI sign-in page. That provider-page failure has no confirmed cause. Two independently reproduced local faults were corrected before requesting a fresh attempt:
+
+- A completed callback left its fixed listener port in TIME_WAIT. The original public sequence returned start 200, controlled denial 400, immediate retry 409. Setting `SO_REUSEADDR` before bind changed the sequence to 200/400/200 on two actual Compose runs, while an occupied listener still returns 409. Callback failures now expose only a bounded category, never exception text or provider payloads.
+- The host could reach OpenAI through its existing network, while the Colima container could not resolve/reach the OpenAI origins. The optional `compose.network.yaml` routes HTTPS through `scripts/openai-connect-relay.py`, restricted to `auth.openai.com:443` and `api.openai.com:443`, and mounts the host's existing public CA bundle read-only. The learner explicitly approved using that trust for OAuth. TLS verification remains enabled; the relay forwards encrypted bytes and does not log requests. MCP remains direct and internal.
+
+From the final configured app container, public OIDC discovery returned HTTP 200 with the expected issuer. A `/v1/models` request using the actual `SIWCTransport` and a public dummy bearer returned the expected unauthenticated HTTP 401. These checks used no account credentials and establish routing and certificate verification only. The explicit SIWC transport now honors `HTTPS_PROXY`, `NO_PROXY` and `SSL_CERT_FILE`; default Compose still uses direct networking.
+
+After these fixes, the full suite passed 55 tests in 12.15 seconds; strict mypy passed for 15 sources and Ruff passed for backend and relay helper. Independent Standards and Spec reviews of `ee8a394..78b8291` found no actionable issues. The learner's fresh sign-in succeeded. The successful retry does not establish which fault caused the original sign-in-page message.
+
+## Live subscription and persistence evidence
+
+The learner completed **Continue with ChatGPT** from the Compose UI at `http://127.0.0.1:18765`, returning through host loopback callback port 1456. The backend reported `connected`; no API key was supplied. Two explicit `POST /api/ai/proof` requests returned HTTP 200 through SIWC with catalog-selected `gpt-6.1-sol` and Pydantic AI 2.57.0/OpenAI SDK 3.35.1. The provider exposed that model slug; a separate immutable model snapshot was not reported.
+
+| Run | Request ID | Model requests | Real `get_proof_context` call | Total Agent time |
+| --- | --- | --- | --- | --- |
+| Connected application | `7de7e619-d380-4421-8b09-5d50d1df31c9` | 2 | success, 19 ms | 8,288 ms |
+| After app container recreation | `637d3181-b848-4432-a68b-3214994ace2f` | 2 | success, 7 ms | 10,210 ms |
+
+Both runs returned nonempty translation, explanation, English expression and English example validated by `ContextualCard`. The first model turn selected the MCP context tool; the second produced the structured card from its result. The MCP service ran separately inside the Compose network without a published port. The fixture was the authored sentence documented above, not an imported learner material. These timings exceed the full card feature's five-second target; they are recorded feasibility measurements, not a claim that the later performance criterion passed.
+
+The app container was force-recreated between the two requests. On startup it reported `connected` with `live_verified:false`; the next real proof succeeded and set `live_verified:true` without another browser authorization. Only the public connection status and proof result metadata were inspected. Persistent credential contents were not opened, and the learner's connection remains available in the running application.
+
 ## Remaining acceptance
 
-No live model name, real consent completion, production latency or live subscription MCP trace is recorded. A human must run the callback-enabled Compose application, select **Continue with ChatGPT**, complete browser consent with an eligible account, run the proof and record model/version/request ID/completion/tool timing metadata. This verifies the actual host-to-container callback path and the account's serving eligibility. The supported API contract is selected and implemented; account-specific runtime acceptance remains pending.
-
-Live refresh/revocation/quota behavior, browser callback replay timing, disconnect during live work and Docker callback networking still need acceptance. Remote sign-out revocation is not implemented. Full diagnosis, contextual cards for imported materials, chat and their complete MCP toolsets belong to later tickets; the authored fixture does not satisfy those full MVP scenarios. Ticket #1 and its AI-dependent tickets remain blocked until the live acceptance evidence exists.
+The host-to-container OAuth callback, account serving eligibility, live structured output, real model-selected MCP call and connection persistence now have evidence for ticket #1. Live refresh/revocation/quota behavior, browser callback replay timing and disconnect during live work still need acceptance under the later lifecycle ticket. Remote sign-out revocation is not implemented. Full diagnosis, contextual cards for imported materials, chat and their complete MCP toolsets belong to later tickets; the authored fixture does not satisfy those full MVP scenarios or all of A16/A17.
