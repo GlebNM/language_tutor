@@ -268,6 +268,36 @@ def test_oauth_can_retry_same_port_immediately_after_completed_callback(tmp_path
             assert client.post("/api/ai/connection/cancel").status_code == 200
 
 
+def test_repeated_oauth_callback_cannot_reuse_completed_state(tmp_path: Path) -> None:
+    import socket
+    from urllib.parse import parse_qs, urlparse
+
+    import httpx
+
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+    app = FastAPI()
+    app.include_router(
+        create_ai_router(
+            data_dir=tmp_path,
+            mcp_url="http://mcp:8001/mcp",
+            callback_host="127.0.0.1",
+            callback_port=port,
+        )
+    )
+    with TestClient(app) as client:
+        started = client.post("/api/ai/connection/start")
+        state = parse_qs(urlparse(started.json()["authorization_url"]).query)["state"][0]
+        callback = f"http://127.0.0.1:{port}/auth/callback"
+        first = httpx.get(callback, params={"state": state, "error": "access_denied"})
+        repeated = httpx.get(callback, params={"state": state, "error": "access_denied"})
+
+        assert first.status_code == 400
+        assert repeated.status_code == 409
+        assert client.get("/api/ai/connection").json()["status"] == "disconnected"
+
+
 @pytest.mark.parametrize(
     ("failure", "category"),
     [

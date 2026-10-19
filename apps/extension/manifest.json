@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Language Tutor",
+  "version": "0.2.0",
+  "description": "Английские субтитры, личный словарь и учебный агент на YouTube с локальным профилем.",
+  "minimum_chrome_version": "116",
+  "permissions": ["sidePanel", "scripting", "storage"],
+  "host_permissions": ["https://www.youtube.com/*"],
+  "optional_host_permissions": ["http://localhost/*", "http://127.0.0.1/*"],
+  "background": {"service_worker": "service-worker.js", "type": "module"},
+  "action": {"default_title": "Открыть Language Tutor"},
+  "side_panel": {"default_path": "panel.html"},
+  "content_scripts": [{
+    "matches": ["https://www.youtube.com/*"],
+    "js": ["content.js"],
+    "css": ["content.css"],
+    "run_at": "document_idle"
+  }]
+}

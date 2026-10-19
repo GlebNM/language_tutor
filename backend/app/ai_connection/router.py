@@ -19,8 +19,9 @@ def create_ai_router(
     oauth_timeout: float = 300,
     model_name: str = "",
     flow_factory: Callable[..., SIWCOAuthFlow] = SIWCOAuthFlow,
+    service: ConnectionService | None = None,
 ) -> APIRouter:
-    service = ConnectionService(
+    service = service or ConnectionService(
         data_dir=data_dir,
         callback_host=callback_host,
         callback_port=callback_port,

@@ -1,0 +1,173 @@
+{
+  "version": 1,
+  "language": "en",
+  "review": "Meanings and frequency membership checked for the MVP implementation on 2026-10-19. Broad Russian synonyms accepted; sentence answers affect summary only.",
+  "items": [
+    {
+      "id": "en-v1-water",
+      "kind": "word",
+      "group": 1,
+      "lemma": "water",
+      "part_of_speech": "NOUN",
+      "prompt": "Что означает английское слово «water»? Объясните по-русски.",
+      "meanings": [
+        "вода"
+      ]
+    },
+    {
+      "id": "en-v1-house",
+      "kind": "word",
+      "group": 1,
+      "lemma": "house",
+      "part_of_speech": "NOUN",
+      "prompt": "Что означает английское слово «house»? Объясните по-русски.",
+      "meanings": [
+        "дом",
+        "здание для жилья"
+      ]
+    },
+    {
+      "id": "en-v1-work",
+      "kind": "word",
+      "group": 1,
+      "lemma": "work",
+      "part_of_speech": "VERB",
+      "prompt": "Что означает английское слово «work»? Объясните по-русски.",
+      "meanings": [
+        "работать",
+        "трудиться"
+      ]
+    },
+    {
+      "id": "en-v1-friend",
+      "kind": "word",
+      "group": 1,
+      "lemma": "friend",
+      "part_of_speech": "NOUN",
+      "prompt": "Что означает английское слово «friend»? Объясните по-русски.",
+      "meanings": [
+        "друг",
+        "подруга"
+      ]
+    },
+    {
+      "id": "en-v1-improve",
+      "kind": "word",
+      "group": 2,
+      "lemma": "improve",
+      "part_of_speech": "VERB",
+      "prompt": "Что означает английское слово «improve»? Объясните по-русски.",
+      "meanings": [
+        "улучшать",
+        "улучшаться"
+      ]
+    },
+    {
+      "id": "en-v1-journey",
+      "kind": "word",
+      "group": 2,
+      "lemma": "journey",
+      "part_of_speech": "NOUN",
+      "prompt": "Что означает английское слово «journey»? Объясните по-русски.",
+      "meanings": [
+        "путешествие",
+        "поездка",
+        "путь"
+      ]
+    },
+    {
+      "id": "en-v1-effort",
+      "kind": "word",
+      "group": 2,
+      "lemma": "effort",
+      "part_of_speech": "NOUN",
+      "prompt": "Что означает английское слово «effort»? Объясните по-русски.",
+      "meanings": [
+        "усилие",
+        "старание"
+      ]
+    },
+    {
+      "id": "en-v1-advice",
+      "kind": "word",
+      "group": 2,
+      "lemma": "advice",
+      "part_of_speech": "NOUN",
+      "prompt": "Что означает английское слово «advice»? Объясните по-русски.",
+      "meanings": [
+        "совет",
+        "рекомендация"
+      ]
+    },
+    {
+      "id": "en-v1-curious",
+      "kind": "word",
+      "group": 3,
+      "lemma": "curious",
+      "part_of_speech": "ADJ",
+      "prompt": "Что означает английское слово «curious»? Объясните по-русски.",
+      "meanings": [
+        "любопытный",
+        "любознательный"
+      ]
+    },
+    {
+      "id": "en-v1-resist",
+      "kind": "word",
+      "group": 3,
+      "lemma": "resist",
+      "part_of_speech": "VERB",
+      "prompt": "Что означает английское слово «resist»? Объясните по-русски.",
+      "meanings": [
+        "сопротивляться",
+        "противостоять",
+        "удержаться от"
+      ]
+    },
+    {
+      "id": "en-v1-rough",
+      "kind": "word",
+      "group": 3,
+      "lemma": "rough",
+      "part_of_speech": "ADJ",
+      "prompt": "Что означает английское слово «rough»? Объясните по-русски.",
+      "meanings": [
+        "грубый",
+        "шероховатый",
+        "приблизительный",
+        "тяжелый"
+      ]
+    },
+    {
+      "id": "en-v1-comfort",
+      "kind": "word",
+      "group": 3,
+      "lemma": "comfort",
+      "part_of_speech": "NOUN",
+      "prompt": "Что означает английское слово «comfort»? Объясните по-русски.",
+      "meanings": [
+        "комфорт",
+        "удобство",
+        "утешение"
+      ]
+    },
+    {
+      "id": "en-v1-sentence-1",
+      "kind": "sentence",
+      "group": null,
+      "prompt": "Объясните по-русски: Although it was raining, we decided to continue our journey.",
+      "meanings": [
+        "Несмотря на дождь, мы решили продолжить путешествие."
+      ]
+    },
+    {
+      "id": "en-v1-sentence-2",
+      "kind": "sentence",
+      "group": null,
+      "prompt": "Объясните по-русски: If I had known about the delay, I would have left home later.",
+      "meanings": [
+        "Если бы я знал о задержке, я бы вышел из дома позже."
+      ]
+    }
+  ]
+}

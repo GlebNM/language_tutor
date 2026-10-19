@@ -1,3 +1,10 @@
+export type Knowledge = {
+  score: number | null;
+  ignored: boolean;
+  source: string | null;
+  provisional: boolean;
+  status: string;
+};
 export type Token = {
   id: string;
   material_id: string;
@@ -10,6 +17,7 @@ export type Token = {
   language: string;
   part_of_speech: string;
   uncertain: boolean;
+  knowledge?: Knowledge;
 };
 export type Cue = {
   id: string;
@@ -30,7 +38,10 @@ export type MaterialSummary = {
   version: number;
   adapter_version: string;
 };
-export type Material = MaterialSummary & { cues: Cue[] };
+export type Material = MaterialSummary & { cues: Cue[]; difficulty?: Difficulty };
+export type Difficulty = {
+  [key: string]: unknown;
+};
 export type Selection = {
   material_id: string;
   cue: Cue;
@@ -71,6 +82,8 @@ export async function api<T>(path: string, options?: RequestInit): Promise<T> {
     throw new Error(
       typeof detail === "string"
         ? detail
+        : detail && typeof detail === "object" && "message" in detail && typeof detail.message === "string"
+          ? detail.message
         : "Не удалось выполнить запрос. Проверьте данные и повторите.",
     );
   }

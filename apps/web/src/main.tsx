@@ -12,6 +12,8 @@ import type {
 } from "./api";
 import { Player } from "./Player";
 import type { PlayerHandle } from "./Player";
+import { Dictionary, DifficultyPanel, LearningPanel, knowledgeLabel } from "./Study";
+import { Diagnostics } from "./Diagnostics";
 import "./style.css";
 
 function CueWords({
@@ -31,9 +33,9 @@ function CueWords({
     parts.push(
       <button
         key={token.id}
-        className={`word ${selected === token.id ? "selected" : ""}`}
+        className={`word score-${token.knowledge?.ignored ? "ignored" : token.knowledge?.score ?? "null"} ${selected === token.id ? "selected" : ""}`}
         onClick={() => onSelect(token)}
-        title={`Выбрать «${token.surface}»`}
+        title={`${token.surface} · ${knowledgeLabel(token.knowledge)}`}
       >
         {token.surface}
       </button>,
@@ -54,6 +56,8 @@ function App() {
   const [showImport, setShowImport] = useState(false);
   const [replacing, setReplacing] = useState(false);
   const [settings, setSettings] = useState(false);
+  const [section, setSection] = useState("materials");
+  const [resetConfirm, setResetConfirm] = useState(false);
   const [connection, setConnection] = useState<Connection | null>(null);
   const [authorizationUrl, setAuthorizationUrl] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
@@ -109,6 +113,7 @@ function App() {
     setSelection(null);
     setPosition(0);
     setSettings(false);
+    setSection("materials");
     setError("");
     setLoading(true);
     try {
@@ -147,6 +152,38 @@ function App() {
   function closeSelection() {
     ++selectionRequest.current;
     setSelection(null);
+  }
+  async function refreshMaterial() {
+    if (!material) return;
+    const request = active.current;
+    const result = await api<Material>(`/materials/${material.id}`);
+    if (request !== active.current) return;
+    setMaterial(result);
+    setSelection(previous => {
+      if(!previous) return previous;
+      for(const cue of result.cues) {
+        const token = cue.tokens.find(item => item.id === previous.token.id);
+        if(token) return {material_id:result.id,cue,token,youtube_url:result.youtube_url};
+      }
+      return null;
+    });
+  }
+  function navigate(next: string) {
+    ++active.current; closeSelection(); setMaterial(null); setLoading(false);
+    setSettings(next === "settings"); setSection(next); setError("");
+  }
+  async function resetData() {
+    setAiBusy(true); setError("");
+    try {
+      await api("/data/reset", {method:"POST", body:JSON.stringify({confirmation:"Удалить мои данные"})});
+      navigate("materials"); setResetConfirm(false); setConnection(null); setAuthorizationUrl(""); setProof(""); await refresh();
+      setNotice("Учебные данные удалены. Подписка отключена.");
+    } catch (e) {setError((e as Error).message);}
+    finally {setAiBusy(false);}
+  }
+  async function demo() {
+    try {const result = await api<Material>("/materials/demo", {method:"POST",body:"{}"}); await refresh(); await open(result.id);}
+    catch(e) {setError((e as Error).message);}
   }
   function beginImport(replace = false) {
     setReplacing(replace);
@@ -280,9 +317,7 @@ function App() {
             event.preventDefault();
             ++active.current;
             closeSelection();
-            setMaterial(null);
-            setSettings(false);
-            setLoading(false);
+            navigate("materials");
           }}
         >
           <span className="brand-mark">lt</span>
@@ -295,26 +330,20 @@ function App() {
         <p className="eyebrow">ВАШ АНГЛИЙСКИЙ</p>
         <nav>
           <button
-            className={!settings ? "nav active" : "nav"}
+            className={section === "materials" ? "nav active" : "nav"}
             onClick={() => {
-              ++active.current;
-              closeSelection();
-              setSettings(false);
-              setMaterial(null);
-              setLoading(false);
+              navigate("materials");
             }}
           >
             ▤ <span>Материалы</span>
             <span className="count">{library.length}</span>
           </button>
+          <button className={section === "dictionary" ? "nav active" : "nav"} onClick={() => navigate("dictionary")}>Aa <span>Мои слова</span></button>
+          <button className={section === "diagnostics" ? "nav active" : "nav"} onClick={() => navigate("diagnostics")}>✦ <span>Диагностика</span></button>
           <button
             className={settings ? "nav active" : "nav"}
             onClick={() => {
-              ++active.current;
-              closeSelection();
-              setMaterial(null);
-              setLoading(false);
-              setSettings(true);
+              navigate("settings");
             }}
           >
             ⚙ <span>Настройки AI</span>
@@ -341,7 +370,7 @@ function App() {
               ? "Настройки"
               : material
                 ? "Материалы / Просмотр"
-                : "Моя библиотека"}
+                : section === "dictionary" ? "Мои слова" : section === "diagnostics" ? "Диагностика" : "Моя библиотека"}
           </span>
           <span className="local-pill">
             <i /> Локальное приложение
@@ -452,8 +481,11 @@ function App() {
               <h3>Адрес backend для расширения</h3>
               <code>{window.location.origin}</code>
             </div>
+            <div className="settings-card danger-zone"><h2>Удалить мои данные</h2><p>Удаляются материалы, словарь, ручные оценки, диагностика, диалоги и подключение подписки. Это действие нельзя отменить.</p>
+              {resetConfirm ? <><p>Подтвердите полное удаление учебных данных этой локальной установки.</p><div className="actions"><button className="danger" disabled={aiBusy} onClick={() => void resetData()}>Удалить все данные</button><button className="secondary" disabled={aiBusy} onClick={() => setResetConfirm(false)}>Сохранить данные</button></div></> : <button className="danger" onClick={() => setResetConfirm(true)}>Удалить мои данные…</button>}
+            </div>
           </section>
-        ) : loading ? (
+        ) : section === "dictionary" ? <Dictionary /> : section === "diagnostics" ? <Diagnostics onApplied={() => void refresh()} /> : loading ? (
           <div className="empty" role="status">
             Загружаем материалы…
           </div>
@@ -469,12 +501,11 @@ function App() {
                     " · Неполная дорожка — сложность всего видео недоступна"}
                 </p>
               </div>
-              <button className="secondary" onClick={() => beginImport(true)}>
-                Заменить дорожку
-              </button>
+              <div className="actions"><button className="secondary" onClick={() => void refreshMaterial().catch(e => setError(e.message))}>Обновить данные</button><button className="secondary" onClick={() => beginImport(true)}>Заменить дорожку</button></div>
             </div>
             <div className="watch-grid">
               <section className="watch">
+                <DifficultyPanel value={material.difficulty} />
                 <Player
                   key={material.id}
                   ref={player}
@@ -585,6 +616,7 @@ function App() {
                     >
                       ↗ {time(selection.cue.start_ms)}
                     </button>
+                    <LearningPanel key={selection.token.id} selection={selection} onSaved={() => void refreshMaterial().catch(e => setError(e.message))} onSeek={milliseconds => player.current?.seek(milliseconds)} onOpen={id => void open(id)} />
                     <div className="selection-note">
                       <strong>Контекст закреплён</strong>
                       <p>
@@ -676,6 +708,7 @@ function App() {
                 <h2>Начните с интересного видео</h2>
                 <p>Добавьте ссылку YouTube и файл SRT/VTT.</p>
                 <button onClick={() => beginImport()}>Добавить материал</button>
+                <button className="secondary" onClick={() => void demo()}>Открыть подготовленный пример</button>
               </div>
             )}
             <div className="library-tip">

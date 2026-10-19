@@ -1,0 +1,7 @@
+{
+  "name": "language-tutor-extension",
+  "private": true,
+  "type": "module",
+  "engines": {"node": ">=20"},
+  "scripts": {"test": "node --test tests/*.test.mjs", "check": "node --check panel.js && node --check content.js && node --check service-worker.js && node --check shared.js && node --check transcript.js && node --check page-extract.js"}
+}

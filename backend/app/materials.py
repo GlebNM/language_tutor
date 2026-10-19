@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import html
 import json
@@ -199,27 +200,98 @@ CREATE INDEX occurrences_lexeme ON occurrences(lexeme_id,material_id);
 """
 
 
+# Append migrations here so every schema change has one ordered, backed-up path.
+MIGRATIONS = [
+    SCHEMA,
+    """
+    ALTER TABLE learning_profile ADD COLUMN revision INTEGER NOT NULL DEFAULT 0;
+    CREATE TABLE storage_metadata(key TEXT PRIMARY KEY,value TEXT NOT NULL);
+    INSERT INTO storage_metadata VALUES('generation', lower(hex(randomblob(16))));
+    INSERT INTO storage_metadata VALUES('seeded_demo', '0');
+    CREATE TABLE word_knowledge(
+        lexeme_id TEXT PRIMARY KEY REFERENCES lexemes(id),
+        score INTEGER CHECK(score IS NULL OR score BETWEEN 0 AND 3),
+        ignored INTEGER NOT NULL DEFAULT 0 CHECK(ignored IN (0,1)),
+        source TEXT NOT NULL CHECK(source IN ('manual','diagnostic')),
+        assessment_version INTEGER,
+        updated_at TEXT NOT NULL
+    );
+    CREATE TABLE diagnostic_rules(
+        language TEXT NOT NULL,
+        frequency_group INTEGER NOT NULL,
+        version INTEGER NOT NULL,
+        enabled INTEGER NOT NULL,
+        PRIMARY KEY(language,frequency_group)
+    );
+    """,
+    """
+    CREATE TABLE contextual_cards(cache_key TEXT PRIMARY KEY,result_json TEXT NOT NULL,
+        created_at TEXT NOT NULL);
+    CREATE TABLE conversations(id TEXT PRIMARY KEY,
+        material_id TEXT NOT NULL REFERENCES materials(id),
+        cue_id TEXT NOT NULL REFERENCES cues(id),token_id TEXT NOT NULL REFERENCES occurrences(id),
+        created_at TEXT NOT NULL);
+    CREATE INDEX conversations_material ON conversations(material_id,created_at);
+    CREATE TABLE learning_messages(conversation_id TEXT NOT NULL REFERENCES conversations(id),
+        request_id TEXT NOT NULL,user_text TEXT NOT NULL,
+        response_json TEXT,created_at TEXT NOT NULL,
+        PRIMARY KEY(conversation_id,request_id));
+    CREATE INDEX messages_conversation ON learning_messages(conversation_id,created_at);
+    """,
+    """
+    CREATE TABLE diagnostic_sessions(
+        id TEXT PRIMARY KEY,
+        status TEXT NOT NULL CHECK(status IN ('in_progress','completed','skipped')),
+        pool_version INTEGER NOT NULL,
+        generation TEXT NOT NULL,
+        items_json TEXT NOT NULL,
+        answers_json TEXT NOT NULL,
+        summary_json TEXT,
+        created_at TEXT NOT NULL
+    );
+    """,
+]
+
+
 class MaterialLibrary:
     def __init__(self, database_path: Path):
         self.database_path = Path(database_path)
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
-        with self.connect() as connection:
-            version = connection.execute("PRAGMA user_version").fetchone()[0]
-            if version > 1:
-                raise RuntimeError("Версия базы новее приложения. Обновите приложение.")
-            if version < 1:
-                # SQLite backup includes committed WAL data; never overwrite an older backup.
-                if connection.execute(
-                    "SELECT name FROM sqlite_master WHERE type='table'"
-                ).fetchone():
+        # SQLite serializes migrations; the file lock also serializes the initial WAL switch.
+        with self.database_path.with_suffix(self.database_path.suffix + ".lock").open(
+            "a+b"
+        ) as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            with self.connect() as connection:
+                # Serialize initializers from API and MCP processes before checking the version.
+                connection.execute("BEGIN IMMEDIATE")
+                version = connection.execute("PRAGMA user_version").fetchone()[0]
+                if version > len(MIGRATIONS):
+                    raise RuntimeError("Версия базы новее приложения. Обновите приложение.")
+                if (
+                    version < len(MIGRATIONS)
+                    and connection.execute(
+                        "SELECT name FROM sqlite_master WHERE type='table'"
+                    ).fetchone()
+                ):
                     backup_path = self.database_path.with_name(
-                        self.database_path.name + ".before-v1-" + uuid.uuid4().hex + ".bak"
+                        self.database_path.name
+                        + f".before-v{len(MIGRATIONS)}-"
+                        + uuid.uuid4().hex
+                        + ".bak"
                     )
-                    with sqlite3.connect(backup_path) as backup:
-                        connection.backup(backup)
-                connection.executescript(
-                    "BEGIN IMMEDIATE;\n" + SCHEMA + "\nPRAGMA user_version=1;\nCOMMIT;"
-                )
+                    # A second reader sees committed WAL data while this writer reserves the
+                    # migration lock. Backing up the writer itself would wait on its lock.
+                    with sqlite3.connect(self.database_path) as source:
+                        with sqlite3.connect(backup_path) as backup:
+                            source.backup(backup)
+                for target, script in enumerate(MIGRATIONS, start=1):
+                    if version >= target:
+                        continue
+                    for statement in script.split(";"):
+                        if statement.strip():
+                            connection.execute(statement)
+                    connection.execute(f"PRAGMA user_version={target}")
 
     @contextmanager
     def connect(self) -> Iterator[sqlite3.Connection]:
@@ -235,7 +307,86 @@ class MaterialLibrary:
 
     def get_profile(self) -> dict[str, Any]:
         with self.connect() as db:
-            return dict(db.execute("SELECT * FROM learning_profile WHERE id=1").fetchone())
+            result = dict(db.execute("SELECT * FROM learning_profile WHERE id=1").fetchone())
+            result["diagnostic_groups"] = [
+                {
+                    "group": row["frequency_group"],
+                    "version": row["version"],
+                    "inferred": bool(row["enabled"]),
+                }
+                for row in db.execute("SELECT * FROM diagnostic_rules ORDER BY frequency_group")
+            ]
+            summary = db.execute(
+                "SELECT summary_json FROM diagnostic_sessions WHERE status='completed' "
+                "ORDER BY created_at DESC LIMIT 1"
+            ).fetchone()
+            result["diagnostic_summary"] = (
+                json.loads(summary[0])["description"] if summary else None
+            )
+            result["storage_generation"] = db.execute(
+                "SELECT value FROM storage_metadata WHERE key='generation'"
+            ).fetchone()[0]
+            return result
+
+    def reset_learning_data(self) -> dict[str, Any]:
+        """Clear the single learner atomically and rotate the late-response guard."""
+        with self.database_path.with_suffix(self.database_path.suffix + ".lock").open(
+            "a+b"
+        ) as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            with self.connect() as db:
+                db.execute("PRAGMA secure_delete=ON")
+                db.execute("BEGIN IMMEDIATE")
+                # Children precede parents; optional modules may not have any rows yet.
+                tables = {
+                    row[0]
+                    for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")
+                }
+                for table in (
+                    "learning_messages",
+                    "conversations",
+                    "contextual_cards",
+                    "diagnostic_answers",
+                    "diagnostic_sessions",
+                    "diagnostic_rules",
+                    "word_knowledge",
+                    "occurrences",
+                    "cues",
+                    "materials",
+                    "lexemes",
+                ):
+                    if table in tables:
+                        db.execute(f"DELETE FROM {table}")
+                db.execute(
+                    "UPDATE learning_profile SET diagnostic_version=diagnostic_version+1,"
+                    "revision=revision+1 WHERE id=1"
+                )
+                db.execute(
+                    "UPDATE storage_metadata SET value=? WHERE key='generation'",
+                    (uuid.uuid4().hex,),
+                )
+                db.execute("UPDATE storage_metadata SET value='1' WHERE key='seeded_demo'")
+            backup_pattern = re.compile(
+                re.escape(self.database_path.name)
+                + r"\.before-v[0-9]+-[0-9a-f]{32}\.bak(?:-wal|-shm)?"
+            )
+            for backup_path in self.database_path.parent.iterdir():
+                if backup_pattern.fullmatch(backup_path.name):
+                    try:
+                        backup_path.unlink(missing_ok=True)
+                    except OSError as exc:
+                        raise MaterialError(
+                            "Учебные данные удалены, но резервную копию удалить не удалось. "
+                            "Проверьте права на каталог данных и повторите удаление."
+                        ) from exc
+            # Release old WAL pages where possible; an active reader can defer checkpointing.
+            with self.connect() as db:
+                try:
+                    db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+                    db.execute("VACUUM")
+                except sqlite3.OperationalError:
+                    pass
+            return self.get_profile()
 
     def list_materials(self) -> list[dict[str, Any]]:
         with self.connect() as db:
@@ -269,6 +420,9 @@ class MaterialLibrary:
             ):
                 occurrence = dict(token)
                 occurrence["uncertain"] = bool(occurrence["uncertain"])
+                from backend.app.knowledge import KnowledgeService
+
+                occurrence["knowledge"] = KnowledgeService(self).get(occurrence["lexeme_id"], db=db)
                 tokens_by_cue.setdefault(occurrence["cue_id"], []).append(occurrence)
             for cue in db.execute(
                 "SELECT * FROM cues WHERE material_id=? ORDER BY position", (material_id,)
@@ -277,6 +431,9 @@ class MaterialLibrary:
                 item["original_fragments"] = json.loads(item["original_fragments"])
                 item["tokens"] = tokens_by_cue.get(item["id"], [])
                 result["cues"].append(item)
+            from backend.app.knowledge import calculate_difficulty
+
+            result["difficulty"] = calculate_difficulty(result)
             return result
 
     def selection(self, material_id: str, cue_id: str, token_id: str) -> dict[str, Any]:

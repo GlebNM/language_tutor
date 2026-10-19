@@ -3,10 +3,10 @@ from __future__ import annotations
 import asyncio
 import secrets
 import socket
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from contextlib import suppress
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal, TypeVar
 
 import httpx
 import httpx2
@@ -16,7 +16,8 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from openai import AsyncOpenAI
 from pydantic import BaseModel
-from pydantic_ai.exceptions import ModelHTTPError
+from pydantic_ai.exceptions import ModelHTTPError, UsageLimitExceeded
+from pydantic_ai.models import Model
 from pydantic_ai.providers.openai import OpenAIProvider
 
 from backend.app.agents.subscription_proof import ProofResult, run_proof
@@ -24,6 +25,8 @@ from backend.app.agents.subscription_proof import ProofResult, run_proof
 from .siwc import DIRECT_SCOPE, SIWCOAuthFlow, SubscriptionError, TokenManager
 from .siwc_model import SIWCTransport, siwc_model
 from .storage import CredentialStore
+
+RunOutput = TypeVar("RunOutput")
 
 OAuthFailureCategory = Literal[
     "provider",
@@ -91,7 +94,7 @@ class ConnectionService:
         self.model_name = model_name
         self.provider: OpenAIProvider | None = None
         self.http_client: httpx2.AsyncClient | None = None
-        self.runs: set[asyncio.Task[ProofResult]] = set()
+        self.runs: set[asyncio.Task[Any]] = set()
         self.data_dir = data_dir
         self.store = CredentialStore(data_dir / "credentials")
         self.callback_host = callback_host
@@ -251,7 +254,7 @@ class ConnectionService:
         await self.cancel()
         await self.close_provider()
 
-    async def connected_proof(self) -> ProofResult:
+    async def connected_model(self) -> Model:
         async with asyncio.timeout(30):
             async with self.lock:
                 if self.provider is None:
@@ -284,13 +287,20 @@ class ConnectionService:
             selected = self.model_name or (available[0] if available else "")
             if not selected or selected not in available:
                 raise HTTPException(409, "Модель недоступна подписке. Проверьте AI_MODEL.")
-            return await run_proof(model=siwc_model(selected, provider), mcp_url=self.mcp_url)
+            return siwc_model(selected, provider)
 
-    async def proof(self) -> ProofResult:
+    async def execute(self, operation: Callable[[Model], Awaitable[RunOutput]]) -> RunOutput:
+        """Run one subscription operation; timeout and disconnect cover its whole lifetime."""
+
+        async def connected() -> RunOutput:
+            async with asyncio.timeout(30):
+                model = await self.connected_model()
+                return await operation(model)
+
         async with self.lock:
             if self.state.status not in ("connected", "limit_reached"):
                 raise HTTPException(409, "Сначала подключите подписку.")
-            task = asyncio.create_task(self.connected_proof())
+            task = asyncio.create_task(connected())
             self.runs.add(task)
         try:
             result = await task
@@ -302,16 +312,26 @@ class ConnectionService:
             raise self.provider_failure(error) from None
         except TimeoutError:
             raise HTTPException(504, "AI не ответил за 30 секунд. Повторите запрос.") from None
+        except UsageLimitExceeded:
+            raise HTTPException(
+                422, "AI достиг ограничения числа раундов. Уточните вопрос и повторите запрос."
+            ) from None
         except asyncio.CancelledError:
+            parent = asyncio.current_task()
+            if parent is not None and parent.cancelling():
+                raise
             raise HTTPException(409, "Запрос AI отменён.") from None
         except HTTPException:
             raise
         except Exception:
             raise HTTPException(
-                503, "Не удалось завершить проверку AI и MCP. Повторите запрос."
+                503, "Не удалось завершить запрос AI и MCP. Повторите запрос."
             ) from None
         finally:
             self.runs.discard(task)
+
+    async def proof(self) -> ProofResult:
+        return await self.execute(lambda model: run_proof(model=model, mcp_url=self.mcp_url))
 
     def provider_failure(self, error: SubscriptionError | ModelHTTPError) -> HTTPException:
         subscription_error = isinstance(error, SubscriptionError)

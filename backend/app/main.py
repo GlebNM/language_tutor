@@ -25,6 +25,11 @@ class TrackImport(BaseModel):
     is_complete: bool = True
 
 
+class DataReset(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    confirmation: Literal["Удалить мои данные"]
+
+
 def create_app(
     database_path: Path | None = None,
     *,
@@ -39,13 +44,14 @@ def create_app(
         allowed_origins=[origin.strip() for origin in origins if origin.strip()],
     )
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "[::1]"])
-    library = MaterialLibrary(
-        database_path or Path(os.getenv("DATA_DIR", "data/local")) / "learning.sqlite3"
-    )
+    path = database_path or Path(os.getenv("DATA_DIR", "data/local")) / "learning.sqlite3"
+    new_database = not path.exists()
+    library = MaterialLibrary(path)
     app.state.materials = library
     root = Path(__file__).resolve().parents[2]
-    if seed_demo:
-        library.import_track(
+
+    def add_demo() -> dict[str, Any]:
+        return library.import_track(
             youtube_url="https://www.youtube.com/watch?v=TLkA0RELQ1g",
             title="Elephants Dream",
             content=(root / "data/demo/elephants-dream.en.srt").read_text(encoding="utf-8"),
@@ -53,18 +59,51 @@ def create_app(
             source="demo",
             is_complete=True,
         )
+
+    if seed_demo and new_database:
+        add_demo()
+    from backend.app.knowledge import create_knowledge_router
+
+    app.include_router(create_knowledge_router(library))
+    connection = None
     if include_ai:
         from backend.app.ai_connection import create_ai_router
+        from backend.app.ai_connection.service import ConnectionService
+        from backend.app.ai_connection.siwc import SIWCOAuthFlow
+        from backend.app.learning import create_learning_router
 
         data_dir = library.database_path.parent
+        mcp_url = os.getenv("MCP_URL", "http://mcp:8001/mcp")
+        connection = ConnectionService(
+            data_dir=data_dir,
+            callback_host="0.0.0.0",
+            callback_port=int(os.getenv("AI_CALLBACK_PORT", "1456")),
+            oauth_timeout=300,
+            flow_factory=SIWCOAuthFlow,
+            mcp_url=mcp_url,
+            model_name=os.getenv("AI_MODEL", ""),
+        )
+        app.state.connection = connection
         app.include_router(
             create_ai_router(
                 data_dir=data_dir,
-                mcp_url=os.getenv("MCP_URL", "http://mcp:8001/mcp"),
+                mcp_url=mcp_url,
                 model_name=os.getenv("AI_MODEL", ""),
                 callback_port=int(os.getenv("AI_CALLBACK_PORT", "1456")),
+                service=connection,
             )
         )
+        app.include_router(
+            create_learning_router(library=library, connection=connection, mcp_url=mcp_url)
+        )
+
+    from backend.app.diagnostics import create_diagnostics_router
+
+    app.include_router(
+        create_diagnostics_router(
+            library, service=connection, mcp_url=os.getenv("MCP_URL", "http://mcp:8001/mcp")
+        )
+    )
 
     @app.exception_handler(MaterialError)
     async def invalid_material(request: Request, exc: MaterialError) -> JSONResponse:
@@ -89,6 +128,18 @@ def create_app(
     @app.post("/api/materials", status_code=201)
     def import_material(track: TrackImport) -> dict[str, Any]:
         return library.import_track(**track.model_dump())
+
+    @app.post("/api/materials/demo", status_code=201)
+    def prepared_example() -> dict[str, Any]:
+        return add_demo()
+
+    @app.post("/api/data/reset")
+    async def reset_data(confirmation: DataReset) -> dict[str, str]:
+        if connection is not None:
+            await connection.disconnect()
+            connection.store.forget_registration()
+        library.reset_learning_data()
+        return {"status": "reset"}
 
     @app.get("/api/materials/{material_id}")
     def material(material_id: str) -> dict[str, Any]:

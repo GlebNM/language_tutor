@@ -69,3 +69,9 @@ class CredentialStore:
     def disconnect(self) -> None:
         self.enabled = False
         self.path.unlink(missing_ok=True)
+
+    def forget_registration(self) -> None:
+        """Remove only this application's retained subscription identity after data reset."""
+        self.disconnect()
+        for name in ("registration.json", "host-id"):
+            (self.directory / name).unlink(missing_ok=True)

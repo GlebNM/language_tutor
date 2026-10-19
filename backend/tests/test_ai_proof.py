@@ -1,5 +1,6 @@
 """Controlled model, real HTTP MCP process. No subscription credentials or provider traffic."""
 
+import asyncio
 import os
 import socket
 import subprocess
@@ -141,7 +142,7 @@ async def test_mcp_rejects_selection_from_another_material(mcp_url: str) -> None
 
     async with Client(mcp_url) as client:
         names = [tool.name for tool in await client.list_tools()]
-        assert names == ["get_proof_context"]
+        assert "get_proof_context" in names
         with pytest.raises(ToolError, match="mismatched"):
             await client.call_tool(
                 "get_proof_context",
@@ -338,3 +339,58 @@ async def test_provider_errors_preserve_connection_unless_authorization_expired(
             assert connection["error"] == "authorization_expired"
         elif connection_status == "limit_reached":
             assert connection["error"] == "subscription_limit"
+
+
+async def test_concurrent_refresh_uses_rotated_token_once(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import httpx
+
+    from backend.app.ai_connection.siwc import TokenManager
+    from backend.app.ai_connection.siwc_credentials import SIWCCredentials
+    from backend.app.ai_connection.storage import CredentialStore
+
+    store = CredentialStore(tmp_path / "credentials")
+    await store.save(
+        SIWCCredentials(
+            access_token="expired-access",
+            refresh_token="original-refresh",
+            id_token="test-id",
+            client_id="oaiapp_test",
+            subject="learner",
+            scopes=["chatgpt.tokens.use.direct"],
+            expires_at=0,
+        )
+    )
+    refresh_calls = 0
+
+    async def remote(request: httpx.Request) -> httpx.Response:
+        nonlocal refresh_calls
+        assert request.url.path == "/api/accounts/oauth/token"
+        assert request.content.decode().find("refresh_token=original-refresh") >= 0
+        refresh_calls += 1
+        await asyncio.sleep(0.02)
+        return httpx.Response(
+            200,
+            json={
+                "token_type": "Bearer",
+                "access_token": "rotated-access",
+                "refresh_token": "rotated-refresh",
+                "expires_in": 3600,
+                "scope": "chatgpt.tokens.use.direct",
+            },
+        )
+
+    mock_client = httpx.AsyncClient(transport=httpx.MockTransport(remote))
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: mock_client)
+    manager = TokenManager(store)
+
+    tokens = await asyncio.gather(*(manager.access_token() for _ in range(8)))
+
+    assert tokens == ["rotated-access"] * 8
+    assert refresh_calls == 1
+    saved = await CredentialStore(tmp_path / "credentials").load()
+    assert saved.access_token == "rotated-access"
+    assert saved.refresh_token == "rotated-refresh"
+    await mock_client.aclose()

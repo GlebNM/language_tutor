@@ -1,0 +1,468 @@
+{
+  "checked_at": "2026-10-19T19:27:53.831527+00:00",
+  "material_id": "0b6ba0ca287040e28ca07163b3d028ae",
+  "source": "Elephants Dream prepared licensed transcript",
+  "concurrency": 2,
+  "cases": [
+    {
+      "cue": "At the left we can see…",
+      "surface": "left",
+      "expected": "Левая сторона, слева; не прошедшая форма leave.",
+      "actual": {
+        "request_id": "a3757b51-8e2b-4cb6-adc2-fe08312dab21",
+        "selection": {
+          "token_id": "36493bf98ab04be798435755dca416e5",
+          "material_id": "0b6ba0ca287040e28ca07163b3d028ae",
+          "cue_id": "e7456fe839e34cc996f0c4104f3dbc47",
+          "surface": "left",
+          "lexeme_id": "56dfb32dc5594503ac26a28b3ff356f0",
+          "start_offset": 7,
+          "end_offset": 11,
+          "language": "en",
+          "lemma": "left",
+          "part_of_speech": "NOUN",
+          "text": "At the left we can see…",
+          "start_ms": 15000,
+          "end_ms": 18130,
+          "youtube_video_id": "TLkA0RELQ1g",
+          "transcript_hash": "c2f15912a962de35d024c798451f0cb04fa363d0cc7e0f05b8acbb6af77ffa0f",
+          "version": 1
+        },
+        "card": {
+          "translation": "слева",
+          "explanation": "Здесь left обозначает левую сторону, а выражение at the left переводится как «слева»: «Слева мы видим…». Это указание на расположение, а не форма прошедшего времени глагола leave («уходить, оставлять»).",
+          "expression": "at the left",
+          "example": "At the left of the picture, you can see a tree."
+        },
+        "tools": [
+          {
+            "name": "get_subtitle_context",
+            "success": true,
+            "duration_ms": 15
+          },
+          {
+            "name": "get_learning_profile",
+            "success": true,
+            "duration_ms": 23
+          },
+          {
+            "name": "get_word_knowledge",
+            "success": true,
+            "duration_ms": 24
+          }
+        ],
+        "model_requests": 3,
+        "duration_ms": 21037,
+        "cached": false
+      }
+    },
+    {
+      "cue": "Watch out!",
+      "surface": "Watch",
+      "expected": "Предупреждение «осторожно», выражение watch out.",
+      "actual": {
+        "request_id": "777b782d-6c36-4bdd-b25b-f24b0db44117",
+        "selection": {
+          "token_id": "3e9d5aa3e5ab457f81d082e49b9e1ac9",
+          "material_id": "0b6ba0ca287040e28ca07163b3d028ae",
+          "cue_id": "eb2f2f250c4340a6a49d9b225c827278",
+          "surface": "Watch",
+          "lexeme_id": "c646b80be0984f3c9967265c5e59a785",
+          "start_offset": 0,
+          "end_offset": 5,
+          "language": "en",
+          "lemma": "watch",
+          "part_of_speech": "VERB",
+          "text": "Watch out!",
+          "start_ms": 28620,
+          "end_ms": 30104,
+          "youtube_video_id": "TLkA0RELQ1g",
+          "transcript_hash": "c2f15912a962de35d024c798451f0cb04fa363d0cc7e0f05b8acbb6af77ffa0f",
+          "version": 1
+        },
+        "card": {
+          "translation": "Осторожно!",
+          "explanation": "Здесь watch — часть фразового глагола watch out: это предупреждение об опасности, а не просьба «смотреть». По соседним репликам неясно, что именно угрожает персонажу.",
+          "expression": "Watch out!",
+          "example": "Watch out! A car is coming!"
+        },
+        "tools": [
+          {
+            "name": "get_subtitle_context",
+            "success": true,
+            "duration_ms": 13
+          },
+          {
+            "name": "get_learning_profile",
+            "success": true,
+            "duration_ms": 10
+          },
+          {
+            "name": "get_word_knowledge",
+            "success": true,
+            "duration_ms": 11
+          }
+        ],
+        "model_requests": 3,
+        "duration_ms": 15156,
+        "cached": false
+      }
+    },
+    {
+      "cue": "Are you hurt?",
+      "surface": "hurt",
+      "expected": "Пострадал, получил травму; вопрос о состоянии человека.",
+      "actual": {
+        "request_id": "27827757-6b13-4c38-928d-513329053c5b",
+        "selection": {
+          "token_id": "b3512f76c77842b7970fb99c219a94d3",
+          "material_id": "0b6ba0ca287040e28ca07163b3d028ae",
+          "cue_id": "a5ef85b9ddce4240b5b4614f47a7a81c",
+          "surface": "hurt",
+          "lexeme_id": "7d3a3a820ca64198b1a00d4de192504b",
+          "start_offset": 8,
+          "end_offset": 12,
+          "language": "en",
+          "lemma": "hurt",
+          "part_of_speech": "VERB",
+          "text": "Are you hurt?",
+          "start_ms": 46560,
+          "end_ms": 48260,
+          "youtube_video_id": "TLkA0RELQ1g",
+          "transcript_hash": "c2f15912a962de35d024c798451f0cb04fa363d0cc7e0f05b8acbb6af77ffa0f",
+          "version": 1
+        },
+        "card": {
+          "translation": "Ты не пострадал?",
+          "explanation": "После предупреждения «Watch out!» здесь спрашивают о физической травме, а не об обиде. В конструкции be hurt слово hurt описывает состояние: «быть раненым, пострадавшим».",
+          "expression": "Are you hurt?",
+          "example": "You fell! Are you hurt?"
+        },
+        "tools": [
+          {
+            "name": "get_subtitle_context",
+            "success": true,
+            "duration_ms": 14
+          }
+        ],
+        "model_requests": 2,
+        "duration_ms": 10140,
+        "cached": false
+      }
+    },
+    {
+      "cue": "Get up, Emo! It’s not safe here.",
+      "surface": "Get",
+      "expected": "Встать, подняться; выражение get up.",
+      "actual": {
+        "request_id": "ce079437-d95e-471d-9a48-7e73542c61ed",
+        "selection": {
+          "token_id": "647f34fa6b374e349b4c9b5f1fb93c1c",
+          "material_id": "0b6ba0ca287040e28ca07163b3d028ae",
+          "cue_id": "8e154f5201834fe79e5584c094338532",
+          "surface": "Get",
+          "lexeme_id": "e01e627345ec4f6db1a8754d8080e9fc",
+          "start_offset": 0,
+          "end_offset": 3,
+          "language": "en",
+          "lemma": "get",
+          "part_of_speech": "VERB",
+          "text": "Get up, Emo! It’s not safe here.",
+          "start_ms": 57090,
+          "end_ms": 61110,
+          "youtube_video_id": "TLkA0RELQ1g",
+          "transcript_hash": "c2f15912a962de35d024c798451f0cb04fa363d0cc7e0f05b8acbb6af77ffa0f",
+          "version": 1
+        },
+        "card": {
+          "translation": "Вставай!",
+          "explanation": "Здесь get входит во фразовый глагол get up — «вставать, подниматься», а не переводится отдельно как «получать». Эмо просят подняться, потому что здесь небезопасно; по одним субтитрам нельзя точно сказать, сидит он или лежит.",
+          "expression": "Get up, Emo! It’s not safe here.",
+          "example": "Get up! We need to leave."
+        },
+        "tools": [
+          {
+            "name": "get_subtitle_context",
+            "success": true,
+            "duration_ms": 8
+          }
+        ],
+        "model_requests": 2,
+        "duration_ms": 9938,
+        "cached": false
+      }
+    },
+    {
+      "cue": "You’re not paying attention!",
+      "surface": "paying",
+      "expected": "Обращать внимание; выражение pay attention.",
+      "actual": {
+        "request_id": "6d6e764d-48b2-4eea-bf3f-7ae79c7e2d93",
+        "selection": {
+          "token_id": "8fd8af406a4045f9a173dfa1f7af9dee",
+          "material_id": "0b6ba0ca287040e28ca07163b3d028ae",
+          "cue_id": "30726cca78bd4887ba709d56bf4f6d16",
+          "surface": "paying",
+          "lexeme_id": "3943e9a72cef4f8695fa53d1997b48c0",
+          "start_offset": 11,
+          "end_offset": 17,
+          "language": "en",
+          "lemma": "pay",
+          "part_of_speech": "VERB",
+          "text": "You’re not paying attention!",
+          "start_ms": 168438,
+          "end_ms": 170063,
+          "youtube_video_id": "TLkA0RELQ1g",
+          "transcript_hash": "c2f15912a962de35d024c798451f0cb04fa363d0cc7e0f05b8acbb6af77ffa0f",
+          "version": 1
+        },
+        "card": {
+          "translation": "В выражении paying attention — «обращаешь внимание». Вся реплика: «Ты невнимателен!»",
+          "explanation": "Здесь pay attention — устойчивое выражение «обращать внимание», а не «платить». Форма you’re not paying attention указывает, что собеседник невнимателен сейчас; по соседним репликам это звучит как упрёк за то, что он отвлёкся.",
+          "expression": "You’re not paying attention!",
+          "example": "Please pay attention to what I’m saying."
+        },
+        "tools": [
+          {
+            "name": "get_subtitle_context",
+            "success": true,
+            "duration_ms": 13
+          }
+        ],
+        "model_requests": 2,
+        "duration_ms": 10783,
+        "cached": false
+      }
+    },
+    {
+      "cue": "Like clockwork!",
+      "surface": "clockwork",
+      "expected": "Как часы, слаженно и без сбоев.",
+      "actual": {
+        "request_id": "d57c5455-cfd4-4d43-83a3-70762ffabfcb",
+        "selection": {
+          "token_id": "c069bfe4ee4847a78c2e8af05838aefa",
+          "material_id": "0b6ba0ca287040e28ca07163b3d028ae",
+          "cue_id": "63f8b11bc20046478944ba023329a900",
+          "surface": "clockwork",
+          "lexeme_id": "b4882d5eaccc4bc38557c31a4f361591",
+          "start_offset": 5,
+          "end_offset": 14,
+          "language": "en",
+          "lemma": "clockwork",
+          "part_of_speech": "NOUN",
+          "text": "Like clockwork!",
+          "start_ms": 273310,
+          "end_ms": 275260,
+          "youtube_video_id": "TLkA0RELQ1g",
+          "transcript_hash": "c2f15912a962de35d024c798451f0cb04fa363d0cc7e0f05b8acbb6af77ffa0f",
+          "version": 1
+        },
+        "card": {
+          "translation": "Как часы!",
+          "explanation": "Здесь like clockwork описывает машину: она работает точно и слаженно, как часовой механизм. Это устойчивое выражение, поэтому clockwork лучше переводить не отдельно («часовой механизм»), а вместе с like — «как часы».",
+          "expression": "Like clockwork!",
+          "example": "The whole system runs like clockwork."
+        },
+        "tools": [
+          {
+            "name": "get_subtitle_context",
+            "success": true,
+            "duration_ms": 19
+          }
+        ],
+        "model_requests": 2,
+        "duration_ms": 10652,
+        "cached": false
+      }
+    },
+    {
+      "cue": "…and you’re ground to a pulp.",
+      "surface": "ground",
+      "expected": "Размолот, растерт; не земля или территория.",
+      "actual": {
+        "request_id": "686d5efb-967e-410a-80c8-f9e961f0f8e4",
+        "selection": {
+          "token_id": "2145936cc7854bc1b89bc8c0ee950358",
+          "material_id": "0b6ba0ca287040e28ca07163b3d028ae",
+          "cue_id": "3521b1f5e3fc4e76b88bcf74e8ba6a00",
+          "surface": "ground",
+          "lexeme_id": "bf46dc7705b84c259e7c22bcf309df80",
+          "start_offset": 12,
+          "end_offset": 18,
+          "language": "en",
+          "lemma": "grind",
+          "part_of_speech": "VERB",
+          "text": "…and you’re ground to a pulp.",
+          "start_ms": 277063,
+          "end_ms": 279120,
+          "youtube_video_id": "TLkA0RELQ1g",
+          "transcript_hash": "c2f15912a962de35d024c798451f0cb04fa363d0cc7e0f05b8acbb6af77ffa0f",
+          "version": 1
+        },
+        "card": {
+          "translation": "…и тебя перемелет в кашу.",
+          "explanation": "Ground — третья форма глагола grind («молоть, перемалывать»), а не существительное «земля». В выражении be ground to a pulp речь о том, что кого-то раздавят или перемелют в бесформенную массу: здесь это предупреждение о последствиях одного неверного движения. You’re ground — пассивная конструкция: действие совершают над тобой.",
+          "expression": "be ground to a pulp",
+          "example": "One wrong step, and you’ll be ground to a pulp."
+        },
+        "tools": [
+          {
+            "name": "get_subtitle_context",
+            "success": true,
+            "duration_ms": 6
+          },
+          {
+            "name": "get_learning_profile",
+            "success": true,
+            "duration_ms": 4
+          },
+          {
+            "name": "get_word_knowledge",
+            "success": true,
+            "duration_ms": 6
+          }
+        ],
+        "model_requests": 3,
+        "duration_ms": 13570,
+        "cached": false
+      }
+    },
+    {
+      "cue": "Emo, close your eyes.",
+      "surface": "close",
+      "expected": "Закрыть глаза; не близкий.",
+      "actual": {
+        "request_id": "04fb6ef3-458b-468b-a19f-c11cbc7c12b9",
+        "selection": {
+          "token_id": "2a160185b1314416a470b1021a23b48f",
+          "material_id": "0b6ba0ca287040e28ca07163b3d028ae",
+          "cue_id": "ae69b9f31f834878b1db95d86d761fb3",
+          "surface": "close",
+          "lexeme_id": "0c831385d73f4f999d4b1d540a934e04",
+          "start_offset": 5,
+          "end_offset": 10,
+          "language": "en",
+          "lemma": "close",
+          "part_of_speech": "VERB",
+          "text": "Emo, close your eyes.",
+          "start_ms": 341310,
+          "end_ms": 343420,
+          "youtube_video_id": "TLkA0RELQ1g",
+          "transcript_hash": "c2f15912a962de35d024c798451f0cb04fa363d0cc7e0f05b8acbb6af77ffa0f",
+          "version": 1
+        },
+        "card": {
+          "translation": "закрой (глаза)",
+          "explanation": "Здесь close — глагол «закрывать», а close your eyes означает «закрой глаза». Это повелительная форма: говорящий просит или велит Эмо закрыть глаза.",
+          "expression": "close your eyes",
+          "example": "Close your eyes and relax."
+        },
+        "tools": [
+          {
+            "name": "get_subtitle_context",
+            "success": true,
+            "duration_ms": 7
+          }
+        ],
+        "model_requests": 2,
+        "duration_ms": 9628,
+        "cached": false
+      }
+    },
+    {
+      "cue": "…you’re a sick man!",
+      "surface": "sick",
+      "expected": "Больной человек; в контексте упрека возможно психически нездоровый.",
+      "actual": {
+        "request_id": "a3f6ae9e-d8f1-4e50-9ab1-d1f734b6b87f",
+        "selection": {
+          "token_id": "cc11730408e24abfab4138cbb9e9a20a",
+          "material_id": "0b6ba0ca287040e28ca07163b3d028ae",
+          "cue_id": "240eda875f284a43832ebd0660684dee",
+          "surface": "sick",
+          "lexeme_id": "db6eaab629004dd2853af2326edf60b3",
+          "start_offset": 10,
+          "end_offset": 14,
+          "language": "en",
+          "lemma": "sick",
+          "part_of_speech": "ADJ",
+          "text": "…you’re a sick man!",
+          "start_ms": 465050,
+          "end_ms": 466854,
+          "youtube_video_id": "TLkA0RELQ1g",
+          "transcript_hash": "c2f15912a962de35d024c798451f0cb04fa363d0cc7e0f05b8acbb6af77ffa0f",
+          "version": 1
+        },
+        "card": {
+          "translation": "больной на голову; вся реплика — «Да ты больной!»",
+          "explanation": "Здесь sick в выражении a sick man — скорее возмущённая оценка поведения, а не сообщение о физической болезни. Следующая реплика «Не подходи ко мне!» поддерживает такое прочтение; точный оттенок — «ненормальный» или «жестокий, извращённый» — без более широкого контекста неясен.",
+          "expression": "you’re a sick man!",
+          "example": "You think hurting people is funny? You're sick!"
+        },
+        "tools": [
+          {
+            "name": "get_subtitle_context",
+            "success": true,
+            "duration_ms": 5
+          },
+          {
+            "name": "get_learning_profile",
+            "success": true,
+            "duration_ms": 12
+          },
+          {
+            "name": "get_word_knowledge",
+            "success": true,
+            "duration_ms": 19
+          }
+        ],
+        "model_requests": 3,
+        "duration_ms": 14181,
+        "cached": false
+      }
+    },
+    {
+      "cue": "No! Emo! It’s a trap!",
+      "surface": "trap",
+      "expected": "Ловушка, западня.",
+      "actual": {
+        "request_id": "47f82a55-3934-476a-8162-ec7e386f3284",
+        "selection": {
+          "token_id": "b5ab6b6e95ac4a65aa8a628e8f4b3709",
+          "material_id": "0b6ba0ca287040e28ca07163b3d028ae",
+          "cue_id": "95ff66fad5dc49739e53f45bc01d08a8",
+          "surface": "trap",
+          "lexeme_id": "8e5574451cb0486e843bf4a21577ccfc",
+          "start_offset": 16,
+          "end_offset": 20,
+          "language": "en",
+          "lemma": "trap",
+          "part_of_speech": "NOUN",
+          "text": "No! Emo! It’s a trap!",
+          "start_ms": 472188,
+          "end_ms": 474854,
+          "youtube_video_id": "TLkA0RELQ1g",
+          "transcript_hash": "c2f15912a962de35d024c798451f0cb04fa363d0cc7e0f05b8acbb6af77ffa0f",
+          "version": 1
+        },
+        "card": {
+          "translation": "ловушка; It’s a trap! — «Это ловушка!»",
+          "explanation": "Здесь trap — существительное «ловушка»: говорящий предупреждает Эмо об опасности. По одним этим репликам нельзя точно определить, имеется ли в виду физическая ловушка или подстроенная опасная ситуация.",
+          "expression": "It’s a trap!",
+          "example": "Don’t go in! It’s a trap!"
+        },
+        "tools": [
+          {
+            "name": "get_subtitle_context",
+            "success": true,
+            "duration_ms": 12
+          }
+        ],
+        "model_requests": 2,
+        "duration_ms": 9248,
+        "cached": false
+      }
+    }
+  ]
+}

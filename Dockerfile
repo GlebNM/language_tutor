@@ -14,6 +14,7 @@ COPY pyproject.toml uv.lock .python-version ./
 RUN uv sync --frozen --no-dev
 COPY backend/ ./backend/
 COPY data/demo/ ./data/demo/
+COPY data/diagnostics/ ./data/diagnostics/
 COPY --from=web /web/dist/ ./apps/web/dist/
 RUN groupadd --gid 10001 tutor && useradd --uid 10001 --gid tutor --no-create-home tutor && mkdir -p /data && chown tutor:tutor /data
 USER tutor
