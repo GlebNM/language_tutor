@@ -1,9 +1,14 @@
 from pathlib import Path
 
+import httpx
+import jwt
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from backend.app.ai_connection import create_ai_router
+from backend.app.ai_connection.siwc import SIWCOAuthFlow, SubscriptionError
+from backend.app.ai_connection.siwc_credentials import SIWCCredentials
 
 
 def test_local_learner_can_inspect_connection_without_credentials(tmp_path: Path) -> None:
@@ -56,6 +61,7 @@ def test_occupied_callback_port_returns_actionable_error(tmp_path: Path) -> None
     import socket
 
     with socket.socket() as occupied:
+        occupied.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         occupied.bind(("127.0.0.1", 0))
         occupied.listen()
         app = FastAPI()
@@ -224,3 +230,97 @@ def test_oauth_timeout_releases_listener_and_allows_retry(tmp_path: Path) -> Non
             time.sleep(0.01)
         assert state["error"] == "oauth_timeout"
         assert client.post("/api/ai/connection/start").status_code == 200
+
+
+def test_oauth_can_retry_same_port_immediately_after_completed_callback(tmp_path: Path) -> None:
+    import socket
+    from urllib.parse import parse_qs, urlparse
+
+    import httpx
+
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+    app = FastAPI()
+    app.include_router(
+        create_ai_router(
+            data_dir=tmp_path,
+            mcp_url="http://mcp:8001/mcp",
+            callback_host="127.0.0.1",
+            callback_port=port,
+        )
+    )
+    with TestClient(app) as client, httpx.Client() as browser:
+        for _ in range(3):
+            started = client.post("/api/ai/connection/start")
+            assert started.status_code == 200
+            state = parse_qs(urlparse(started.json()["authorization_url"]).query)["state"][0]
+            denied = browser.get(
+                f"http://127.0.0.1:{port}/auth/callback",
+                params={
+                    "state": state,
+                    "error": "access_denied",
+                },
+            )
+            assert denied.status_code == 400
+            retried = client.post("/api/ai/connection/start")
+            assert retried.status_code == 200, "Completed callback must permit immediate port reuse"
+            assert client.post("/api/ai/connection/cancel").status_code == 200
+
+
+@pytest.mark.parametrize(
+    ("failure", "category"),
+    [
+        (SubscriptionError("test-secret-provider-message", 400), "provider"),
+        (SubscriptionError("invalid_nonce", 401), "identity"),
+        (SubscriptionError("missing_issued_client_id", 401), "registration"),
+        (jwt.InvalidSignatureError("test-secret-signature-message"), "identity"),
+        (httpx.ConnectError("test-secret-network-message"), "network"),
+        (TimeoutError("test-secret-timeout-message"), "timeout"),
+        (PermissionError("test-secret-storage-message"), "storage"),
+        (RuntimeError("test-secret-unexpected-message"), "unexpected"),
+    ],
+)
+def test_oauth_failure_reports_only_a_bounded_safe_category(
+    tmp_path: Path,
+    failure: Exception,
+    category: str,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    import socket
+    from urllib.parse import parse_qs, urlparse
+
+    class FailedOAuth(SIWCOAuthFlow):
+        async def exchange_code(self, code: str, **kwargs: object) -> SIWCCredentials:
+            raise failure
+
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+    app = FastAPI()
+    app.include_router(
+        create_ai_router(
+            data_dir=tmp_path,
+            mcp_url="http://mcp:8001/mcp",
+            callback_host="127.0.0.1",
+            callback_port=port,
+            flow_factory=FailedOAuth,
+        )
+    )
+    with TestClient(app) as client:
+        started = client.post("/api/ai/connection/start")
+        assert started.status_code == 200
+        state = parse_qs(urlparse(started.json()["authorization_url"]).query)["state"][0]
+        failed = httpx.get(
+            f"http://127.0.0.1:{port}/auth/callback",
+            params={
+                "state": state,
+                "code": "controlled-test-code",
+            },
+        )
+        assert failed.status_code == 400
+        status = client.get("/api/ai/connection").json()
+        assert status["status"] == "reauth_required"
+        assert status["error"] == "oauth_exchange_failed"
+        assert status["error_category"] == category
+        assert "test-secret" not in str(status) + failed.text + caplog.text

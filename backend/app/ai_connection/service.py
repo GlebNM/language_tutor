@@ -8,7 +8,9 @@ from contextlib import suppress
 from pathlib import Path
 from typing import Literal
 
+import httpx
 import httpx2
+import jwt
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
@@ -23,12 +25,54 @@ from .siwc import DIRECT_SCOPE, SIWCOAuthFlow, SubscriptionError, TokenManager
 from .siwc_model import SIWCTransport, siwc_model
 from .storage import CredentialStore
 
+OAuthFailureCategory = Literal[
+    "provider",
+    "identity",
+    "registration",
+    "network",
+    "timeout",
+    "storage",
+    "response",
+    "unexpected",
+]
+
+
+def _oauth_failure_category(error: Exception) -> OAuthFailureCategory:
+    # Never return provider messages, arbitrary error codes, exception text or payloads.
+    if isinstance(error, SubscriptionError):
+        if error.code in {
+            "invalid_issuer",
+            "invalid_jwks_location",
+            "invalid_signing_algorithm",
+            "unknown_signing_key",
+            "invalid_nonce",
+            "subject_identity_mismatch",
+        }:
+            return "identity"
+        if error.code in {"missing_issued_client_id", "client_identity_mismatch"}:
+            return "registration"
+        return "provider"
+    if isinstance(error, jwt.PyJWTError):
+        return "identity"
+    if isinstance(error, (TimeoutError, httpx.TimeoutException, httpx2.TimeoutException)):
+        return "timeout"
+    if isinstance(error, (httpx.TransportError, httpx2.TransportError)):
+        return "network"
+    if isinstance(error, (httpx.HTTPStatusError, httpx2.HTTPStatusError)):
+        return "provider"
+    if isinstance(error, OSError):
+        return "storage"
+    if isinstance(error, (KeyError, ValueError, TypeError)):
+        return "response"
+    return "unexpected"
+
 
 class ConnectionStatus(BaseModel):
     status: Literal["disconnected", "connecting", "connected", "reauth_required", "limit_reached"]
     route: str = "siwc"
     live_verified: bool = False
     error: str | None = None
+    error_category: OAuthFailureCategory | None = None
 
 
 class ConnectionService:
@@ -86,6 +130,8 @@ class ConnectionService:
             await self.stop_listener()
             listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             try:
+                # A completed callback can leave TIME_WAIT connections on this fixed port.
+                listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 listener.bind((self.callback_host, self.callback_port))
                 listener.listen(16)
                 listener.setblocking(False)
@@ -153,9 +199,11 @@ class ConnectionService:
                     )
                 self.store = CredentialStore(self.data_dir / "credentials")
                 await self.store.save(credentials)
-            except Exception:
+            except Exception as error:
                 self.state = ConnectionStatus(
-                    status="reauth_required", error="oauth_exchange_failed"
+                    status="reauth_required",
+                    error="oauth_exchange_failed",
+                    error_category=_oauth_failure_category(error),
                 )
                 asyncio.create_task(self.stop_after_response(self.server))
                 return HTMLResponse(
