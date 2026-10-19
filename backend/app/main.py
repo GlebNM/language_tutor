@@ -1,5 +1,6 @@
 """One local origin for the standalone web application and material API."""
 
+import logging
 import os
 from pathlib import Path
 from typing import Any, Literal
@@ -37,6 +38,13 @@ def create_app(
     frontend_dist: Path | None = None,
     include_ai: bool = True,
 ) -> FastAPI:
+    traces = logging.getLogger("backend.app.agents")
+    if not traces.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(message)s"))
+        traces.addHandler(handler)
+    traces.setLevel(logging.INFO)
+    traces.propagate = False
     app = FastAPI(title="Language Tutor", version="0.1.0")
     origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:8765,http://127.0.0.1:8765").split(",")
     app.add_middleware(

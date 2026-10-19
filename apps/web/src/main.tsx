@@ -616,7 +616,7 @@ function App() {
                     >
                       ↗ {time(selection.cue.start_ms)}
                     </button>
-                    <LearningPanel key={selection.token.id} selection={selection} onSaved={() => void refreshMaterial().catch(e => setError(e.message))} onSeek={milliseconds => player.current?.seek(milliseconds)} onOpen={id => void open(id)} />
+                    <LearningPanel key={selection.token.id} selection={selection} onSaved={() => void refreshMaterial().catch(e => setError(e.message))} onSeek={milliseconds => player.current?.seek(milliseconds)} />
                     <div className="selection-note">
                       <strong>Контекст закреплён</strong>
                       <p>

@@ -1,0 +1,157 @@
+{
+  "source": "Authored acceptance questions over the licensed demo and an imported excerpt of the same video.",
+  "conversations": [
+    {
+      "id": "d6f804887100442b9262ffebac27397d",
+      "material_id": "7446a818482d48c1bfe1a63ccedd4812",
+      "cue_id": "5a1b99fa1fe64488bc189bd4293c2f49",
+      "token_id": "57a78a5f4edb41baa7300c1c7f27cd8e",
+      "created_at": "2026-10-19T19:35:51.152381+00:00",
+      "messages": [
+        {
+          "request_id": "b4b6a503-aac2-44b7-819f-35a86e76f5e9",
+          "message": "Найди left как существительное во всех моих сохранённых материалах, включая другие версии. Дай цитаты с временем и укажи источник каждой.",
+          "response": {
+            "request_id": "b4b6a503-aac2-44b7-819f-35a86e76f5e9",
+            "model": "gpt-6.1-sol",
+            "conversation_id": "d6f804887100442b9262ffebac27397d",
+            "answer": "Поиск по сохранённым материалам для точной пары left + NOUN (существительное) вернул 2 совпадения, в двух версиях одного видео:\n\n1. Источник: Elephants Dream · фрагмент для проверки цитат, версия 2. Время: 00:15.000–00:18.130.\n2. Источник: Elephants Dream, версия 1. Время: 00:15.000–00:18.130.\n\nТекст реплики в обеих версиях одинаковый. Здесь left означает «левая сторона», а вся реплика переводится как «Слева мы видим…». Это не форма прошедшего времени глагола leave («уходить; оставлять»).\n\nЦитаты привязаны к обоим найденным источникам. Наличие реплик в сохранённых материалах не означает, что ты их уже посмотрел.",
+            "educational_example": null,
+            "citations": [
+              {
+                "citation_id": "7446a818482d48c1bfe1a63ccedd4812:5a1b99fa1fe64488bc189bd4293c2f49",
+                "material_id": "7446a818482d48c1bfe1a63ccedd4812",
+                "cue_id": "5a1b99fa1fe64488bc189bd4293c2f49",
+                "text": "At the left we can see…",
+                "truncated": false,
+                "start_ms": 15000,
+                "end_ms": 18130,
+                "youtube_video_id": "TLkA0RELQ1g",
+                "version": 2,
+                "title": "Elephants Dream · фрагмент для проверки цитат",
+                "youtube_url": "https://www.youtube.com/watch?v=TLkA0RELQ1g&t=15"
+              },
+              {
+                "citation_id": "0b6ba0ca287040e28ca07163b3d028ae:e7456fe839e34cc996f0c4104f3dbc47",
+                "material_id": "0b6ba0ca287040e28ca07163b3d028ae",
+                "cue_id": "e7456fe839e34cc996f0c4104f3dbc47",
+                "text": "At the left we can see…",
+                "truncated": false,
+                "start_ms": 15000,
+                "end_ms": 18130,
+                "youtube_video_id": "TLkA0RELQ1g",
+                "version": 1,
+                "title": "Elephants Dream",
+                "youtube_url": "https://www.youtube.com/watch?v=TLkA0RELQ1g&t=15"
+              }
+            ],
+            "tools": [
+              {
+                "name": "find_word_occurrences",
+                "success": true,
+                "duration_ms": 28
+              }
+            ],
+            "model_requests": 2,
+            "duration_ms": 14699
+          },
+          "created_at": "2026-10-19T19:35:51.176643+00:00"
+        },
+        {
+          "request_id": "bf4114a8-d42f-4cdb-ace5-6f1d8b22bef3",
+          "message": "Поищи существительное quasar в моих материалах. Если его нет, прямо скажи, что совпадений нет.",
+          "response": {
+            "request_id": "bf4114a8-d42f-4cdb-ace5-6f1d8b22bef3",
+            "model": "gpt-6.1-sol",
+            "conversation_id": "d6f804887100442b9262ffebac27397d",
+            "answer": "В твоих сохранённых материалах совпадений для quasar как существительного (NOUN) нет.\nВ сохранённых материалах точных совпадений не найдено.",
+            "educational_example": null,
+            "citations": [],
+            "tools": [
+              {
+                "name": "find_word_occurrences",
+                "success": true,
+                "duration_ms": 20
+              }
+            ],
+            "model_requests": 2,
+            "duration_ms": 7490
+          },
+          "created_at": "2026-10-19T19:36:26.238675+00:00"
+        }
+      ]
+    },
+    {
+      "id": "4645410c9cf5407796203866482b428c",
+      "material_id": "0b6ba0ca287040e28ca07163b3d028ae",
+      "cue_id": "e7456fe839e34cc996f0c4104f3dbc47",
+      "token_id": "36493bf98ab04be798435755dca416e5",
+      "created_at": "2026-10-19T19:25:55.874977+00:00",
+      "messages": [
+        {
+          "request_id": "493fe5e9-8598-424d-bb87-85f5c63cf608",
+          "message": "Объясни left в этой реплике и найди это слово в моих материалах. Приведи точную цитату и время.",
+          "response": {
+            "request_id": "493fe5e9-8598-424d-bb87-85f5c63cf608",
+            "conversation_id": "4645410c9cf5407796203866482b428c",
+            "answer": "Здесь left — существительное со значением «левая сторона». Сочетание at the left означает «слева»: перевод реплики — «Слева мы можем видеть…». Это не форма прошедшего времени глагола leave («уходить; оставлять»). Следующая реплика переключает внимание на правую сторону, что подтверждает пространственное значение. Что именно находится слева, из доступного текста неясно.\n\nВ сохранённых материалах найдено одно точное совпадение left как существительного — в Elephants Dream, 00:15.000–00:18.130. Это та же реплика, которую ты выбрал; других совпадений поиск не вернул. Точная цитата привязана к ответу. Наличие реплики в сохранённых материалах не означает, что ты её уже смотрел.",
+            "educational_example": "On the left, you can see a small house.\nПеревод: Слева можно увидеть небольшой дом.",
+            "citations": [
+              {
+                "citation_id": "0b6ba0ca287040e28ca07163b3d028ae:e7456fe839e34cc996f0c4104f3dbc47",
+                "material_id": "0b6ba0ca287040e28ca07163b3d028ae",
+                "cue_id": "e7456fe839e34cc996f0c4104f3dbc47",
+                "text": "At the left we can see…",
+                "truncated": false,
+                "start_ms": 15000,
+                "end_ms": 18130,
+                "youtube_video_id": "TLkA0RELQ1g",
+                "version": 1,
+                "title": "Elephants Dream",
+                "youtube_url": "https://www.youtube.com/watch?v=TLkA0RELQ1g&t=15"
+              },
+              {
+                "citation_id": "0b6ba0ca287040e28ca07163b3d028ae:c41a94cc66584d84966f76769c141308",
+                "material_id": "0b6ba0ca287040e28ca07163b3d028ae",
+                "cue_id": "c41a94cc66584d84966f76769c141308",
+                "text": "At the right we can see the—",
+                "truncated": false,
+                "start_ms": 18130,
+                "end_ms": 20500,
+                "youtube_video_id": "TLkA0RELQ1g",
+                "version": 1,
+                "title": "Elephants Dream",
+                "youtube_url": "https://www.youtube.com/watch?v=TLkA0RELQ1g&t=18"
+              }
+            ],
+            "tools": [
+              {
+                "name": "find_word_occurrences",
+                "success": true,
+                "duration_ms": 44
+              },
+              {
+                "name": "get_subtitle_context",
+                "success": true,
+                "duration_ms": 45
+              },
+              {
+                "name": "get_learning_profile",
+                "success": true,
+                "duration_ms": 45
+              },
+              {
+                "name": "get_word_knowledge",
+                "success": true,
+                "duration_ms": 45
+              }
+            ],
+            "model_requests": 2,
+            "duration_ms": 16832
+          },
+          "created_at": "2026-10-19T19:25:55.890821+00:00"
+        }
+      ]
+    }
+  ]
+}

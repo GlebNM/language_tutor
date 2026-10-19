@@ -1,0 +1,7 @@
+request_id=da21704e-2253-4706-88a1-5c53ea2e25c4 tool=get_subtitle_context success=True duration_ms=7
+request_id=b4b6a503-aac2-44b7-819f-35a86e76f5e9 tool=find_word_occurrences success=True duration_ms=28
+request_id=50f600e4-c238-4c61-ac66-27b898521d3f tool=get_diagnostic_items success=True duration_ms=174
+request_id=50f600e4-c238-4c61-ac66-27b898521d3f tool=get_diagnostic_items success=True duration_ms=179
+request_id=50f600e4-c238-4c61-ac66-27b898521d3f tool=get_diagnostic_items success=True duration_ms=179
+request_id=50f600e4-c238-4c61-ac66-27b898521d3f tool=get_diagnostic_items success=True duration_ms=179
+request_id=bf4114a8-d42f-4cdb-ace5-6f1d8b22bef3 tool=find_word_occurrences success=True duration_ms=20

@@ -69,13 +69,13 @@ export function DifficultyPanel({ value }: { value?: Difficulty }) {
 }
 
 type CardResult = {card: {translation: string; explanation: string; expression: string; example: string}; duration_ms: number};
-type Citation = {material_id: string; cue_id?: string; title?: string; text: string; start_ms: number; youtube_url?: string};
+type Citation = {material_id: string; cue_id?: string; title?: string; text: string; start_ms: number; youtube_url: string};
 type ChatAnswer = {answer: string; educational_example?: string | null; citations?: Citation[]};
 type Turn = {request_id: string;message: string;response: ChatAnswer | null};
 type Conversation = {id: string; token_id?: string; messages: Turn[]};
 
-export function LearningPanel({selection, onSaved, onSeek, onOpen}: {
-  selection: Selection; onSaved(): void; onSeek(milliseconds: number): void; onOpen(id: string): void;
+export function LearningPanel({selection, onSaved, onSeek}: {
+  selection: Selection; onSaved(): void; onSeek(milliseconds: number): void;
 }) {
   const [card, setCard] = useState<CardResult | null>(null);
   const [cardError, setCardError] = useState("");
@@ -141,7 +141,7 @@ export function LearningPanel({selection, onSaved, onSeek, onOpen}: {
     <div className="contextual-card">
       {cardBusy && <p role="status">Разбираем слово в контексте…</p>}
       {cardError && <div role="alert"><p className="warning">{cardError}</p><button className="secondary" onClick={() => setAttempt(attempt+1)}>Повторить разбор</button></div>}
-      {card && <><h3>{card.card.translation}</h3><p>{card.card.explanation}</p><p className="expression">{card.card.expression}</p><p className="example">{card.card.example}</p></>}
+      {card && <><h3>{card.card.translation}</h3><p>{card.card.explanation}</p><p className="expression">{card.card.expression}</p><p className="example">Учебный пример: {card.card.example}</p></>}
     </div>
     <FamiliarityEditor token={selection.token} onSaved={onSaved} />
     <details><summary>Исправить базовую форму</summary><form onSubmit={e => void correct(e)} className="lemma-form">
@@ -155,7 +155,7 @@ export function LearningPanel({selection, onSaved, onSeek, onOpen}: {
       {chat?.messages?.map(turn => <div key={turn.request_id} className="chat-turn"><div className="chat-message user"><small>Вы</small><p>{turn.message}</p></div>
         {turn.response && <div className="chat-message assistant"><small>Агент</small><p>{turn.response.answer}</p>
         {turn.response.educational_example && <p className="example">Учебный пример: {turn.response.educational_example}</p>}
-        {turn.response.citations?.map((citation, i) => <blockquote key={i}>{citation.text}<button className="timestamp" onClick={() => citation.material_id === selection.material_id ? onSeek(citation.start_ms) : onOpen(citation.material_id)}>{citation.title} · {time(citation.start_ms)} ↗</button>{citation.youtube_url && <a href={citation.youtube_url} target="_blank" rel="noreferrer">На YouTube ↗</a>}</blockquote>)}
+        {turn.response.citations?.map((citation, i) => <blockquote key={i}>{citation.text}{citation.material_id === selection.material_id ? <><button className="timestamp" onClick={() => onSeek(citation.start_ms)}>{citation.title} · {time(citation.start_ms)} ↗</button><a href={citation.youtube_url} target="_blank" rel="noreferrer">На YouTube ↗</a></> : <a className="timestamp" href={citation.youtube_url} target="_blank" rel="noreferrer">{citation.title} · {time(citation.start_ms)} ↗</a>}</blockquote>)}
         </div>}
       </div>)}
       <form onSubmit={event => void send(event)}><label>Ваш вопрос<textarea required maxLength={4000} value={question} onChange={e => setQuestion(e.target.value)} placeholder="Почему здесь такое значение?" /></label>

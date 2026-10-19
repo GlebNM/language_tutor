@@ -153,7 +153,7 @@ function selectionPanel() {
   const controls=node("div",{class:"row"},button("Продолжить просмотр",()=>void action(()=>message("lt:resume",{video_id:state.video_id}))),button("Закрыть карточку",()=>void action(()=>message("lt:close")),true));panel.append(controls);
   if(cardBusy)panel.append(paragraph("Разбираем слово в контексте…","status"));
   if(cardError)panel.append(paragraph(cardError,"warning"),button("Повторить разбор",()=>void loadCard(),true),node("a",{href:backend,target:"_blank",rel:"noreferrer"},"Настройки подписки в приложении ↗"));
-  if(card?.card){const value=card.card;panel.append(node("h3",{},value.translation),paragraph(value.explanation),paragraph(value.expression,"expression"),paragraph(value.example,"example"));
+  if(card?.card){const value=card.card;panel.append(node("h3",{},value.translation),paragraph(value.explanation),paragraph(value.expression,"expression"),paragraph(`Учебный пример: ${value.example}`,"example"));
     if(card.tools?.length)panel.append(paragraph(`Инструменты: ${card.tools.map(tool=>typeof tool==="string"?tool:tool.name??tool.tool_name??"MCP").join(", ")}`,"help"));}
   panel.append(familiarity(token));
   const lemma=node("input",{value:token.lemma,required:true,maxLength:100}),pos=node("select",{},["NOUN","VERB","ADJ","ADV","PROPN","AUX","PRON","ADP","DET","CCONJ","SCONJ","PART","INTJ","NUM","X"].map(value=>node("option",{value},value)));pos.value=token.part_of_speech;
@@ -196,7 +196,7 @@ function chatPanel() {
   ]);
   for(const entry of entries){
     const block=node("div",{class:`message ${entry.role}`},node("small",{},entry.role==="user"?"Вы":"Агент"),paragraph(entry.content));
-    if(entry.example)block.append(paragraph(entry.example,"example"));
+    if(entry.example)block.append(paragraph(`Учебный пример: ${entry.example}`,"example"));
     for(const cite of entry.citations??[]){
       const quote=node("blockquote",{},cite.text);
       if(cite.material_id===selection().material_id)quote.append(button(`${cite.title??"Текущий материал"} · ${timestamp(cite.start_ms)}`,()=>void action(()=>message("lt:seek",{video_id:state.video_id,start_ms:cite.start_ms})),true));

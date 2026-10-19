@@ -1,0 +1,288 @@
+{
+  "sample_answers": "Authored acceptance responses, not an assessment supplied by the learner.",
+  "session": {
+    "id": "c86c5ffa858a4cceb9a49b91d80398bc",
+    "status": "completed",
+    "pool_version": 1,
+    "items": [
+      {
+        "id": "en-v1-water",
+        "kind": "word",
+        "group": 1,
+        "prompt": "Что означает английское слово «water»? Объясните по-русски."
+      },
+      {
+        "id": "en-v1-house",
+        "kind": "word",
+        "group": 1,
+        "prompt": "Что означает английское слово «house»? Объясните по-русски."
+      },
+      {
+        "id": "en-v1-work",
+        "kind": "word",
+        "group": 1,
+        "prompt": "Что означает английское слово «work»? Объясните по-русски."
+      },
+      {
+        "id": "en-v1-friend",
+        "kind": "word",
+        "group": 1,
+        "prompt": "Что означает английское слово «friend»? Объясните по-русски."
+      },
+      {
+        "id": "en-v1-improve",
+        "kind": "word",
+        "group": 2,
+        "prompt": "Что означает английское слово «improve»? Объясните по-русски."
+      },
+      {
+        "id": "en-v1-journey",
+        "kind": "word",
+        "group": 2,
+        "prompt": "Что означает английское слово «journey»? Объясните по-русски."
+      },
+      {
+        "id": "en-v1-effort",
+        "kind": "word",
+        "group": 2,
+        "prompt": "Что означает английское слово «effort»? Объясните по-русски."
+      },
+      {
+        "id": "en-v1-advice",
+        "kind": "word",
+        "group": 2,
+        "prompt": "Что означает английское слово «advice»? Объясните по-русски."
+      },
+      {
+        "id": "en-v1-curious",
+        "kind": "word",
+        "group": 3,
+        "prompt": "Что означает английское слово «curious»? Объясните по-русски."
+      },
+      {
+        "id": "en-v1-resist",
+        "kind": "word",
+        "group": 3,
+        "prompt": "Что означает английское слово «resist»? Объясните по-русски."
+      },
+      {
+        "id": "en-v1-rough",
+        "kind": "word",
+        "group": 3,
+        "prompt": "Что означает английское слово «rough»? Объясните по-русски."
+      },
+      {
+        "id": "en-v1-comfort",
+        "kind": "word",
+        "group": 3,
+        "prompt": "Что означает английское слово «comfort»? Объясните по-русски."
+      },
+      {
+        "id": "en-v1-sentence-1",
+        "kind": "sentence",
+        "group": null,
+        "prompt": "Объясните по-русски: Although it was raining, we decided to continue our journey."
+      },
+      {
+        "id": "en-v1-sentence-2",
+        "kind": "sentence",
+        "group": null,
+        "prompt": "Объясните по-русски: If I had known about the delay, I would have left home later."
+      }
+    ],
+    "answers": [
+      {
+        "item_id": "en-v1-water",
+        "answer": "вода",
+        "action": "answer"
+      },
+      {
+        "item_id": "en-v1-house",
+        "answer": "дом",
+        "action": "answer"
+      },
+      {
+        "item_id": "en-v1-work",
+        "answer": "работать",
+        "action": "answer"
+      },
+      {
+        "item_id": "en-v1-friend",
+        "answer": "",
+        "action": "dont_know"
+      },
+      {
+        "item_id": "en-v1-improve",
+        "answer": "улучшать",
+        "action": "answer"
+      },
+      {
+        "item_id": "en-v1-journey",
+        "answer": "путешествие",
+        "action": "answer"
+      },
+      {
+        "item_id": "en-v1-effort",
+        "answer": "усилие",
+        "action": "answer"
+      },
+      {
+        "item_id": "en-v1-advice",
+        "answer": "",
+        "action": "skip"
+      },
+      {
+        "item_id": "en-v1-curious",
+        "answer": "",
+        "action": "dont_know"
+      },
+      {
+        "item_id": "en-v1-resist",
+        "answer": "",
+        "action": "dont_know"
+      },
+      {
+        "item_id": "en-v1-rough",
+        "answer": "",
+        "action": "dont_know"
+      },
+      {
+        "item_id": "en-v1-comfort",
+        "answer": "",
+        "action": "dont_know"
+      },
+      {
+        "item_id": "en-v1-sentence-1",
+        "answer": "Несмотря на дождь, мы решили продолжить путешествие.",
+        "action": "answer"
+      },
+      {
+        "item_id": "en-v1-sentence-2",
+        "answer": "Если бы я знал о задержке, я бы вышел из дома позже.",
+        "action": "answer"
+      }
+    ],
+    "summary": {
+      "description": "Из 12 отдельных слов верно объяснены 6; для 5 выбран ответ «не знаю», 1 пропущено и не оценено. В первой и второй группах верно объяснено по 3 слова из 4, в третьей — ни одного: для всех четырёх выбран ответ «не знаю». Оба предложения переведены верно: ответы показывают понимание уступки и нереального условия в прошлом в этих конкретных примерах. Это уточняет картину понимания связного текста, но не меняет оценки отдельных слов. Результат — предварительная эвристика на малой выборке, а не надёжная оценка общего владения языком. Полезно повторить слова, отмеченные как неизвестные, и отдельно проверить пропущенное advice.",
+      "grades": [
+        {
+          "item_id": "en-v1-advice",
+          "correct": null,
+          "explanation": "Задание пропущено: знание слова не оценено. Advice означает «совет», «рекомендация»."
+        },
+        {
+          "item_id": "en-v1-comfort",
+          "correct": false,
+          "explanation": "Вы отметили, что не знаете слово. Comfort означает «комфорт», «удобство», «утешение»."
+        },
+        {
+          "item_id": "en-v1-curious",
+          "correct": false,
+          "explanation": "Вы отметили, что не знаете слово. Curious означает «любопытный», «любознательный»."
+        },
+        {
+          "item_id": "en-v1-effort",
+          "correct": true,
+          "explanation": "Верно: effort означает «усилие», «старание»."
+        },
+        {
+          "item_id": "en-v1-friend",
+          "correct": false,
+          "explanation": "Вы отметили, что не знаете слово. Friend означает «друг», «подруга»."
+        },
+        {
+          "item_id": "en-v1-house",
+          "correct": true,
+          "explanation": "Верно: house означает «дом», «здание для жилья»."
+        },
+        {
+          "item_id": "en-v1-improve",
+          "correct": true,
+          "explanation": "Верно: improve означает «улучшать» или «улучшаться»."
+        },
+        {
+          "item_id": "en-v1-journey",
+          "correct": true,
+          "explanation": "Верно: journey означает «путешествие», «поездка», «путь»."
+        },
+        {
+          "item_id": "en-v1-resist",
+          "correct": false,
+          "explanation": "Вы отметили, что не знаете слово. Resist означает «сопротивляться», «противостоять», «удержаться от»."
+        },
+        {
+          "item_id": "en-v1-rough",
+          "correct": false,
+          "explanation": "Вы отметили, что не знаете слово. Rough может означать «грубый», «шероховатый», «приблизительный», «тяжёлый»."
+        },
+        {
+          "item_id": "en-v1-sentence-1",
+          "correct": true,
+          "explanation": "Верно передан весь смысл: несмотря на дождь, было решено продолжить путешествие."
+        },
+        {
+          "item_id": "en-v1-sentence-2",
+          "correct": true,
+          "explanation": "Верно передан смысл нереального условия в прошлом: если бы говорящий знал о задержке, он вышел бы из дома позже."
+        },
+        {
+          "item_id": "en-v1-water",
+          "correct": true,
+          "explanation": "Верно: water означает «вода»."
+        },
+        {
+          "item_id": "en-v1-work",
+          "correct": true,
+          "explanation": "Верно: глагол work означает «работать», «трудиться»."
+        }
+      ],
+      "groups": [
+        {
+          "group": 1,
+          "correct": 3,
+          "total": 4,
+          "inferred": true
+        },
+        {
+          "group": 2,
+          "correct": 3,
+          "total": 4,
+          "inferred": true
+        },
+        {
+          "group": 3,
+          "correct": 0,
+          "total": 4,
+          "inferred": false
+        }
+      ],
+      "notice": "Это предварительная эвристика по малой выборке, а не сертифицированный уровень CEFR."
+    }
+  },
+  "profile": {
+    "id": 1,
+    "target_language": "en",
+    "explanation_language": "ru",
+    "diagnostic_version": 1,
+    "revision": 2,
+    "diagnostic_groups": [
+      {
+        "group": 1,
+        "version": 1,
+        "inferred": true
+      },
+      {
+        "group": 2,
+        "version": 1,
+        "inferred": true
+      },
+      {
+        "group": 3,
+        "version": 1,
+        "inferred": false
+      }
+    ],
+    "diagnostic_summary": "Из 12 отдельных слов верно объяснены 6; для 5 выбран ответ «не знаю», 1 пропущено и не оценено. В первой и второй группах верно объяснено по 3 слова из 4, в третьей — ни одного: для всех четырёх выбран ответ «не знаю». Оба предложения переведены верно: ответы показывают понимание уступки и нереального условия в прошлом в этих конкретных примерах. Это уточняет картину понимания связного текста, но не меняет оценки отдельных слов. Результат — предварительная эвристика на малой выборке, а не надёжная оценка общего владения языком. Полезно повторить слова, отмеченные как неизвестные, и отдельно проверить пропущенное advice.",
+    "storage_generation": "61e1e7788d17cc9601dd5d7e1de30b2a"
+  }
+}
