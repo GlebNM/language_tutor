@@ -1,0 +1,60 @@
+{
+  "checked_at": "2026-10-20T14:43:38.068868+00:00",
+  "delivery": "Normal docker-compose up -d --force-recreate app with COMPOSE_FILE in ignored .env",
+  "before": {
+    "public_learning_state_sha256": "d91fd0127626f018f6d27508091461f3e33666eaa6f34134a2a1ce28938ffbb2",
+    "material_count": 1,
+    "cue_count": 85,
+    "settings": {
+      "model": "gpt-6-luna",
+      "reasoning_effort": "low"
+    },
+    "connection_status": "connected"
+  },
+  "after": {
+    "public_learning_state_sha256": "d91fd0127626f018f6d27508091461f3e33666eaa6f34134a2a1ce28938ffbb2",
+    "material_count": 1,
+    "cue_count": 85,
+    "settings": {
+      "model": "gpt-6-luna",
+      "reasoning_effort": "low"
+    },
+    "connection_status": "connected"
+  },
+  "learning_state_unchanged": true,
+  "catalog_model_ids": [
+    "gpt-6.1-sol",
+    "gpt-6-astra",
+    "gpt-6-sol",
+    "gpt-6-luna",
+    "gpt-5.6-sol",
+    "gpt-5.6-terra",
+    "gpt-5.6-luna"
+  ],
+  "network": {
+    "dns": [
+      "1.1.1.1",
+      "8.8.8.8"
+    ],
+    "proxy_configured": false,
+    "existing_ca_read_only": true,
+    "tls_verification": true,
+    "mcp_published": false
+  },
+  "browser_checks": {
+    "network_failure_preserves_saved_pair": true,
+    "catalog_retry_recovers": true,
+    "settings_saved": true,
+    "medium_survived_page_reload": true,
+    "restored_original_low": true,
+    "live_mcp_subscription_proof": true,
+    "new_oauth_required": false
+  },
+  "automated_checks": {
+    "backend_tests_passed": 91,
+    "web_tests_passed": 5,
+    "mypy_sources": 22,
+    "ruff": "passed",
+    "web_production_build": "passed"
+  }
+}
