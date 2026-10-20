@@ -1,0 +1,16 @@
+# Optional direct HTTPS when Docker's inherited DNS cannot resolve OpenAI.
+# Use instead of compose.network.yaml; no host proxy process is required.
+services:
+  app:
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    environment:
+      SSL_CERT_FILE: /etc/ssl/certs/language-tutor-host-ca.pem
+    volumes:
+      - type: bind
+        source: ${HOST_CA_BUNDLE:?Set HOST_CA_BUNDLE to an existing public CA bundle}
+        target: /etc/ssl/certs/language-tutor-host-ca.pem
+        read_only: true
+        bind:
+          create_host_path: false

@@ -159,13 +159,21 @@ export function AIModelSettings() {
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true); setError(""); setModels([]); setModel(""); setReasoning(""); setMessage("");
-    Promise.all([api<AISettingsValue>("/ai/settings", {signal: controller.signal}), api<{models: AIModelOption[]}>("/ai/models", {signal: controller.signal})])
-      .then(([saved, catalogue]) => {
-        setModels(catalogue.models);
+    async function load() {
+      try {
+        const saved = await api<AISettingsValue>("/ai/settings", {signal: controller.signal});
+        if (controller.signal.aborted) return;
         setModel(saved.model);
         setReasoning(saved.reasoning_effort ?? "");
-      }).catch(e => {if (e.name !== "AbortError") setError((e as Error).message);})
-      .finally(() => {if (!controller.signal.aborted) setLoading(false);});
+        const catalogue = await api<{models: AIModelOption[]}>("/ai/models", {signal: controller.signal});
+        if (!controller.signal.aborted) setModels(catalogue.models);
+      } catch (e) {
+        if (!controller.signal.aborted) setError((e as Error).message);
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }
+    void load();
     return () => controller.abort();
   }, [loadAttempt]);
   const selected = models.find(option => option.id === model);
@@ -183,16 +191,16 @@ export function AIModelSettings() {
     <h2>Модель и reasoning</h2>
     <p>Выбор действует для карточек, диагностики и учебного агента.</p>
     {loading ? <p role="status">Загружаем доступные модели…</p> : <form onSubmit={event => void save(event)}>
-      <label>Модель<select value={model} disabled={saving} onChange={event => {const next = event.target.value; const option = models.find(item => item.id === next); setModel(next); setReasoning(option?.default_reasoning_effort ?? ""); setMessage("");}}>
-        {!models.some(option => option.id === model) && model && <option value={model} disabled>{model} · сейчас недоступна</option>}
+      <label>Модель<select value={model} disabled={saving || !models.length} onChange={event => {const next = event.target.value; const option = models.find(item => item.id === next); setModel(next); setReasoning(option?.default_reasoning_effort ?? ""); setMessage("");}}>
+        {!selected && model && <option value={model} disabled>{model} · {models.length ? "сейчас недоступна" : "сохранённая модель"}</option>}
         {models.map(option => <option key={option.id} value={option.id}>{option.name}</option>)}
       </select></label>
       <label>Уровень reasoning<select value={reasoning} disabled={!selected || saving} onChange={event => {setReasoning(event.target.value); setMessage("");}}>
         <option value="">По умолчанию для модели</option>
-        {selected && reasoning && !selected.reasoning_efforts.includes(reasoning) && <option value={reasoning} disabled>{reasoning} · сейчас недоступен</option>}
+        {reasoning && !selected?.reasoning_efforts.includes(reasoning) && <option value={reasoning} disabled>{reasoning} · {selected ? "сейчас недоступен" : "сохранённый уровень"}</option>}
         {selected?.reasoning_efforts.map(effort => <option key={effort} value={effort}>{effort}</option>)}
       </select></label>
-      {error && <p role="alert" className="warning">{error}{!model && <button type="button" className="quiet" onClick={() => setLoadAttempt(value => value + 1)}>Повторить загрузку</button>}</p>}
+      {error && <p role="alert" className="warning">{error}</p>}
       {message && <p role="status">{message}</p>}
       <div className="actions"><button disabled={saving || loading || !model || !selected}>{saving ? "Сохраняем…" : "Сохранить настройки AI"}</button><button type="button" className="secondary" disabled={loading || saving} onClick={() => setLoadAttempt(value => value + 1)}>Обновить каталог</button></div>
     </form>}

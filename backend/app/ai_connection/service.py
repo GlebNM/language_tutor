@@ -341,7 +341,7 @@ class ConnectionService:
             return normalize_model_catalog(response.json().get("models", []))
         except SubscriptionError as error:
             raise self.provider_failure(error) from None
-        except (httpx2.TransportError, httpx2.TimeoutException, TimeoutError):
+        except (httpx.TransportError, httpx2.TransportError, TimeoutError):
             raise HTTPException(
                 503, "Не удалось получить каталог моделей. Повторите запрос."
             ) from None

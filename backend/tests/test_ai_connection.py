@@ -76,6 +76,76 @@ def test_ai_settings_persist_and_reject_unsupported_reasoning(tmp_path: Path) ->
     assert AISettingsStore(tmp_path).read().reasoning_effort == "medium"
 
 
+@pytest.mark.asyncio
+async def test_model_catalog_returns_safe_network_error_when_token_refresh_cannot_connect(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import time
+    from urllib.parse import parse_qs
+
+    from backend.app.ai_connection import siwc
+    from backend.app.ai_connection.siwc import DIRECT_SCOPE
+    from backend.app.ai_connection.storage import CredentialStore
+
+    secrets = (
+        "synthetic-access-secret",
+        "synthetic-refresh-secret",
+        "synthetic-id-secret",
+        "relay-secret-network-diagnostic",
+    )
+    store = CredentialStore(tmp_path / "credentials")
+    await store.save(
+        SIWCCredentials(
+            access_token=secrets[0],
+            refresh_token=secrets[1],
+            id_token=secrets[2],
+            client_id="oaiapp_test",
+            subject="synthetic-learner",
+            scopes=[DIRECT_SCOPE],
+            expires_at=time.time() - 3600,
+        )
+    )
+
+    refresh_requests: list[httpx.Request] = []
+
+    async def unreachable_token_endpoint(request: httpx.Request) -> httpx.Response:
+        refresh_requests.append(request)
+        assert request.url == "https://auth.openai.com/api/accounts/oauth/token"
+        form = parse_qs(request.content.decode())
+        assert form["grant_type"] == ["refresh_token"]
+        assert form["refresh_token"] == [secrets[1]]
+        raise httpx.ConnectError(secrets[3], request=request)
+
+    original_async_client = httpx.AsyncClient
+
+    def controlled_async_client(*args: object, **kwargs: object) -> httpx.AsyncClient:
+        kwargs["transport"] = httpx.MockTransport(unreachable_token_endpoint)
+        return original_async_client(*args, **kwargs)
+
+    monkeypatch.setattr(siwc.httpx, "AsyncClient", controlled_async_client)
+    app = FastAPI()
+    app.include_router(
+        create_ai_router(data_dir=tmp_path, mcp_url="http://mcp:8001/mcp")
+    )
+    with TestClient(app, raise_server_exceptions=False) as client:
+        response = client.get("/api/ai/models")
+        assert response.status_code == 503
+        assert response.headers["content-type"].startswith("application/json")
+        detail = response.json()["detail"]
+        assert "Не удалось получить каталог моделей" in detail
+        assert "Повторите запрос" in detail
+        assert all(secret not in response.text for secret in secrets)
+        assert len(refresh_requests) == 1
+
+        settings = client.get("/api/ai/settings")
+        assert settings.status_code == 200
+        assert settings.json()["model"] == "gpt-6-luna"
+
+        connection = client.get("/api/ai/connection")
+        assert connection.status_code == 200
+        assert connection.json()["status"] == "connected"
+
+
 def test_model_catalog_uses_verified_metadata_and_filters_transport_unsupported_levels() -> None:
     from backend.app.ai_connection.service import normalize_model_catalog
 
