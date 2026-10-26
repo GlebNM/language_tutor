@@ -30,6 +30,19 @@ class TrackImport(BaseModel):
     is_complete: bool = True
 
 
+class TextImport(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    title: str = Field(min_length=1, max_length=200)
+    content: str
+    source: Literal["manual_text", "text_file"] = "manual_text"
+
+
+class ReadingPosition(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    block_id: str = Field(min_length=1, max_length=100)
+    offset: int = Field(default=0, ge=0)
+
+
 class DataReset(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     confirmation: Literal["Удалить мои данные"]
@@ -185,6 +198,22 @@ def create_learner_app(
     def import_material(track: TrackImport) -> dict[str, Any]:
         return library.import_track(**track.model_dump())
 
+    @app.post("/api/materials/text", status_code=201)
+    def import_text(text: TextImport) -> dict[str, Any]:
+        return library.import_text(**text.model_dump())
+
+    @app.put("/api/materials/{material_id}/text", status_code=201)
+    def replace_text(material_id: str, text: TextImport) -> dict[str, Any]:
+        return library.import_text(**text.model_dump(), replaces=material_id)
+
+    @app.get("/api/materials/{material_id}/reading-position")
+    def reading_position(material_id: str) -> dict[str, Any]:
+        return library.reading_position(material_id)
+
+    @app.put("/api/materials/{material_id}/reading-position")
+    def save_reading_position(material_id: str, position: ReadingPosition) -> dict[str, Any]:
+        return library.save_reading_position(material_id, position.block_id, position.offset)
+
     @app.post("/api/materials/demo", status_code=201)
     def prepared_example() -> dict[str, Any]:
         return add_demo()
@@ -245,11 +274,18 @@ def create_learner_app(
 
 
 def create_app(
-    database_path: Path | None = None, *, seed_demo: bool = True,
-    frontend_dist: Path | None = None, include_ai: bool = True,
+    database_path: Path | None = None,
+    *,
+    seed_demo: bool = True,
+    frontend_dist: Path | None = None,
+    include_ai: bool = True,
 ) -> FastAPI:
     """Public application: every learning route requires an account session."""
     from backend.app.accounts import create_account_app
+
     return create_account_app(
-        database_path, seed_demo=seed_demo, frontend_dist=frontend_dist, include_ai=include_ai,
+        database_path,
+        seed_demo=seed_demo,
+        frontend_dist=frontend_dist,
+        include_ai=include_ai,
     )
