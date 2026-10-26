@@ -1,0 +1,42 @@
+.cover.text-cover {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--accent);
+  background: #eef3ec;
+}
+.text-cover span { font-size: 12px; font-weight: 600; }
+.material-type-filter { display: flex; align-items: center; gap: 9px; margin: 0; color: var(--muted); font-size: 12px; }
+.material-type-filter select { min-width: 150px; margin: 0; }
+.text-import-content { resize: vertical; line-height: 1.6; font-size: 15px; }
+.reader-meta { display: flex; align-items: flex-start; gap: 18px; margin-bottom: 12px; color: var(--muted); font-size: 12px; flex-shrink: 0; }
+.reader-meta > span { padding-top: 10px; flex-shrink: 0; }
+.reader-meta .difficulty-card { margin: 0; flex: 1; }
+.reader-workspace .watch-grid { grid-template-columns: minmax(0, 1fr); }
+.reader-workspace .watch-grid.has-selection { grid-template-columns: minmax(0, 1fr) minmax(300px, 360px); }
+.reader-workspace .watch-grid.has-selection .study-pane { display: flex; }
+.reader-workspace .study-pane { height: 100%; }
+.reader-workspace .study-content { display: flex; flex-direction: column; min-height: 0; }
+.text-reader { display: flex; flex: 1; flex-direction: column; min-height: 0; }
+.text-reader > .search-field { margin: 12px 18px 6px; flex-shrink: 0; }
+.reading-paragraphs { flex: 1; min-height: 0; overflow: auto; padding: 12px 32px 28px; scroll-behavior: auto; }
+.reading-paragraph { max-width: 76ch; margin: 0 auto 20px; font-size: 19px; line-height: 1.9; white-space: pre-wrap; overflow-wrap: anywhere; }
+.reading-paragraph .word { line-height: inherit; }
+.reading-paragraph.bookmarked { border-left: 2px solid var(--line); padding-left: 12px; }
+@media (max-width: 1000px) {
+  .reader-workspace .watch-grid.has-selection { grid-template-columns: minmax(0, 1fr); }
+  .reader-workspace .watch-grid.has-selection .study-pane { display: none; }
+  .reader-workspace .study-pane, .reader-workspace .selection-panel { height: 65dvh; min-height: 350px; }
+  .reader-meta { flex-direction: column; gap: 8px; }
+  .reader-meta .difficulty-card { width: 100%; box-sizing: border-box; }
+  .reading-paragraphs { padding: 12px 18px 24px; }
+  .reading-paragraph { font-size: 17px; }
+  .material-type-filter select { min-width: 120px; }
+}
+@media (max-width: 600px) {
+  .library-heading { align-items: flex-start; }
+  .library-heading > .actions { flex-wrap: wrap; justify-content: flex-end; }
+  .material-type-filter > span { display: none; }
+}

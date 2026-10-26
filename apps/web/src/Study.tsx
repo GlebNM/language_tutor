@@ -1,7 +1,8 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { api, time } from "./api";
-import type { Difficulty, Knowledge, Selection, Token } from "./api";
+import type { Citation, Difficulty, Knowledge, Selection, Token } from "./api";
+import { MaterialCitation } from "./MaterialCitation";
 import type { Cue } from "./api";
 import { filterVideoVocabulary, groupVideoVocabulary } from "./videoVocabulary";
 import { ExpressionDictionary } from "./Expressions";
@@ -133,11 +134,13 @@ export function VideoVocabulary({
   isComplete,
   onSaved,
   onOccurrence,
+  title = "Слова видео",
 }: {
   cues: Cue[];
   isComplete: boolean;
   onSaved(): void;
   onOccurrence(cue: Cue, token: Token): void;
+  title?: string;
 }) {
   const entries = useMemo(() => groupVideoVocabulary(cues), [cues]);
   const [search, setSearch] = useState("");
@@ -170,7 +173,7 @@ export function VideoVocabulary({
     >
       <div className="panel-title">
         <div>
-          <h2 id="video-vocabulary-title">Слова видео</h2>
+          <h2 id="video-vocabulary-title">{title}</h2>
         </div>
         <span>
           {visible.length} из {entries.length}
@@ -346,7 +349,7 @@ function VideoOccurrences({
               className="timestamp"
               onClick={() => onOccurrence(cue, token)}
             >
-              {time(cue.start_ms)}
+              {typeof cue.start_ms === "number" ? time(cue.start_ms) : "К абзацу"}
             </button>
             <span>{cue.text}</span>
             <span className="occurrence-form">{token.surface}</span>
@@ -525,14 +528,6 @@ type CardResult = {
   duration_ms: number;
   model?: string;
   reasoning_effort?: string | null;
-};
-type Citation = {
-  material_id: string;
-  cue_id?: string;
-  title?: string;
-  text: string;
-  start_ms: number;
-  youtube_url: string;
 };
 type ChatAnswer = {
   answer: string;
@@ -825,32 +820,7 @@ export function LearningPanel({
                   {turn.response.citations?.map((citation, i) => (
                     <blockquote key={i}>
                       {citation.text}
-                      {citation.material_id === selection.material_id ? (
-                        <>
-                          <button
-                            className="timestamp"
-                            onClick={() => onSeek(citation.start_ms)}
-                          >
-                            {citation.title} · {time(citation.start_ms)} ↗
-                          </button>
-                          <a
-                            href={citation.youtube_url}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            На YouTube ↗
-                          </a>
-                        </>
-                      ) : (
-                        <a
-                          className="timestamp"
-                          href={citation.youtube_url}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          {citation.title} · {time(citation.start_ms)} ↗
-                        </a>
-                      )}
+                      <MaterialCitation citation={citation} currentMaterialId={selection.material_id} onSeek={onSeek} />
                     </blockquote>
                   ))}
                 </div>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, time } from "./api";
+import { api, time, isTimedCue } from "./api";
 import type { Material } from "./api";
 
 type Improvement = {
@@ -57,7 +57,7 @@ export function Captions({ material, onOpen, onLibraryChanged }: {
   }
 
   if (material.source === "youtube-improved") {
-    const changed = material.cues.filter(cue => cue.text !== cue.original_text);
+    const changed = material.cues.filter(isTimedCue).filter(cue => cue.text !== cue.original_text);
     return <section className="caption-status">
       <p>Субтитры обработаны AI по тексту. Возможны ошибки; аудио не проверялось.</p>
       {material.previous_version_id && <button className="secondary" onClick={() => onOpen(material.previous_version_id!)}>Открыть исходную дорожку</button>}

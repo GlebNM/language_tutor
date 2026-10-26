@@ -3,7 +3,7 @@ import type { Account } from "./session";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { FormEvent, ReactNode } from "react";
-import { api, time } from "./api";
+import { api, time, isTextMaterial, isTimedCue } from "./api";
 import type {
   Connection,
   Cue,
@@ -38,8 +38,11 @@ import {
 import { Icon, Modal, Tabs } from "./UI";
 import type { IconName } from "./UI";
 import { Transcript } from "./Transcript";
+import { TextReader } from "./TextReader";
+import { TextImport } from "./TextImport";
 import { readRoute, routeHash } from "./navigation";
 import "./style.css";
+import "./reading.css";
 
 function CueWords({
   cue,
@@ -112,6 +115,9 @@ function App({ user }: { user: Account }) {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [showImport, setShowImport] = useState(false);
+  const [textImport, setTextImport] = useState<"new" | "edit" | null>(null);
+  const [readingBlockId, setReadingBlockId] = useState<string | undefined>();
+  const [materialType, setMaterialType] = useState("all");
   const [replacing, setReplacing] = useState(false);
   const [settings, setSettings] = useState(false);
   const [section, setSection] = useState("materials");
@@ -147,15 +153,16 @@ function App({ user }: { user: Account }) {
   const inspectorClose = useRef<HTMLButtonElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
   const pageContent = useRef<HTMLDivElement>(null);
-  const viewing = useViewing(material, refreshMaterial);
-  const playback = usePlaybackProgress(material?.id);
+  const textMaterial = material ? isTextMaterial(material) : false;
+  const viewing = useViewing(textMaterial ? null : material, refreshMaterial);
+  const playback = usePlaybackProgress(textMaterial ? undefined : material?.id);
   const expressions = useExpressions(
     material ? { material_id: material.id } : null,
   );
   const routeHandler = useRef(() => {});
   routeHandler.current = () => {
     const route = readRoute(window.location.hash);
-    if (route.materialId) void open(route.materialId, false);
+    if (route.materialId) void open(route.materialId, false, route.blockId);
     else navigate(route.section, false);
   };
   const expressionOrder = useMemo(
@@ -239,7 +246,7 @@ function App({ user }: { user: Account }) {
   useEffect(() => {
     const offline = () =>
       setNotice(
-        "Нет соединения с интернетом. Загруженные субтитры доступны для чтения.",
+        "Нет соединения с интернетом. Загруженные материалы доступны для чтения.",
       );
     const online = () => setNotice("Соединение восстановлено.");
     window.addEventListener("offline", offline);
@@ -249,9 +256,9 @@ function App({ user }: { user: Account }) {
       window.removeEventListener("online", online);
     };
   }, []);
-  async function open(id: string, updateRoute = true) {
+  async function open(id: string, updateRoute = true, blockId?: string) {
     if (updateRoute) {
-      const hash = routeHash({ section: "materials", materialId: id });
+      const hash = routeHash({ section: "materials", materialId: id, blockId });
       if (window.location.hash !== hash)
         window.history.pushState(null, "", hash);
     }
@@ -263,6 +270,7 @@ function App({ user }: { user: Account }) {
     setMaterial(null);
     setSelection(null);
     setPosition(0);
+    setReadingBlockId(blockId);
     setSettings(false);
     setSection("materials");
     setStudyTab("transcript");
@@ -417,7 +425,7 @@ function App({ user }: { user: Account }) {
   function beginImport(replace = false) {
     setReplacing(replace);
     setShowImport(true);
-    setUrl(replace && material ? material.youtube_url : "");
+    setUrl(replace && material ? material.youtube_url ?? "" : "");
     setTitle(replace && material ? material.title : "");
     setFile(null);
     setImportMode(replace ? "file" : "youtube");
@@ -552,13 +560,16 @@ function App({ user }: { user: Account }) {
   }
   const currentCues =
     material?.cues.filter(
-      (cue) => cue.start_ms <= position && cue.end_ms > position,
+      (cue) => isTimedCue(cue) && cue.start_ms <= position && cue.end_ms > position,
     ) ?? [];
   const source = (value: string) =>
     ({
       demo: "Подготовленный пример",
       srt: "Импорт SRT",
       vtt: "Импорт VTT",
+      manual_text: "Текст",
+      text_file: "Импорт TXT",
+      generated: "Текст · создан AI",
       "youtube-authored": "Авторская дорожка",
       "youtube-automatic": "Автоматическая дорожка",
       "youtube-improved": "Автосубтитры · обработаны AI",
@@ -853,12 +864,12 @@ function App({ user }: { user: Account }) {
             </div>
           ) : material ? (
             <div
-              className={`watch-workspace${largeVideo ? " large-video" : ""}`}
+              className={`watch-workspace${textMaterial ? " reader-workspace" : largeVideo ? " large-video" : ""}`}
             >
               <div className="view-heading">
                 <h1 title={material.title}>{material.title}</h1>
                 <div className="actions">
-                  {viewing.enabled && (
+                  {!textMaterial && viewing.enabled && (
                     <button
                       className="secondary"
                       onClick={() => {
@@ -869,7 +880,7 @@ function App({ user }: { user: Account }) {
                       Завершить просмотр
                     </button>
                   )}
-                  <button
+                  {!textMaterial && <button
                     className="quiet icon-button"
                     title={largeVideo ? "Компактное видео" : "Увеличить видео"}
                     aria-label={
@@ -879,9 +890,9 @@ function App({ user }: { user: Account }) {
                     onClick={() => setLargeVideo((value) => !value)}
                   >
                     <Icon name="expand" />
-                  </button>
+                  </button>}
                   <details className="material-menu">
-                    <summary aria-label="Действия с видео">
+                    <summary aria-label="Действия с материалом">
                       <Icon name="more" />
                     </summary>
                     <div className="menu-popover">
@@ -910,9 +921,9 @@ function App({ user }: { user: Account }) {
                       </button>
                       <button
                         className="quiet"
-                        onClick={() => beginImport(true)}
+                        onClick={() => textMaterial ? setTextImport("edit") : beginImport(true)}
                       >
-                        Заменить субтитры
+                        {textMaterial ? "Редактировать текст" : "Заменить субтитры"}
                       </button>
                     </div>
                   </details>
@@ -928,16 +939,17 @@ function App({ user }: { user: Account }) {
                   {viewing.notice}
                 </p>
               )}
-              <ViewingReview viewing={viewing} />
+              {!textMaterial && <ViewingReview viewing={viewing} />}
+              {textMaterial && <div className="reader-meta"><span>{source(material.source)} · версия {material.version}</span><DifficultyPanel value={material.difficulty} /></div>}
               <div
                 className={`watch-grid${selection || expressions.primary || expressions.busy ? " has-selection" : ""}`}
               >
-                <section className="watch" aria-label="Видео">
+                {!textMaterial && material.youtube_video_id && <section className="watch" aria-label="Видео">
                   <Player
                     key={material.id}
                     ref={player}
                     videoId={material.youtube_video_id}
-                    cues={material.cues}
+                    cues={material.cues.filter(isTimedCue)}
                     onTime={setPosition}
                     onPlayback={(sample) => {
                       viewing.sample(sample);
@@ -1022,7 +1034,7 @@ function App({ user }: { user: Account }) {
                       </p>
                     )}
                   </details>
-                </section>
+                </section>}
                 <section
                   className="study-pane"
                   aria-label="Работа с материалом"
@@ -1035,7 +1047,7 @@ function App({ user }: { user: Account }) {
                     }}
                     label="Материал"
                     items={[
-                      { id: "transcript", label: "Субтитры" },
+                      { id: "transcript", label: textMaterial ? "Текст" : "Субтитры" },
                       { id: "words", label: "Слова" },
                       { id: "expressions", label: "Выражения" },
                     ]}
@@ -1045,7 +1057,7 @@ function App({ user }: { user: Account }) {
                     role="tabpanel"
                     aria-label={
                       studyTab === "transcript"
-                        ? "Субтитры"
+                        ? textMaterial ? "Текст" : "Субтитры"
                         : studyTab === "words"
                           ? "Слова"
                           : "Выражения"
@@ -1058,7 +1070,12 @@ function App({ user }: { user: Account }) {
                           order={expressionOrder}
                           onBegin={closeSelection}
                         />
-                        <Transcript
+                        {textMaterial ? <TextReader
+                          key={material.id}
+                          material={material}
+                          initialBlockId={readingBlockId}
+                          renderWords={(cue) => <CueWords cue={cue} selected={selection?.token.id} highlighted={expressions.highlighted} onSelect={(token) => void select(cue, token)} />}
+                        /> : <Transcript
                           cues={material.cues}
                           activeId={currentCues[0]?.id}
                           onSeek={(ms) => {
@@ -1073,13 +1090,14 @@ function App({ user }: { user: Account }) {
                               onSelect={(token) => void select(cue, token)}
                             />
                           )}
-                        />
+                        />}
                       </>
                     ) : studyTab === "words" ? (
                       <VideoVocabulary
                         key={material.id}
                         cues={material.cues}
                         isComplete={material.is_complete}
+                        title={textMaterial ? "Слова текста" : "Слова видео"}
                         onSaved={() =>
                           void refreshMaterial().catch((e) =>
                             setError(e.message),
@@ -1087,7 +1105,8 @@ function App({ user }: { user: Account }) {
                         }
                         onOccurrence={(cue, token) => {
                           player.current?.pause();
-                          player.current?.seek(cue.start_ms);
+                          if (isTimedCue(cue)) player.current?.seek(cue.start_ms);
+                          else { setReadingBlockId(cue.id); setStudyTab("transcript"); }
                           void select(cue, token);
                         }}
                       />
@@ -1103,7 +1122,8 @@ function App({ user }: { user: Account }) {
                           );
                           if (cue && token) {
                             player.current?.pause();
-                            player.current?.seek(cue.start_ms);
+                            if (isTimedCue(cue)) player.current?.seek(cue.start_ms);
+                          else { setReadingBlockId(cue.id); setStudyTab("transcript"); }
                             void select(cue, token);
                             expressions.choose(entry);
                           }
@@ -1139,7 +1159,7 @@ function App({ user }: { user: Account }) {
                     <div className="inspector-content">
                       <ExpressionInspector
                         view={expressions}
-                        onSeek={(ms) => {
+                        onSeek={textMaterial ? undefined : (ms) => {
                           player.current?.pause();
                           player.current?.seek(ms);
                         }}
@@ -1159,15 +1179,15 @@ function App({ user }: { user: Account }) {
                             </p>
                           )}
                           <blockquote>{selection.cue.text}</blockquote>
-                          <button
+                          {typeof selection.cue.start_ms === "number" && <button
                             className="timestamp"
                             onClick={() => {
                               player.current?.pause();
-                              player.current?.seek(selection.cue.start_ms);
+                              if (typeof selection.cue.start_ms === "number") player.current?.seek(selection.cue.start_ms);
                             }}
                           >
                             {time(selection.cue.start_ms)}
-                          </button>
+                          </button>}
                           <WordLearning
                             key={`${selection.material_id}:${selection.cue.id}:${selection.token.id}`}
                             selection={selection}
@@ -1193,8 +1213,8 @@ function App({ user }: { user: Account }) {
                         player.current?.play();
                       }}
                     >
-                      <Icon name="play" size={16} />
-                      Продолжить
+                      <Icon name={textMaterial ? "words" : "play"} size={16} />
+                      {textMaterial ? "Продолжить чтение" : "Продолжить"}
                     </button>
                   </aside>
                 )}
@@ -1207,10 +1227,10 @@ function App({ user }: { user: Account }) {
                   Библиотека{" "}
                   <span className="heading-count">{library.length}</span>
                 </h1>
-                <button onClick={() => beginImport()}>
-                  <Icon name="plus" size={17} />
-                  Добавить видео
-                </button>
+                <div className="actions">
+                  <button className="secondary" onClick={() => setTextImport("new")}><Icon name="plus" size={17} />Добавить текст</button>
+                  <button onClick={() => beginImport()}><Icon name="plus" size={17} />Добавить видео</button>
+                </div>
               </div>
               {library.length > 0 && (
                 <div className="library-toolbar">
@@ -1220,14 +1240,16 @@ function App({ user }: { user: Account }) {
                       aria-label="Поиск в библиотеке"
                       value={librarySearch}
                       onChange={(event) => setLibrarySearch(event.target.value)}
-                      placeholder="Найти видео в библиотеке"
+                      placeholder="Найти материал в библиотеке"
                     />
                   </label>
+                  <label className="material-type-filter"><span>Тип</span><select aria-label="Тип материала" value={materialType} onChange={event => setMaterialType(event.target.value)}><option value="all">Все материалы</option><option value="video">Видео</option><option value="text">Тексты</option></select></label>
                 </div>
               )}
               {library.length ? (
                 <div className="material-grid">
                   {library
+                    .filter((item) => (materialType === "all" || (isTextMaterial(item) ? "text" : "video") === materialType))
                     .filter((item) =>
                       item.title
                         .toLowerCase()
@@ -1239,15 +1261,15 @@ function App({ user }: { user: Account }) {
                         key={item.id}
                         onClick={() => void open(item.id)}
                       >
-                        <div className="cover">
-                          <img
+                        <div className={`cover${isTextMaterial(item) ? " text-cover" : ""}`}>
+                          {isTextMaterial(item) ? <><Icon name="words" size={42} /><span>Текст</span></> : <><img
                             alt=""
                             loading="lazy"
                             src={`https://i.ytimg.com/vi/${item.youtube_video_id}/hqdefault.jpg`}
                           />
                           <span className="play-disc">
                             <Icon name="play" size={22} />
-                          </span>
+                          </span></>}
                         </div>
                         <div className="card-body">
                           <h2>{item.title}</h2>
@@ -1261,11 +1283,10 @@ function App({ user }: { user: Account }) {
                 </div>
               ) : (
                 <div className="empty">
-                  <h2>Начните с интересного видео</h2>
-                  <p>
-                    Вставьте ссылку YouTube — субтитры загрузятся автоматически.
-                  </p>
-                  <button onClick={() => beginImport()}>Добавить видео</button>
+                  <h2>Добавьте первый материал</h2>
+                  <p>Читайте английские тексты или смотрите видео с субтитрами.</p>
+                  <button onClick={() => setTextImport("new")}>Добавить текст</button>
+                  <button className="secondary" onClick={() => beginImport()}>Добавить видео</button>
                   <button className="secondary" onClick={() => void demo()}>
                     Открыть подготовленный пример
                   </button>
@@ -1273,7 +1294,7 @@ function App({ user }: { user: Account }) {
               )}
               {library.length > 0 &&
                 !library.some((item) =>
-                  item.title
+                  (materialType === "all" || (isTextMaterial(item) ? "text" : "video") === materialType) && item.title
                     .toLowerCase()
                     .includes(librarySearch.toLowerCase()),
                 ) && (
@@ -1281,7 +1302,7 @@ function App({ user }: { user: Account }) {
                     Ничего не найдено{" "}
                     <button
                       className="quiet"
-                      onClick={() => setLibrarySearch("")}
+                      onClick={() => { setLibrarySearch(""); setMaterialType("all"); }}
                     >
                       Сбросить поиск
                     </button>
@@ -1291,6 +1312,13 @@ function App({ user }: { user: Account }) {
           )}
         </div>
       </main>
+      {textImport && <TextImport material={textImport === "edit" && material ? material : undefined} onClose={() => setTextImport(null)} onSaved={(value) => {
+        const edited = textImport === "edit";
+        setTextImport(null);
+        void refresh().catch(e => setError(e.message));
+        void open(value.id);
+        setNotice(edited ? "Новая версия сохранена. Прежняя доступна в библиотеке." : "Текст добавлен в библиотеку.");
+      }} />}
       {showImport && (
         <Modal
           labelledBy="import-title"
