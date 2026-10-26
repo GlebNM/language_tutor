@@ -95,6 +95,7 @@ class ExpressionStore:
                     "title": material["title"],
                     "language": material["language"],
                     "youtube_video_id": material["youtube_video_id"],
+                    "kind": material["kind"],
                 }
         assert selected.conversation_id and selected.message_id
         message = MessageWords(self.library).words(selected.conversation_id, selected.message_id)
@@ -224,6 +225,12 @@ class ExpressionStore:
                         context.update(
                             {
                                 "material_id": ref["material_id"],
+                                "block_id": cue["id"],
+                                "kind": source["kind"],
+                                "material_url": "#material/"
+                                + ref["material_id"]
+                                + "?block="
+                                + cue["id"],
                                 "title": source["title"],
                                 "start_ms": cue["start_ms"],
                                 "end_ms": cue["end_ms"],

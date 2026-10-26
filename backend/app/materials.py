@@ -452,6 +452,36 @@ MIGRATIONS = [
         model TEXT NOT NULL,reasoning_effort TEXT,prompt_version TEXT NOT NULL,
         error TEXT,created_at TEXT NOT NULL);
     """,
+    """
+    CREATE TABLE materials_next(
+        id TEXT PRIMARY KEY,youtube_video_id TEXT,title TEXT NOT NULL,
+        language TEXT NOT NULL,source TEXT NOT NULL,is_complete INTEGER NOT NULL,
+        transcript_hash TEXT NOT NULL,version INTEGER NOT NULL,
+        previous_version_id TEXT REFERENCES materials(id),adapter_version TEXT NOT NULL,
+        created_at TEXT NOT NULL,kind TEXT NOT NULL DEFAULT 'video'
+            CHECK(kind IN ('video','text')),
+        CHECK((kind='video' AND youtube_video_id IS NOT NULL)
+            OR (kind='text' AND youtube_video_id IS NULL)),
+        UNIQUE(youtube_video_id,language,transcript_hash));
+    INSERT INTO materials_next SELECT *, 'video' FROM materials;
+    CREATE TABLE cues_next(
+        id TEXT PRIMARY KEY,material_id TEXT NOT NULL REFERENCES materials(id),
+        position INTEGER NOT NULL,start_ms INTEGER,end_ms INTEGER,text TEXT NOT NULL,
+        original_text TEXT NOT NULL,original_fragments TEXT NOT NULL,
+        kind TEXT NOT NULL DEFAULT 'subtitle' CHECK(kind IN ('subtitle','paragraph')),
+        CHECK((kind='subtitle' AND start_ms IS NOT NULL AND end_ms IS NOT NULL AND end_ms>start_ms)
+            OR (kind='paragraph' AND start_ms IS NULL AND end_ms IS NULL)));
+    INSERT INTO cues_next SELECT *, 'subtitle' FROM cues;
+    DROP TABLE cues;
+    DROP TABLE materials;
+    ALTER TABLE materials_next RENAME TO materials;
+    ALTER TABLE cues_next RENAME TO cues;
+    CREATE INDEX cues_material ON cues(material_id,position);
+    CREATE TABLE reading_positions(
+        material_id TEXT PRIMARY KEY REFERENCES materials(id) ON DELETE CASCADE,
+        cue_id TEXT NOT NULL REFERENCES cues(id) ON DELETE CASCADE,
+        offset INTEGER NOT NULL DEFAULT 0,updated_at TEXT NOT NULL);
+    """,
 ]
 
 
@@ -466,6 +496,9 @@ class MaterialLibrary:
             fcntl.flock(lock, fcntl.LOCK_EX)
             with self.connect() as connection:
                 # Serialize initializers from API and MCP processes before checking the version.
+                # Parent-table rebuilds preserve foreign-key identities only while FK
+                # enforcement is disabled before the transaction. Check all links before commit.
+                connection.execute("PRAGMA foreign_keys=OFF")
                 connection.execute("BEGIN IMMEDIATE")
                 version = connection.execute("PRAGMA user_version").fetchone()[0]
                 if version > len(MIGRATIONS):
@@ -494,6 +527,10 @@ class MaterialLibrary:
                         if statement.strip():
                             connection.execute(statement)
                     connection.execute(f"PRAGMA user_version={target}")
+                if connection.execute("PRAGMA foreign_key_check").fetchone():
+                    raise RuntimeError("Миграция нарушила связи учебных данных.")
+                connection.commit()
+                connection.execute("PRAGMA foreign_keys=ON")
 
     @contextmanager
     def connect(self) -> Iterator[sqlite3.Connection]:
@@ -565,6 +602,7 @@ class MaterialLibrary:
                     "diagnostic_rules",
                     "word_knowledge",
                     "occurrences",
+                    "reading_positions",
                     "cues",
                     "materials",
                     "lexemes",
@@ -623,7 +661,11 @@ class MaterialLibrary:
     def _metadata(row: sqlite3.Row) -> dict[str, Any]:
         result = dict(row)
         result["is_complete"] = bool(result["is_complete"])
-        result["youtube_url"] = "https://www.youtube.com/watch?v=" + result["youtube_video_id"]
+        result["youtube_url"] = (
+            "https://www.youtube.com/watch?v=" + result["youtube_video_id"]
+            if result["youtube_video_id"]
+            else None
+        )
         return result
 
     def get_material(self, material_id: str) -> dict[str, Any]:
@@ -646,6 +688,7 @@ class MaterialLibrary:
             ):
                 occurrence = dict(token)
                 occurrence["uncertain"] = bool(occurrence["uncertain"])
+                occurrence["block_id"] = occurrence["cue_id"]
                 from backend.app.knowledge import KnowledgeService
 
                 occurrence["knowledge"] = KnowledgeService(self).get(occurrence["lexeme_id"], db=db)
@@ -662,6 +705,7 @@ class MaterialLibrary:
                 result["cues"].append(item)
             from backend.app.knowledge import calculate_difficulty
 
+            result["blocks"] = result["cues"]
             result["difficulty"] = calculate_difficulty(result)
             return result
 
@@ -674,13 +718,193 @@ class MaterialLibrary:
                         return {
                             "material_id": material_id,
                             "youtube_video_id": material["youtube_video_id"],
+                            "kind": material["kind"],
                             "cue": cue,
+                            "block": cue,
                             "token": token,
-                            "youtube_url": material["youtube_url"]
-                            + "&t="
-                            + str(cue["start_ms"] // 1000),
+                            "youtube_url": (
+                                material["youtube_url"] + "&t=" + str(cue["start_ms"] // 1000)
+                                if material["youtube_url"]
+                                else None
+                            ),
                         }
         raise KeyError("Реплика и слово должны принадлежать выбранному материалу.")
+
+    def import_text(
+        self,
+        *,
+        title: str,
+        content: str,
+        source: str = "manual_text",
+        language: str = "en",
+        replaces: str | None = None,
+        expected_generation: str | None = None,
+        expected_profile_revision: int | None = None,
+    ) -> dict[str, Any]:
+        """Save paragraph text as an immutable material without inventing video metadata."""
+        if language != "en" or source not in {"manual_text", "text_file", "generated"}:
+            raise MaterialError("Проверьте язык и источник текста.")
+        if not title.strip() or len(title) > 200:
+            raise MaterialError("Укажите название текста до 200 символов.")
+        try:
+            size = len(content.encode("utf-8"))
+        except UnicodeEncodeError as exc:
+            raise MaterialError("Текст должен быть в кодировке UTF-8.") from exc
+        if size > MAX_FILE_BYTES or len(content) > MAX_TEXT_CHARACTERS:
+            raise MaterialError("Текст должен содержать не больше 200 000 символов и 2 МБ.")
+        if "\x00" in content:
+            raise MaterialError("Текст содержит недопустимый нулевой символ.")
+        normalized = content.lstrip("\ufeff").replace("\r\n", "\n").replace("\r", "\n")
+        paragraphs = [part.strip() for part in re.split(r"\n[ \t]*\n", normalized) if part.strip()]
+        if not paragraphs or len(paragraphs) > MAX_CUES:
+            raise MaterialError("Добавьте непустой текст до 10 000 абзацев.")
+        digest = hashlib.sha256(
+            json.dumps(
+                {"title": title.strip(), "paragraphs": paragraphs, "language": language},
+                ensure_ascii=False,
+                sort_keys=True,
+            ).encode()
+        ).hexdigest()
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            profile = db.execute("SELECT revision FROM learning_profile WHERE id=1").fetchone()
+            generation = db.execute(
+                "SELECT value FROM storage_metadata WHERE key='generation'"
+            ).fetchone()[0]
+            if expected_generation is not None and expected_generation != generation:
+                raise MaterialError("Данные были удалены. Создайте текст заново.")
+            if expected_profile_revision is not None and expected_profile_revision != profile[0]:
+                raise MaterialError("Словарь изменился. Проверьте сложность текста заново.")
+            previous = None
+            if replaces:
+                previous = db.execute("SELECT * FROM materials WHERE id=?", (replaces,)).fetchone()
+                if previous is None:
+                    raise KeyError("Исходный текст не найден.")
+                if previous["kind"] != "text":
+                    raise MaterialError("Заменять текстом можно только текстовый материал.")
+            if source != "generated":
+                existing = db.execute(
+                    "SELECT id FROM materials WHERE kind='text' AND language=? "
+                    "AND source=? AND transcript_hash=? AND "
+                    "(previous_version_id=? OR (previous_version_id IS NULL AND ? IS NULL))",
+                    (language, source, digest, replaces, replaces),
+                ).fetchone()
+                if existing:
+                    db.commit()
+                    return self.get_material(existing["id"])
+            material_id = uuid.uuid4().hex
+            adapter = english_adapter()
+            db.execute(
+                "INSERT INTO materials "
+                "(id,youtube_video_id,title,language,source,is_complete,transcript_hash,version,"
+                "previous_version_id,adapter_version,created_at,kind) "
+                "VALUES(?,NULL,?,?,?,1,?,?,?,?,?,'text')",
+                (
+                    material_id,
+                    title.strip(),
+                    language,
+                    source,
+                    digest,
+                    previous["version"] + 1 if previous else 1,
+                    replaces,
+                    adapter.version,
+                    datetime.now(UTC).isoformat(),
+                ),
+            )
+            self._insert_blocks(
+                db,
+                material_id,
+                language,
+                [
+                    {
+                        "kind": "paragraph",
+                        "start_ms": None,
+                        "end_ms": None,
+                        "text": text,
+                        "original_text": text,
+                        "original_fragments": [text],
+                    }
+                    for text in paragraphs
+                ],
+            )
+            from backend.app.progress import ProgressService
+
+            ProgressService(self).capture(db, reason="import")
+        return self.get_material(material_id)
+
+    def reading_position(self, material_id: str) -> dict[str, Any]:
+        material = self.get_material(material_id)
+        if material["kind"] != "text":
+            raise MaterialError("Место чтения доступно только для текста.")
+        with self.connect() as db:
+            row = db.execute(
+                "SELECT cue_id block_id,offset FROM reading_positions WHERE material_id=?",
+                (material_id,),
+            ).fetchone()
+        return dict(row) if row else {"block_id": material["blocks"][0]["id"], "offset": 0}
+
+    def save_reading_position(self, material_id: str, block_id: str, offset: int) -> dict[str, Any]:
+        material = self.get_material(material_id)
+        if material["kind"] != "text":
+            raise MaterialError("Место чтения доступно только для текста.")
+        block = next((block for block in material["blocks"] if block["id"] == block_id), None)
+        if block is None or offset < 0 or offset > len(block["text"]):
+            raise MaterialError("Проверьте абзац и позицию чтения.")
+        with self.connect() as db:
+            db.execute(
+                "INSERT INTO reading_positions VALUES(?,?,?,?) ON CONFLICT(material_id) "
+                "DO UPDATE SET cue_id=excluded.cue_id,offset=excluded.offset,"
+                "updated_at=excluded.updated_at",
+                (material_id, block_id, offset, datetime.now(UTC).isoformat()),
+            )
+        return {"block_id": block_id, "offset": offset}
+
+    @staticmethod
+    def _insert_blocks(
+        db: sqlite3.Connection, material_id: str, language: str, blocks: list[dict[str, Any]]
+    ) -> None:
+        adapter = english_adapter()
+        for position, block in enumerate(blocks):
+            block_id = uuid.uuid4().hex
+            db.execute(
+                "INSERT INTO cues "
+                "(id,material_id,position,start_ms,end_ms,text,original_text,"
+                "original_fragments,kind) "
+                "VALUES(?,?,?,?,?,?,?,?,?)",
+                (
+                    block_id,
+                    material_id,
+                    position,
+                    block["start_ms"],
+                    block["end_ms"],
+                    block["text"],
+                    block["original_text"],
+                    json.dumps(block["original_fragments"]),
+                    block.get("kind", "subtitle"),
+                ),
+            )
+            for token in adapter.tokenize(block["text"]):
+                db.execute(
+                    "INSERT OR IGNORE INTO lexemes VALUES(?,?,?,?)",
+                    (uuid.uuid4().hex, language, token["lemma"], token["part_of_speech"]),
+                )
+                lexeme = db.execute(
+                    "SELECT id FROM lexemes WHERE language=? AND lemma=? AND part_of_speech=?",
+                    (language, token["lemma"], token["part_of_speech"]),
+                ).fetchone()
+                db.execute(
+                    "INSERT INTO occurrences VALUES(?,?,?,?,?,?,?,?)",
+                    (
+                        uuid.uuid4().hex,
+                        material_id,
+                        block_id,
+                        lexeme["id"],
+                        token["start_offset"],
+                        token["end_offset"],
+                        token["surface"],
+                        int(token["uncertain"]),
+                    ),
+                )
 
     def import_track(
         self,
@@ -780,7 +1004,9 @@ class MaterialLibrary:
                 (video_id, language),
             ).fetchone()
             db.execute(
-                "INSERT INTO materials VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO materials "
+                "(id,youtube_video_id,title,language,source,is_complete,transcript_hash,version,"
+                "previous_version_id,adapter_version,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     material_id,
                     video_id,
@@ -795,48 +1021,7 @@ class MaterialLibrary:
                     datetime.now(UTC).isoformat(),
                 ),
             )
-            for position, cue in enumerate(cues):
-                cue_id = uuid.uuid4().hex
-                db.execute(
-                    "INSERT INTO cues VALUES(?,?,?,?,?,?,?,?)",
-                    (
-                        cue_id,
-                        material_id,
-                        position,
-                        cue["start_ms"],
-                        cue["end_ms"],
-                        cue["text"],
-                        cue["original_text"],
-                        json.dumps(cue["original_fragments"]),
-                    ),
-                )
-                for token in adapter.tokenize(cue["text"]):
-                    db.execute(
-                        "INSERT OR IGNORE INTO lexemes VALUES(?,?,?,?)",
-                        (
-                            uuid.uuid4().hex,
-                            language,
-                            token["lemma"],
-                            token["part_of_speech"],
-                        ),
-                    )
-                    lexeme = db.execute(
-                        "SELECT id FROM lexemes WHERE language=? AND lemma=? AND part_of_speech=?",
-                        (language, token["lemma"], token["part_of_speech"]),
-                    ).fetchone()
-                    db.execute(
-                        "INSERT INTO occurrences VALUES(?,?,?,?,?,?,?,?)",
-                        (
-                            uuid.uuid4().hex,
-                            material_id,
-                            cue_id,
-                            lexeme["id"],
-                            token["start_offset"],
-                            token["end_offset"],
-                            token["surface"],
-                            int(token["uncertain"]),
-                        ),
-                    )
+            self._insert_blocks(db, material_id, language, cues)
             from backend.app.progress import ProgressService
 
             ProgressService(self).capture(db, reason="import")

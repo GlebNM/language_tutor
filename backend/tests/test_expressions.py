@@ -14,6 +14,7 @@ from backend.app.agents.expressions import ExpressionCandidate
 from backend.app.expressions import ExpressionSource, ExpressionStore
 from backend.app.main import create_app, create_learner_app
 from backend.app.materials import MIGRATIONS, MaterialError
+from backend.tests.material_fixtures import restore_timed_material_schema
 from backend.tests.test_learning import learning_mcp as learning_mcp
 
 TEXTS = [
@@ -384,7 +385,11 @@ def test_migration_keeps_prior_word_data_and_backups(tmp_path):
             "expressions",
         ):
             db.execute(f"DROP TABLE {table}")
-        db.execute(f"PRAGMA user_version={len(MIGRATIONS) - 1}")
+        restore_timed_material_schema(db)
+        version = next(
+            i for i, script in enumerate(MIGRATIONS) if "CREATE TABLE expressions" in script
+        )
+        db.execute(f"PRAGMA user_version={version}")
     with TestClient(learner(tmp_path), base_url="http://localhost") as client:
         assert client.get("/api/materials").json() == before
         assert client.get(f"/api/materials/{material['id']}").status_code == 200
