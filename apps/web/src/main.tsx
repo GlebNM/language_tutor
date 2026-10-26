@@ -40,6 +40,7 @@ import type { IconName } from "./UI";
 import { Transcript } from "./Transcript";
 import { TextReader } from "./TextReader";
 import { TextImport } from "./TextImport";
+import { TextGeneration } from "./TextGeneration";
 import { readRoute, routeHash } from "./navigation";
 import "./style.css";
 import "./reading.css";
@@ -1232,6 +1233,11 @@ function App({ user }: { user: Account }) {
                   <button onClick={() => beginImport()}><Icon name="plus" size={17} />Добавить видео</button>
                 </div>
               </div>
+              <TextGeneration
+                onOpen={(id) => void open(id)}
+                onCompleted={() => void refresh().catch((e) => setError(e.message))}
+                onSettings={() => navigate("settings")}
+              />
               {library.length > 0 && (
                 <div className="library-toolbar">
                   <label className="search-field">
