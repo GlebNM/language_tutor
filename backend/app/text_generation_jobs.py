@@ -273,12 +273,16 @@ class TextGenerationService:
         self,
         settings: AISettings,
         operation: Callable[[Model], Awaitable[T]],
+        *,
+        timeout_seconds: float = 30.0,
     ) -> T:
         if self.model_factory:
-            async with asyncio.timeout(30):
+            async with asyncio.timeout(timeout_seconds):
                 return await operation(self.model_factory())
         if self.connection:
-            return await self.connection.execute(operation, settings=settings)
+            return await self.connection.execute(
+                operation, settings=settings, timeout_seconds=timeout_seconds
+            )
         raise HTTPException(409, "Для создания текста подключите подписку.")
 
     def _fail(self, identity: str, status: str, message: str, usage: RunUsage) -> None:
@@ -491,6 +495,7 @@ class TextGenerationService:
                                 usage=usage,
                                 usage_limits=limits,
                             ),
+                            timeout_seconds=90,
                         )
                     if isinstance(output, CannotGenerate):
                         self._update(

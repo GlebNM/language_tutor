@@ -215,6 +215,68 @@ def test_real_mcp_job_saves_once_and_writer_reads_existing_texts(learning_mcp):
         assert tools and original.json()["id"] in str(tools)
 
 
+def test_multiround_writer_outlives_a_single_request_deadline(learning_mcp, monkeypatch):
+    import asyncio
+
+    mcp_url, database = learning_mcp
+    base_model, _, _ = controlled_writer(lookup=True)
+    assert base_model.function is not None
+    original_timeout = asyncio.timeout
+
+    def shortened_request_timeout(delay):
+        return original_timeout(0.3 if delay == 30 else delay)
+
+    monkeypatch.setattr(asyncio, "timeout", shortened_request_timeout)
+
+    async def respond(messages, info):
+        payload = json.loads(next(part.content for message in reversed(messages)
+                                  for part in message.parts if isinstance(part, UserPromptPart)))
+        if "profile" in payload:
+            await asyncio.sleep(0.18)
+        return base_model.function(messages, info)
+
+    with job_client(database, mcp_url, FunctionModel(respond)) as client:
+        prepare_known_words(client)
+        original = client.post("/api/materials/text", json={
+            "title": "An Evening", "content": "We read books.",
+        })
+        assert original.status_code == 201
+        started = client.post("/api/text-generation/jobs", json={"length": "short"})
+        assert started.status_code == 202
+        result = wait_job(client, started.json()["id"])
+        assert result["status"] == "completed", json.dumps(result, ensure_ascii=False)
+        assert client.get(f"/api/materials/{result['result_material_id']}").json()["kind"] == "text"
+
+
+def test_job_deadline_still_stops_a_writer_with_a_longer_operation_budget(learning_mcp):
+    import asyncio
+    from threading import Event
+
+    entered = Event()
+    mcp_url, database = learning_mcp
+
+    async def respond(messages, info):
+        entered.set()
+        await asyncio.sleep(5)
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {
+            "kind": "draft", "title": "Books",
+            "paragraphs": [{"text": "We read books. " * 50}],
+        })])
+
+    client = job_client(database, mcp_url, FunctionModel(respond))
+    client.app.state.text_generation.timeout_seconds = 2
+    with client:
+        prepare_known_words(client)
+        before = len(client.get("/api/materials").json())
+        started = client.post("/api/text-generation/jobs", json={"length": "short"})
+        assert started.status_code == 202
+        assert entered.wait(3)
+        result = wait_job(client, started.json()["id"])
+        assert result["status"] == "needs_changes", result
+        assert "Истекло время" in result["error"]
+        assert len(client.get("/api/materials").json()) == before
+
+
 def test_writer_reads_all_expression_meanings_from_its_snapshot_through_real_mcp(learning_mcp):
     import asyncio
     from threading import Event
