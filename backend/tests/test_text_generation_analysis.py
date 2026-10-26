@@ -72,6 +72,22 @@ def test_writer_profile_keeps_manually_saved_fillers_consistent_with_assessment(
         assert assessment["metrics"]["counted_tokens"] == 161
 
 
+def test_writer_profile_explains_prior_coverage_and_sample_access(tmp_path):
+    with client_for(tmp_path / "learning.sqlite3") as client:
+        profile = client.get("/api/text-generation/profile").json()
+        assert [(band["min_rank"], band["max_rank"], band["default_score"])
+                for band in profile["prior_bands"]] == [
+            (1, 1000, 2), (1001, 3000, 2), (3001, 6000, 2),
+        ]
+        assert profile["counts_scope"] == "saved_entries_only"
+        assert profile["vocabulary_access"] == {
+            "examples_scope": "sample",
+            "page_tool": "list_generation_vocabulary",
+            "word_tool": "get_generation_word_knowledge",
+            "draft_tool": "check_text_difficulty",
+        }
+
+
 def measured_text(unfamiliar_count, different=False):
     nouns = ["stories", "letters", "novels", "poems", "papers", "notes"]
     sentences = [

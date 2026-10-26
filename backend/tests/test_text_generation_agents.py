@@ -250,3 +250,58 @@ async def test_writer_returns_free_text_without_target_fields(tmp_path):
     )
     assert isinstance(result, DraftText)
     assert set(result.model_dump()) == {"kind", "title", "paragraphs"}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("sufficiency", "reason", "feedback"), [
+    ("insufficient", "insufficient_profile", None),
+    ("provisional", "conflicting_constraints", None),
+    ("provisional", "insufficient_profile", {"deterministic_report": {
+        "violations": [{"criterion_id": "new_ratio", "actual": 0.5, "maximum": 0.01}],
+    }}),
+])
+async def test_writer_keeps_supported_or_unrelated_refusals(sufficiency, reason, feedback):
+    from backend.app.agents.text_generation import write_text
+    from backend.app.text_generation_analysis import CannotGenerate, GenerationRequest
+
+    def respond(messages, info):
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[1].name, {
+            "kind": "blocked", "reason_code": reason,
+            "explanation": "Не удаётся соблюсти требования.",
+            "conflicting_constraints": ["topic", "style"] if reason == "conflicting_constraints"
+                                       else [],
+        })])
+
+    result = await write_text(
+        model=FunctionModel(respond), settings=GenerationRequest(),
+        profile={"profile_sufficiency": sufficiency}, feedback=feedback,
+    )
+    assert isinstance(result, CannotGenerate)
+    assert result.reason_code == reason
+
+
+@pytest.mark.asyncio
+async def test_writer_does_not_end_with_untested_profile_refusal():
+    from pydantic_ai.messages import RetryPromptPart
+
+    from backend.app.agents.text_generation import write_text
+    from backend.app.text_generation_analysis import DraftText, GenerationRequest
+
+    def respond(messages, info):
+        if any(isinstance(part, RetryPromptPart) for message in messages for part in message.parts):
+            return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {
+                "kind": "draft", "title": "Books",
+                "paragraphs": [{"text": "We read books."}],
+            })])
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[1].name, {
+            "kind": "blocked", "reason_code": "insufficient_profile",
+            "explanation": "The known examples are truncated, so other words are unassessed.",
+            "conflicting_constraints": [],
+        })])
+
+    result = await write_text(
+        model=FunctionModel(respond), settings=GenerationRequest(),
+        profile={"profile_sufficiency": "provisional", "examples_truncated": True,
+                 "known_examples": [{"lemma": "book", "score": 2}]},
+    )
+    assert isinstance(result, DraftText)
