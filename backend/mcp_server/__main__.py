@@ -9,6 +9,7 @@ from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import AwareDatetime, BaseModel, Field
 
 from backend.app.activity import ActivityService, ActivityType
+from backend.app.generation_tools import register_generation_tools
 from backend.app.learning_context import LearningContext, bounded_json
 from backend.app.materials import MaterialLibrary
 
@@ -233,6 +234,10 @@ def get_diagnostic_items(
     return bounded_json(
         {"items": get_items(language=language, kind=kind, group=group, limit=limit)}
     )
+
+
+
+register_generation_tools(server, lambda: learning_context().library)
 
 
 if __name__ == "__main__":
