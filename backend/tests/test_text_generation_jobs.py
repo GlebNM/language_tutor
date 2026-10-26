@@ -215,6 +215,122 @@ def test_real_mcp_job_saves_once_and_writer_reads_existing_texts(learning_mcp):
         assert tools and original.json()["id"] in str(tools)
 
 
+def test_writer_reads_all_expression_meanings_from_its_snapshot_through_real_mcp(learning_mcp):
+    import asyncio
+    from threading import Event
+
+    from backend.tests.test_expressions import analyze
+
+    mcp_url, database = learning_mcp
+    entered, release = Event(), Event()
+    pages, profiles = [], []
+    base_model, _, _ = controlled_writer()
+    assert base_model.function is not None
+
+    async def respond(messages, info):
+        payload = json.loads(next(part.content for message in reversed(messages)
+                                  for part in message.parts if isinstance(part, UserPromptPart)))
+        if "profile" in payload:
+            if not entered.is_set():
+                profiles.append(payload["profile"])
+                entered.set()
+                while not release.is_set():
+                    await asyncio.sleep(0.01)
+            if any(tool.name == "list_generation_expressions" for tool in info.function_tools):
+                returns = [part for message in messages for part in message.parts
+                           if isinstance(part, ToolReturnPart)
+                           and part.tool_name == "list_generation_expressions"]
+                latest = None
+                if returns:
+                    latest = json.loads(returns[-1].content)
+                    pages.append(latest)
+                if latest is None or latest["next_offset"] is not None:
+                    return ModelResponse(parts=[ToolCallPart("list_generation_expressions", {
+                        "job_id": "forged-other-job", "limit": 30,
+                        "offset": latest["next_offset"] if latest else 0,
+                    })])
+        return base_model.function(messages, info)
+
+    def extract(messages, info):
+        payload = json.loads(next(part.content for message in reversed(messages)
+                                  for part in message.parts if isinstance(part, UserPromptPart)))
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {"expressions": [
+            {"canonical": " ".join(token["text"].lower() for token in cue["tokens"][1:]),
+             "kind": "phrasal_verb", "sense_key": "saved-meaning",
+             "translation": "Значение выражения. " * 15,
+             "explanation": "PRIVATE SOURCE DETAIL", "example": "PRIVATE SOURCE EXAMPLE",
+             "token_ids": [token["id"] for token in cue["tokens"][1:]]}
+            for cue in payload["cues"]
+        ]})])
+
+    phrases = ("give up", "turn off", "take off", "put on", "look after", "look for",
+               "look up", "go on", "come back", "get up", "wake up", "sit down",
+               "stand up", "put down", "pick up", "find out", "work out", "run out",
+               "carry on", "bring back", "come in", "go out", "break down", "call off", "set up")
+    with job_client(database, mcp_url, FunctionModel(respond)) as client:
+        prepare_known_words(client)
+        client.app.state.expression_analysis.model_factory = lambda: FunctionModel(extract)
+        material = client.post("/api/materials/text", json={
+            "title": "Expressions", "content": "\n\n".join(f"We {phrase}." for phrase in phrases),
+        }).json()
+        analyzed = analyze(client, material)
+        assert analyzed["job"]["status"] == "completed", analyzed
+        entries = {entry["id"]: entry for entry in analyzed["occurrences"]}
+        assert len(entries) == 25
+        for identity in entries:
+            assert client.put(f"/api/expressions/{identity}/knowledge",
+                              json={"score": 1}).status_code == 200
+        started = client.post("/api/text-generation/jobs", json={"length": "short"}).json()
+        assert entered.wait(3)
+        changed = next(iter(entries))
+        assert client.put(f"/api/expressions/{changed}/knowledge",
+                          json={"score": 3}).status_code == 200
+        release.set()
+        job = wait_job(client, started["id"])
+        assert job["status"] == "completed", job
+        assert pages, "The generation writer must be able to retrieve expression meanings"
+        meanings = [item for page in pages for item in page["items"]]
+        assert {item["id"] for item in meanings} == set(entries)
+        assert len(meanings) == 25
+        assert len(profiles[0]["expression_examples"]) < 25
+        assert all(page["snapshot_id"] == profiles[0]["snapshot_id"] for page in pages)
+        assert all(item["familiarity"]["score"] == 1 for item in meanings)
+        assert all(set(item) == {"id", "canonical", "sense_key", "translation", "familiarity"}
+                   for item in meanings)
+        assert all(len(json.dumps(page, ensure_ascii=False, separators=(",", ":"))) <= 6000
+                   for page in pages)
+        assert "PRIVATE SOURCE" not in json.dumps([profiles, pages])
+        assert client.get(f"/api/expressions/{changed}").json()["knowledge"]["score"] == 3
+
+        from fastmcp import Client
+        from fastmcp.exceptions import ToolError
+
+        from backend.app.accounts import AccountInput, AccountStore
+        from backend.app.tenant_context import current_mcp_token
+
+        accounts = AccountStore(database.parents[2])
+        other = accounts.register(
+            AccountInput(username="other-reader", password="test-password-123")
+        )
+        with accounts.connect() as db:
+            other_token = db.execute("SELECT mcp_token FROM accounts WHERE id=?",
+                                     (other["id"],)).fetchone()[0]
+
+        async def check_scope():
+            async with Client(mcp_url, auth=current_mcp_token.get()) as own:
+                with pytest.raises(ToolError):
+                    await own.call_tool("list_generation_expressions", {
+                        "job_id": started["id"], "limit": 31,
+                    })
+            async with Client(mcp_url, auth=other_token) as foreign:
+                with pytest.raises(ToolError):
+                    await foreign.call_tool("list_generation_expressions", {
+                        "job_id": started["id"],
+                    })
+
+        asyncio.run(check_scope())
+
+
 def test_context_feedback_rewrites_without_fixed_vocabulary(learning_mcp):
     mcp_url, database = learning_mcp
     model, inputs, _ = controlled_writer(weak_once=True)

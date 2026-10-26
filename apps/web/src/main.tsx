@@ -64,6 +64,7 @@ function CueWords({
     parts.push(
       <button
         key={token.id}
+        data-reading-offset={token.start_offset}
         className={`word score-${token.vocabulary?.eligible === false || token.knowledge?.ignored ? "ignored" : (token.knowledge?.score ?? "null")} ${selected === token.id ? "selected" : ""}${highlighted?.has(token.id) ? " expression-highlight" : ""}`}
         onClick={() => onSelect(token)}
         title={`${token.surface} · ${knowledgeLabel(token.knowledge)}`}

@@ -170,7 +170,7 @@ def vocabulary_page(
         for (lemma, pos), value in snapshot.words.items()
         if not value["ignored"] and value["score"] in wanted
         and (part_of_speech is None or pos == part_of_speech)
-        and sound_reason(lemma) is None
+        and vocabulary_value(sound_reason(lemma), value)["eligible"]
     ]
     if category == "known" and snapshot.prior_groups and part_of_speech is None:
         explicit_lemmas = {key[0] for key in snapshot.words}
@@ -200,10 +200,28 @@ def build_writing_profile(snapshot: VocabularySnapshot) -> dict[str, Any]:
                          "provisional": True} for group in (1, 2, 3)],
         "known_examples": vocabulary_page(snapshot, "known", limit=40)["items"],
         "learning_examples": vocabulary_page(snapshot, "learning", limit=40)["items"],
-        "expression_examples": [dict(e) for e in snapshot.expressions if not e["ignored"]][:20],
+        "expression_examples": expression_page(snapshot)["items"],
         "profile_sufficiency": "provisional" if snapshot.prior_groups else
                                "sufficient" if has_known else "insufficient",
         "notice": "Предварительные оценки не подтверждают знание каждого слова; CEFR не выводится.",
+    }
+
+
+def expression_page(
+    snapshot: VocabularySnapshot, *, offset: int = 0, limit: int = 20,
+) -> dict[str, Any]:
+    """Share meaning metadata without source-derived explanations or examples."""
+    if not 0 <= offset <= 100000 or not 1 <= limit <= 30:
+        raise ValueError("Некорректная страница выражений.")
+    entries = [
+        {**{key: expression[key] for key in ("id", "canonical", "sense_key", "translation")},
+         "familiarity": {"score": expression["score"], "ignored": bool(expression["ignored"])}}
+        for expression in snapshot.expressions if not expression["ignored"]
+    ]
+    entries.sort(key=lambda item: (item["canonical"], item["sense_key"], item["id"]))
+    return {
+        "snapshot_id": snapshot.snapshot_id, "items": entries[offset:offset + limit],
+        "next_offset": offset + limit if offset + limit < len(entries) else None,
     }
 
 

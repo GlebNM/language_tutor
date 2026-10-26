@@ -3,8 +3,8 @@ import type { ReactNode } from "react";
 import { api } from "./api";
 import type { Cue, Material } from "./api";
 import { Icon } from "./UI";
-
-type ReadingPosition = { block_id: string | null; offset: number };
+import { captureReadingPosition, restoreReadingPosition } from "./readingPosition";
+import type { ReadingPosition } from "./readingPosition";
 
 export function TextReader({ material, initialBlockId, renderWords }: {
   material: Material;
@@ -23,21 +23,19 @@ export function TextReader({ material, initialBlockId, renderWords }: {
     const controller = new AbortController();
     restoring.current = true;
     let timer: number | undefined;
-    function restore(blockId?: string | null) {
+    function restore(value: ReadingPosition) {
       if (controller.signal.aborted) return;
-      const row = Array.from(article.current?.querySelectorAll<HTMLElement>("[data-paragraph]") ?? [])
-        .find(element => element.dataset.paragraph === blockId);
-      if (row && article.current) article.current.scrollTop = row.offsetTop - article.current.offsetTop;
-      if (blockId) position.current = { block_id: blockId, offset: 0 };
-      setBookmark(blockId ?? null);
+      if (article.current) restoreReadingPosition(article.current, value);
+      position.current = value;
+      setBookmark(value.block_id);
       timer = window.setTimeout(() => { restoring.current = false; }, 100);
     }
     void api<ReadingPosition>(`/materials/${material.id}/reading-position`, { signal: controller.signal })
-      .then(value => { position.current = value; restore(initialBlockId ?? value.block_id); })
+      .then(value => restore(initialBlockId ? { block_id: initialBlockId, offset: 0 } : value))
       .catch(e => {
         if (controller.signal.aborted) return;
         setError(e.message);
-        restore(initialBlockId);
+        restore({ block_id: initialBlockId ?? null, offset: 0 });
       });
     async function save() {
       const value = position.current;
@@ -58,12 +56,10 @@ export function TextReader({ material, initialBlockId, renderWords }: {
   function moved() {
     const list = article.current;
     if (!list || restoring.current || searchRef.current) return;
-    const top = list.getBoundingClientRect().top;
-    const rows = Array.from(list.querySelectorAll<HTMLElement>("[data-paragraph]"));
-    const current = rows.find(row => row.getBoundingClientRect().bottom > top + 30);
-    if (current?.dataset.paragraph) {
-      position.current = { block_id: current.dataset.paragraph, offset: 0 };
-      setBookmark(current.dataset.paragraph);
+    const current = captureReadingPosition(list);
+    if (current) {
+      position.current = current;
+      setBookmark(current.block_id);
     }
   }
   const visible = material.cues.filter(block => block.text.toLowerCase().includes(search.toLowerCase()));
