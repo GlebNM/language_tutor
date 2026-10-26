@@ -99,12 +99,12 @@ def measured_text(unfamiliar_count, different=False):
 
 
 @pytest.mark.parametrize(("difficulty", "score", "count", "passes"), [
-    ("gentle", 0, 2, True), ("gentle", 0, 3, False),
-    ("normal", 0, 6, True), ("normal", 0, 7, False),
-    ("rich", 0, 10, True), ("rich", 0, 11, False),
-    ("gentle", 1, 8, True), ("gentle", 1, 9, False),
-    ("normal", 1, 14, True), ("normal", 1, 15, False),
-    ("rich", 1, 20, True), ("rich", 1, 21, False),
+    ("gentle", 0, 4, True), ("gentle", 0, 5, False),
+    ("normal", 0, 8, True), ("normal", 0, 9, False),
+    ("rich", 0, 12, True), ("rich", 0, 13, False),
+    ("gentle", 1, 10, True), ("gentle", 1, 11, False),
+    ("normal", 1, 16, True), ("normal", 1, 17, False),
+    ("rich", 1, 22, True), ("rich", 1, 23, False),
 ])
 def test_presets_compare_actual_occurrences_without_rounding(
     tmp_path, difficulty, score, count, passes,
@@ -158,3 +158,21 @@ def test_generation_rejects_removed_controls_and_empty_drafts(tmp_path):
         assert client.get("/api/text-generation/profile").json()[
             "profile_sufficiency"
         ] == "insufficient"
+
+
+def test_length_presets_accept_fifty_word_margin_but_reject_beyond_it(tmp_path):
+    cases = {
+        'short': [(99, False), (100, True), (250, True), (251, False)],
+        'medium': [(199, False), (200, True), (400, True), (401, False)],
+        'long': [(399, False), (400, True), (600, True), (601, False)],
+    }
+    with client_for(tmp_path / 'learning.sqlite3') as client:
+        mark_vocabulary(client, 'We read books.', {'book': 2})
+        for length, examples in cases.items():
+            for count, passes in examples:
+                report = client.post('/api/text-generation/assess', json={
+                    'settings': {'length': length},
+                    'draft': {'title': 'Books', 'paragraphs': [{'text': 'books ' * (count - 1)}]},
+                }).json()
+                assert report['metrics']['word_count'] == count
+                assert (report['status'] == 'pass') is passes, (length, count, report)

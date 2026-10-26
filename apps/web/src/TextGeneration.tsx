@@ -47,11 +47,10 @@ const activeStages = new Set([
   "revising",
   "saving",
 ]);
-const difficultyLimits = {
-  gentle: [4, 1],
-  normal: [7, 3],
-  rich: [10, 5],
-} as const;
+type DifficultyLimits = Record<GenerationRequest["difficulty"], {
+  learning_ratio_max: number;
+  new_or_unassessed_ratio_max: number;
+}>;
 
 export function TextGeneration({
   onOpen,
@@ -64,6 +63,7 @@ export function TextGeneration({
 }) {
   const [open, setOpen] = useState(false);
   const [available, setAvailable] = useState<boolean | null>(null);
+  const [difficultyLimits, setDifficultyLimits] = useState<DifficultyLimits | null>(null);
   const [jobs, setJobs] = useState<GenerationJob[]>([]);
   const [topic, setTopic] = useState("");
   const [style, setStyle] = useState("");
@@ -84,7 +84,7 @@ export function TextGeneration({
     async function poll() {
       try {
         const [settings, response] = await Promise.all([
-          api<{ available: boolean }>("/text-generation/settings", {
+          api<{ available: boolean; difficulty_limits: DifficultyLimits }>("/text-generation/settings", {
             signal: controller.signal,
           }),
           api<{ jobs: GenerationJob[] }>("/text-generation/jobs", {
@@ -93,6 +93,7 @@ export function TextGeneration({
         ]);
         if (controller.signal.aborted) return;
         setAvailable(settings.available);
+        setDifficultyLimits(settings.difficulty_limits);
         setJobs(response.jobs);
         for (const job of response.jobs) {
           if (job.status === "completed" && !reported.current.has(job.id)) {
@@ -173,7 +174,7 @@ export function TextGeneration({
     }
   }
   const running = jobs.some((job) => activeStages.has(job.status));
-  const limits = difficultyLimits[difficulty];
+  const limits = difficultyLimits?.[difficulty];
   return (
     <section className="text-generation" aria-label="Генерация текстов">
       <button
@@ -350,8 +351,10 @@ export function TextGeneration({
               </select>
             </label>
             <p className="help">
-              Изучаемые слова — до {limits[0]}%, незнакомые и непроверенные — до{" "}
-              {limits[1]}% текста.
+              {limits && <>Изучаемые слова — до {Math.round(limits.learning_ratio_max * 100)}%,
+                незнакомые и непроверенные — до {Math.round(limits.new_or_unassessed_ratio_max * 100)}% текста.
+                {" "}</>}
+              По длине допускается отклонение ±50 слов.
             </p>
             {available === false && (
               <p className="warning">

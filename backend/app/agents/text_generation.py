@@ -18,7 +18,7 @@ from pydantic_ai.usage import RunUsage, UsageLimits
 
 from backend.app.text_generation_analysis import CannotGenerate, DraftText, GenerationRequest
 
-PROMPT_VERSION = "personal-text-4"
+PROMPT_VERSION = "personal-text-5"
 
 
 class Evidence(BaseModel):
@@ -412,6 +412,8 @@ async def write_text(
         instructions=(
             "Создай связный английский текст для узнавания лексики в контексте. "
             "Соблюдай тему и стиль, если заданы, длину и верхние пределы L/U. "
+            "Ориентируйся на preferred_min_words/preferred_max_words; min_words/max_words "
+            "и доли L/U уже включают допуски, повторно прибавлять их не нужно. "
             "K=2/3, L=1, U=0/null; непроверенное слово не объявляй знакомым. "
             "Сам выбирай подходящую знакомую и изучаемую лексику из личного профиля. "
             "Если доступны инструменты, уточняй словарь и находи прежние тексты с нужным словом, "

@@ -19,9 +19,14 @@ def test_generation_settings_are_available_without_connecting_ai(tmp_path):
     with TestClient(app, base_url="http://localhost") as client:
         settings = client.get("/api/text-generation/settings").json()
         assert settings["available"] is False
-        assert settings["difficulty_limits"]["gentle"]["new_or_unassessed_ratio_max"] == 0.01
-        assert settings["difficulty_limits"]["normal"]["new_or_unassessed_ratio_max"] == 0.03
-        assert settings["difficulty_limits"]["rich"]["new_or_unassessed_ratio_max"] == 0.05
+        assert settings["max_versions"] == 5
+        assert settings["lengths"]["short"] == {
+            "min_words": 100, "max_words": 250,
+            "preferred_min_words": 150, "preferred_max_words": 200, "word_tolerance": 50,
+        }
+        assert settings["difficulty_limits"]["gentle"]["new_or_unassessed_ratio_max"] == 0.02
+        assert settings["difficulty_limits"]["normal"]["new_or_unassessed_ratio_max"] == 0.04
+        assert settings["difficulty_limits"]["rich"]["new_or_unassessed_ratio_max"] == 0.06
         response = client.post("/api/text-generation/jobs", json={})
         assert response.status_code == 409
         assert client.get("/api/text-generation/jobs").json() == {"jobs": []}
@@ -564,7 +569,8 @@ def test_numeric_failure_cannot_be_overridden_by_successful_reviewers(learning_m
         started = client.post("/api/text-generation/jobs", json={"length": "short"}).json()
         job = wait_job(client, started["id"])
         assert job["status"] == "needs_changes", job
-        assert job["revision"] == 3
+        assert job["revision"] == 5
+        assert "5 попыток" in job["error"]
         assert job["result_material_id"] is None
         assert job["feedback"]["blocking_issues"][0]["criterion_id"] == "new_ratio"
         assert len(client.get("/api/materials").json()) == before
@@ -674,7 +680,7 @@ def test_numeric_revision_retains_unresolved_context_advice_without_reusing_appr
         if 'profile' in payload and len(inputs) == 2:
             return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {
                 'kind': 'draft', 'title': 'Books',
-                'paragraphs': [{'text': 'We read books. ' * 70 + 'We borrow books.'}],
+                'paragraphs': [{'text': 'We read books. ' * 90 + 'We borrow books.'}],
             })])
         if 'profile' in payload and len(inputs) == 3:
             advice = payload['feedback']['earlier_semantic_issues']
@@ -692,3 +698,40 @@ def test_numeric_revision_retains_unresolved_context_advice_without_reusing_appr
         assert job['revision'] == 3
         assert job['feedback']['context_review']['revision'] == 3
         assert job['feedback']['earlier_semantic_issues'] == []
+
+
+def test_writer_can_complete_on_fifth_version_after_four_context_revisions(learning_mcp):
+    mcp_url, database = learning_mcp
+    base, inputs, _ = controlled_writer(weak_always=True)
+    assert base.function is not None
+
+    def respond(messages, info):
+        payload = json.loads(next(part.content for message in reversed(messages)
+                                  for part in message.parts if isinstance(part, UserPromptPart)))
+        response = base.function(messages, info)
+        if 'profile' in payload and len(inputs) == 5:
+            return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {
+                'kind': 'draft', 'title': 'Books', 'paragraphs': [{
+                    'text': 'We read books. ' * 49 + 'We borrow books. We return books.',
+                }],
+            })])
+        if 'review_keys' in payload and len(inputs) == 5:
+            args = response.parts[0].args_as_dict()
+            for check in args['context_checks'].values():
+                check['context_status'] = 'clear'
+                check['explanation'] = 'Возврат книги раскрывает временное пользование.'
+                check['evidence'] = ['We return books.']
+                check['repair_instructions'] = None
+            return ModelResponse(parts=[ToolCallPart(response.parts[0].tool_name, args)])
+        return response
+
+    with job_client(database, mcp_url, FunctionModel(respond)) as client:
+        prepare_known_words(client)
+        mark_vocabulary(client, 'We return books.', {'return': 2})
+        before = len(client.get('/api/materials').json())
+        started = client.post('/api/text-generation/jobs', json={'length': 'short'}).json()
+        job = wait_job(client, started['id'])
+        assert job['status'] == 'completed', job
+        assert job['revision'] == 5
+        assert len(inputs) == 5
+        assert len(client.get('/api/materials').json()) == before + 1

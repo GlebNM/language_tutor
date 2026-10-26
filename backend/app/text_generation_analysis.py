@@ -17,9 +17,11 @@ from backend.app.language import english_adapter
 from backend.app.materials import MaterialLibrary
 from backend.app.vocabulary import CALENDAR_NAMES, NAME_ENTITIES, sound_reason, vocabulary_value
 
-POLICY_VERSION = "generation-lexical-v1"
+POLICY_VERSION = "generation-lexical-v2"
 LENGTHS = {"short": (150, 200), "medium": (250, 350), "long": (450, 550)}
 LOAD_LIMITS = {"gentle": (4, 1), "normal": (7, 3), "rich": (10, 5)}
+WORD_TOLERANCE = 50
+LEXICAL_TOLERANCE_POINTS = 1
 
 
 class GenerationRequest(BaseModel):
@@ -41,10 +43,14 @@ class GenerationRequest(BaseModel):
         return {
             **self.model_dump(),
             "language": "en",
-            "min_words": low,
-            "max_words": high,
-            "learning_ratio_max": learning / 100,
-            "new_or_unassessed_ratio_max": unfamiliar / 100,
+            "preferred_min_words": low,
+            "preferred_max_words": high,
+            "min_words": low - WORD_TOLERANCE,
+            "max_words": high + WORD_TOLERANCE,
+            "word_tolerance": WORD_TOLERANCE,
+            "lexical_tolerance_points": LEXICAL_TOLERANCE_POINTS,
+            "learning_ratio_max": (learning + LEXICAL_TOLERANCE_POINTS) / 100,
+            "new_or_unassessed_ratio_max": (unfamiliar + LEXICAL_TOLERANCE_POINTS) / 100,
             "policy_version": POLICY_VERSION,
             "required_criteria": ["coherence"]
             + (["topic"] if self.topic else [])
@@ -307,8 +313,11 @@ def assess_draft(
     metrics.update(learning_ratio=learning / n if n else None,
                    new_or_unassessed_ratio=unfamiliar / n if n else None,
                    new_unique=sum(item["score"] in (0, None) for item in insufficient.values()))
-    low, high = LENGTHS[settings.length]
-    l_max, u_max = LOAD_LIMITS[settings.difficulty]
+    constraints = settings.constraints()
+    low, high = constraints["min_words"], constraints["max_words"]
+    nominal_learning, nominal_unfamiliar = LOAD_LIMITS[settings.difficulty]
+    l_max = nominal_learning + LEXICAL_TOLERANCE_POINTS
+    u_max = nominal_unfamiliar + LEXICAL_TOLERANCE_POINTS
     violations: list[dict[str, Any]] = []
     if not low <= counts["word_count"] <= high:
         violations.append({"criterion_id": "length", "actual": counts["word_count"],

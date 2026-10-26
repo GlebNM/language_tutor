@@ -117,10 +117,10 @@ class TextGenerationService:
         self.mcp_url = mcp_url
         self.model_factory = model_factory
         self.tasks: dict[str, asyncio.Task[None]] = {}
-        self.max_versions = 3
-        self.timeout_seconds = 180.0
-        self.model_request_limit = 18
-        self.tool_attempt_limit = 30
+        self.max_versions = 5
+        self.timeout_seconds = 300.0
+        self.model_request_limit = 30
+        self.tool_attempt_limit = 50
         with library.connect() as db:
             db.execute("""CREATE TABLE IF NOT EXISTS text_generation_jobs(
                 id TEXT PRIMARY KEY, storage_generation TEXT NOT NULL,
@@ -161,15 +161,33 @@ class TextGenerationService:
     def settings(self) -> dict[str, Any]:
         return {
             "available": self.available,
+            "max_versions": self.max_versions,
             "lengths": {
-                key: {"min_words": low, "max_words": high} for key, (low, high) in LENGTHS.items()
+                key: {
+                    name: value
+                    for name, value in GenerationRequest.model_validate({"length": key})
+                    .constraints()
+                    .items()
+                    if name
+                    in {
+                        "min_words",
+                        "max_words",
+                        "preferred_min_words",
+                        "preferred_max_words",
+                        "word_tolerance",
+                    }
+                }
+                for key in LENGTHS
             },
             "difficulty_limits": {
                 key: {
-                    "learning_ratio_max": learning / 100,
-                    "new_or_unassessed_ratio_max": unfamiliar / 100,
+                    name: value
+                    for name, value in GenerationRequest.model_validate({"difficulty": key})
+                    .constraints()
+                    .items()
+                    if name in {"learning_ratio_max", "new_or_unassessed_ratio_max"}
                 }
-                for key, (learning, unfamiliar) in LOAD_LIMITS.items()
+                for key in LOAD_LIMITS
             },
         }
 
@@ -310,8 +328,14 @@ class TextGenerationService:
                     "UPDATE text_generation_jobs SET status=?,error=?,usage_json=?,updated_at=? "
                     "WHERE id=? AND storage_generation=? AND status IN "
                     "('queued','preparing','writing','checking','revising','saving')",
-                    (status, message, json.dumps(self._usage(usage)), now(), identity,
-                     row["storage_generation"]),
+                    (
+                        status,
+                        message,
+                        json.dumps(self._usage(usage)),
+                        now(),
+                        identity,
+                        row["storage_generation"],
+                    ),
                 )
 
     def _save_version(
@@ -391,7 +415,9 @@ class TextGenerationService:
 
     async def _run(self, identity: str, settings: AISettings) -> None:
         usage = RunUsage()
-        limits = UsageLimits(request_limit=self.model_request_limit, tool_calls_limit=30)
+        limits = UsageLimits(
+            request_limit=self.model_request_limit, tool_calls_limit=self.tool_attempt_limit
+        )
         attempts = 0
         try:
             async with asyncio.timeout(self.timeout_seconds):
@@ -544,15 +570,22 @@ class TextGenerationService:
                     if context is None and requirements is None and feedback:
                         earlier_semantic_issues = [
                             *feedback.get("earlier_semantic_issues", []),
-                            *[{
-                                "from_revision": revision - 1,
-                                "criterion_id": issue["criterion_id"],
-                                "explanation": issue.get("explanation"),
-                                "repair_instructions": issue.get("repair_instructions"),
-                            } for issue in feedback.get("blocking_issues", [])
-                              if issue["criterion_id"] in {
-                                  "context_support", "topic", "style", "coherence",
-                              }],
+                            *[
+                                {
+                                    "from_revision": revision - 1,
+                                    "criterion_id": issue["criterion_id"],
+                                    "explanation": issue.get("explanation"),
+                                    "repair_instructions": issue.get("repair_instructions"),
+                                }
+                                for issue in feedback.get("blocking_issues", [])
+                                if issue["criterion_id"]
+                                in {
+                                    "context_support",
+                                    "topic",
+                                    "style",
+                                    "coherence",
+                                }
+                            ],
                         ]
                     feedback = {
                         "constraints": request.constraints(),
@@ -611,7 +644,7 @@ class TextGenerationService:
                 self._update(
                     identity,
                     status="needs_changes",
-                    error="Не удалось выполнить все условия за три версии текста.",
+                    error=f"Не удалось выполнить все условия за {self.max_versions} попыток.",
                 )
         except (JobStopped, asyncio.CancelledError):
             self._fail(identity, "interrupted", "Генерация остановлена. Можно повторить.", usage)
