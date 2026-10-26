@@ -248,6 +248,43 @@ def test_multiround_writer_outlives_a_single_request_deadline(learning_mcp, monk
         assert client.get(f"/api/materials/{result['result_material_id']}").json()["kind"] == "text"
 
 
+def test_dictionary_search_leaves_budget_for_context_revision_and_publication(learning_mcp):
+    mcp_url, database = learning_mcp
+    base_model, writer_inputs, _ = controlled_writer(weak_once=True)
+    assert base_model.function is not None
+    dictionary_pages = []
+
+    def respond(messages, info):
+        payload = json.loads(next(part.content for message in reversed(messages)
+                                  for part in message.parts if isinstance(part, UserPromptPart)))
+        if "profile" in payload:
+            dictionary_pages.extend(
+                json.loads(part.content)
+                for message in messages for part in message.parts
+                if isinstance(part, ToolReturnPart)
+                and part.tool_name == "list_generation_vocabulary"
+            )
+            if any(tool.name == "list_generation_vocabulary" for tool in info.function_tools):
+                return ModelResponse(parts=[ToolCallPart("list_generation_vocabulary", {
+                    "job_id": "untrusted-job", "category": "known", "limit": 2,
+                })])
+        return base_model.function(messages, info)
+
+    with job_client(database, mcp_url, FunctionModel(respond)) as client:
+        prepare_known_words(client)
+        started = client.post("/api/text-generation/jobs", json={"length": "short"})
+        assert started.status_code == 202
+        result = wait_job(client, started.json()["id"])
+        assert result["status"] == "completed", {
+            "status": result["status"], "error": result["error"], "usage": result["usage"],
+        }
+        assert result["revision"] == 2
+        assert writer_inputs[1]["feedback"]["blocking_issues"]
+        assert dictionary_pages and dictionary_pages[0]["items"]
+        assert result["usage"]["model_requests"] <= 18
+        assert client.get(f"/api/materials/{result['result_material_id']}").json()["kind"] == "text"
+
+
 def test_job_deadline_still_stops_a_writer_with_a_longer_operation_budget(learning_mcp):
     import asyncio
     from threading import Event

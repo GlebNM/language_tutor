@@ -18,7 +18,7 @@ from pydantic_ai.usage import RunUsage, UsageLimits
 
 from backend.app.text_generation_analysis import CannotGenerate, DraftText, GenerationRequest
 
-PROMPT_VERSION = "personal-text-2"
+PROMPT_VERSION = "personal-text-3"
 
 
 class Evidence(BaseModel):
@@ -339,7 +339,7 @@ async def write_text(
         name="text_writer",
         output_type=[DraftText, CannotGenerate],
         capabilities=[Caching()],
-        toolsets=list(toolsets),
+        toolsets=[toolset.filtered(lambda ctx, tool: ctx.run_step <= 3) for toolset in toolsets],
         retries=1,
         model_settings=OpenAIResponsesModelSettings(
             openai_reasoning_effort=reasoning_effort, timeout=30,
@@ -358,6 +358,11 @@ async def write_text(
             "слов используй list_generation_vocabulary или get_generation_word_knowledge. "
             "Не отказывайся из-за неполной выборки: сначала составь черновик для проверки "
             "приложением или проверь его через check_text_difficulty. "
+            "Инструменты доступны только в первых трёх ходах этого прохода автора. "
+            "Запрашивай лишь недостающие сведения; не нужно перечислять весь словарь или "
+            "проверять каждое слово отдельно. Когда инструменты больше не предлагаются, "
+            "верни черновик: приложение обязательно проверит его сложность и контекст. "
+            "При доработке используй полученные замечания и не повторяй уже выполненный поиск. "
             "При переработке можно менять используемые слова. Создавай понятный окружающий "
             "контекст, без искусственных списков слов, повторяющихся предложений и заполнителя "
             "ради процентов. Ты не можешь менять знакомость, условия или сохранять материал. "
