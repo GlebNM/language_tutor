@@ -35,6 +35,10 @@ _SDK_REASONING_LITERAL = next(
 SUPPORTED_REASONING_EFFORTS = frozenset(get_args(_SDK_REASONING_LITERAL))
 
 
+class AIBudgetExceeded(HTTPException):
+    """An application time or request budget ended a subscription operation."""
+
+
 class CatalogModel(TypedDict):
     id: str
     name: str
@@ -401,11 +405,11 @@ class ConnectionService:
         except (SubscriptionError, ModelHTTPError) as error:
             raise self.provider_failure(error) from None
         except TimeoutError:
-            raise HTTPException(
+            raise AIBudgetExceeded(
                 504, f"AI не ответил за {timeout_seconds:g} секунд. Повторите запрос."
             ) from None
         except UsageLimitExceeded:
-            raise HTTPException(
+            raise AIBudgetExceeded(
                 422, "AI достиг ограничения числа раундов. Уточните вопрос и повторите запрос."
             ) from None
         except asyncio.CancelledError:

@@ -19,7 +19,7 @@ from pydantic_ai.models import Model
 from pydantic_ai.usage import RunUsage, UsageLimits
 
 from backend.app.agents.text_generation import review_context, review_requirements, write_text
-from backend.app.ai_connection.service import ConnectionService
+from backend.app.ai_connection.service import AIBudgetExceeded, ConnectionService
 from backend.app.ai_connection.settings import AISettings
 from backend.app.learning_context import MAX_TOOL_CHARACTERS
 from backend.app.materials import MaterialError, MaterialLibrary
@@ -609,6 +609,8 @@ class TextGenerationService:
             self._fail(
                 identity, "needs_changes", "Достигнут предел запросов AI. Можно повторить.", usage
             )
+        except AIBudgetExceeded as error:
+            self._fail(identity, "needs_changes", str(error.detail), usage)
         except Exception as error:
             logger.warning("text_generation_job=%s failed: %s", identity, type(error).__name__)
             message = (
