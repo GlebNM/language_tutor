@@ -9,6 +9,7 @@ from pydantic_ai.messages import ModelResponse, ToolCallPart, ToolReturnPart, Us
 from pydantic_ai.models.function import FunctionModel
 
 from backend.app.main import create_learner_app
+from backend.tests.generation_fixtures import context_output
 from backend.tests.test_learning import learning_mcp as learning_mcp
 from backend.tests.test_text_generation_analysis import mark_vocabulary
 
@@ -131,10 +132,7 @@ def controlled_writer(*, weak_once=False, weak_always=False, lookup=False, too_m
                 parts=[
                     ToolCallPart(
                         info.output_tools[0].name,
-                        {
-                            **identity,
-                            "context_checks": checks,
-                        },
+                        context_output(payload, checks),
                     )
                 ]
             )
@@ -662,3 +660,35 @@ def test_profile_change_is_rechecked_before_a_text_can_be_saved(learning_mcp):
         assert not any(
             item["source"] == "generated" for item in client.get("/api/materials").json()
         )
+
+
+def test_numeric_revision_retains_unresolved_context_advice_without_reusing_approval(learning_mcp):
+    mcp_url, database = learning_mcp
+    base, inputs, _ = controlled_writer(weak_once=True)
+    assert base.function is not None
+
+    def respond(messages, info):
+        payload = json.loads(next(part.content for message in reversed(messages)
+                                  for part in message.parts if isinstance(part, UserPromptPart)))
+        result = base.function(messages, info)
+        if 'profile' in payload and len(inputs) == 2:
+            return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {
+                'kind': 'draft', 'title': 'Books',
+                'paragraphs': [{'text': 'We read books. ' * 70 + 'We borrow books.'}],
+            })])
+        if 'profile' in payload and len(inputs) == 3:
+            advice = payload['feedback']['earlier_semantic_issues']
+            assert advice[0]['from_revision'] == 1
+            assert advice[0]['criterion_id'] == 'context_support'
+            assert advice[0]['repair_instructions']
+            assert payload['feedback']['blocking_issues'][0]['criterion_id'] == 'length'
+        return result
+
+    with job_client(database, mcp_url, FunctionModel(respond)) as client:
+        prepare_known_words(client)
+        start = client.post('/api/text-generation/jobs', json={'length': 'short'}).json()
+        job = wait_job(client, start['id'])
+        assert job['status'] == 'completed', job
+        assert job['revision'] == 3
+        assert job['feedback']['context_review']['revision'] == 3
+        assert job['feedback']['earlier_semantic_issues'] == []

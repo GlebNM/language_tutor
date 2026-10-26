@@ -400,7 +400,7 @@ class TextGenerationService:
                     get_job(self.library, identity)["request"]
                 )
                 previous_draft = None
-                feedback = None
+                feedback: dict[str, Any] | None = None
                 for revision in range(1, self.max_versions + 1):
                     snapshot = VocabularySnapshot.capture(self.library)
                     self._update(
@@ -540,8 +540,23 @@ class TextGenerationService:
                                 limits,
                             )
                     self._save_version(identity, revision, output, analysis, context, requirements)
+                    earlier_semantic_issues: list[dict[str, Any]] = []
+                    if context is None and requirements is None and feedback:
+                        earlier_semantic_issues = [
+                            *feedback.get("earlier_semantic_issues", []),
+                            *[{
+                                "from_revision": revision - 1,
+                                "criterion_id": issue["criterion_id"],
+                                "explanation": issue.get("explanation"),
+                                "repair_instructions": issue.get("repair_instructions"),
+                            } for issue in feedback.get("blocking_issues", [])
+                              if issue["criterion_id"] in {
+                                  "context_support", "topic", "style", "coherence",
+                              }],
+                        ]
                     feedback = {
                         "constraints": request.constraints(),
+                        "earlier_semantic_issues": earlier_semantic_issues,
                         "deterministic_report": analysis,
                         "context_review": context,
                         "requirements_review": requirements,

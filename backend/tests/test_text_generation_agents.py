@@ -7,6 +7,7 @@ from pydantic_ai.messages import ModelResponse, ToolCallPart, UserPromptPart
 from pydantic_ai.models.function import FunctionModel
 
 from backend.app.agents.text_generation import review_context
+from backend.tests.generation_fixtures import context_output
 from backend.tests.test_text_generation_analysis import client_for, mark_vocabulary
 
 
@@ -21,7 +22,7 @@ def payload_from(messages):
     )
 
 
-def draft_analysis(tmp_path):
+def draft_analysis(tmp_path, *, repeats=1):
     with client_for(tmp_path / "learning.sqlite3") as client:
         mark_vocabulary(
             client,
@@ -41,7 +42,7 @@ def draft_analysis(tmp_path):
                 "draft": {
                     "title": "Books",
                     "paragraphs": [
-                        {"text": "We borrow books."},
+                        {"text": "We borrow books. " * repeats},
                         {"text": "We read books. " * 49 + "We return books."},
                     ],
                 },
@@ -78,13 +79,7 @@ async def test_context_review_sees_all_words_and_can_use_another_paragraph(tmp_p
             parts=[
                 ToolCallPart(
                     info.output_tools[0].name,
-                    {
-                        **{
-                            key: draft[key]
-                            for key in ("draft_id", "revision", "draft_hash", "snapshot_id")
-                        },
-                        "context_checks": checks,
-                    },
+                    context_output(payload, checks),
                 )
             ]
         )
@@ -116,14 +111,11 @@ async def test_context_review_cannot_pass_with_missing_or_fabricated_findings(tm
             "explanation": "Подсказка есть в тексте.",
             "evidence": [{"block_id": draft["paragraphs"][1]["id"], "quote": "We return books."}],
         }
-        output = {
-            **{key: draft[key] for key in ("draft_id", "revision", "draft_hash", "snapshot_id")},
-            "context_checks": [] if mistake == "omitted" else [check],
-        }
+        output = context_output(payload, [] if mistake == "omitted" else [check])
         if mistake == "stale":
             output["draft_hash"] = "previous-draft"
         if mistake == "foreign_evidence":
-            check["evidence"][0]["quote"] = "This sentence was invented."
+            output["context_checks"]["c1"]["evidence"] = ["This sentence was invented."]
         return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, output)])
 
     with pytest.raises(UnexpectedModelBehavior):
@@ -136,18 +128,12 @@ async def test_weak_context_is_actionable_feedback_instead_of_success(tmp_path):
 
     def respond(messages, info):
         payload = payload_from(messages)
-        draft = payload["draft"]
         occurrence = payload["insufficient_vocabulary"][0]["occurrences"][0]
         return ModelResponse(
             parts=[
                 ToolCallPart(
                     info.output_tools[0].name,
-                    {
-                        **{
-                            key: draft[key]
-                            for key in ("draft_id", "revision", "draft_hash", "snapshot_id")
-                        },
-                        "context_checks": [
+                    context_output(payload, [
                             {
                                 "block_id": occurrence["block_id"],
                                 "token_ids": occurrence["token_ids"],
@@ -161,8 +147,7 @@ async def test_weak_context_is_actionable_feedback_instead_of_success(tmp_path):
                                     }
                                 ],
                             }
-                        ],
-                    },
+                    ]),
                 )
             ]
         )
@@ -305,3 +290,60 @@ async def test_writer_does_not_end_with_untested_profile_refusal():
                  "known_examples": [{"lemma": "book", "score": 2}]},
     )
     assert isinstance(result, DraftText)
+
+@pytest.mark.asyncio
+async def test_context_report_binds_required_short_keys_to_every_canonical_occurrence(tmp_path):
+    analysis = draft_analysis(tmp_path, repeats=2)
+    received = []
+
+    def respond(messages, info):
+        payload = payload_from(messages)
+        received.append(payload)
+        checks = {
+            key: {
+                'context_status': 'clear',
+                'explanation': 'Обещание вернуть книгу раскрывает значение.',
+                'evidence': ['We return books.'],
+                'repair_instructions': None,
+            }
+            for key in payload['review_keys']
+        }
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {
+            'context_checks': checks,
+        })])
+
+    report = await review_context(model=FunctionModel(respond), analysis=analysis)
+    assert report.passed
+    assert report.draft_id == analysis['draft_id']
+    assert report.snapshot_id == analysis['snapshot_id']
+    expected = analysis['insufficient_vocabulary'][0]['occurrences'][0]['token_ids']
+    assert report.context_checks[0].token_ids == expected
+    assert report.context_checks[0].evidence[0].block_id.endswith(':p2')
+    assert set(received[0]['review_keys']) == {'c1', 'c2'}
+    assert len(report.context_checks) == 2
+    assert report.context_checks[0].token_ids != report.context_checks[1].token_ids
+
+@pytest.mark.asyncio
+async def test_omitted_repeated_occurrence_is_retried_without_copying_source_ids(tmp_path):
+    analysis = draft_analysis(tmp_path, repeats=2)
+    attempts = []
+
+    def respond(messages, info):
+        payload = payload_from(messages)
+        attempts.append(payload)
+        keys = ['c1'] if len(attempts) == 1 else ['c1', 'c2']
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {
+            'context_checks': {key: {
+                'context_status': 'clear',
+                'explanation': 'Возврат книги раскрывает временное пользование.',
+                'evidence': ['We return books.'],
+                'repair_instructions': None,
+            } for key in keys},
+        })])
+
+    report = await review_context(model=FunctionModel(respond), analysis=analysis)
+    assert len(attempts) == 2
+    assert len(report.context_checks) == 2
+    assert report.passed
+    assert report.context_checks[0].block_id == report.context_checks[1].block_id
+    assert report.context_checks[0].token_ids != report.context_checks[1].token_ids

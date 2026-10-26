@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from typing import Any, Literal
 
 from openai.types.shared.reasoning_effort import ReasoningEffort
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, create_model, model_validator
 from pydantic_ai import Agent, ModelRetry, RunContext
 from pydantic_ai.capabilities import Caching
 from pydantic_ai.messages import ToolReturnPart
@@ -18,7 +18,7 @@ from pydantic_ai.usage import RunUsage, UsageLimits
 
 from backend.app.text_generation_analysis import CannotGenerate, DraftText, GenerationRequest
 
-PROMPT_VERSION = "personal-text-3"
+PROMPT_VERSION = "personal-text-4"
 
 
 class Evidence(BaseModel):
@@ -34,6 +34,22 @@ class ReviewIdentity(BaseModel):
     revision: int = Field(ge=1)
     draft_hash: str
     snapshot_id: str
+
+
+class ContextJudgment(BaseModel):
+    """Model judgments carry semantics; the host binds source and version identities."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+    context_status: Literal["clear", "weak", "unclear"]
+    explanation: str = Field(min_length=1, max_length=400)
+    evidence: list[str] = Field(min_length=1, max_length=5)
+    repair_instructions: str | None = Field(default=None, max_length=600)
+
+    @model_validator(mode="after")
+    def actionable_failure(self) -> ContextJudgment:
+        if self.context_status != "clear" and not (self.repair_instructions or "").strip():
+            raise ValueError("Укажи конкретное исправление для слабого или неясного контекста.")
+        return self
 
 
 class ContextCheck(BaseModel):
@@ -150,6 +166,7 @@ def _revision_feedback(feedback: dict[str, Any] | None) -> dict[str, Any] | None
         for key in (
             "constraints",
             "blocking_issues",
+            "earlier_semantic_issues",
             "remaining_budget",
         )
         if key in feedback
@@ -196,17 +213,58 @@ async def review_context(
     usage: RunUsage | None = None,
     usage_limits: UsageLimits | None = None,
 ) -> ContextReview:
-    expected = {
-        (occurrence["block_id"], tuple(occurrence["token_ids"]))
+    occurrences = [
+        (item, occurrence)
         for item in analysis["insufficient_vocabulary"]
         for occurrence in item["occurrences"]
-    }
-    if not expected:
+    ]
+    if not occurrences:
         return ContextReview(**_identity(analysis), context_checks=[])
+    references = {
+        f"c{index}": occurrence for index, (_, occurrence) in enumerate(occurrences, start=1)
+    }
+    model_fields: dict[str, Any] = {key: (ContextJudgment, ...) for key in references}
+    checks_type = create_model(
+        "RequiredContextChecks",
+        __config__=ConfigDict(extra="forbid", strict=True),
+        **model_fields,
+    )
+    response_type = create_model(
+        "ContextReviewResponse",
+        __config__=ConfigDict(extra="forbid", strict=True),
+        context_checks=(checks_type, ...),
+    )
+    draft = analysis["versioned_draft"]
+    blocks = [draft["title_block"], *draft["paragraphs"]]
+
+    def canonical_report(response: BaseModel) -> ContextReview:
+        checks = []
+        for key, judgment in response.model_dump()["context_checks"].items():
+            occurrence = references[key]
+            evidence = []
+            for quote in judgment.pop("evidence"):
+                candidates = [block for block in blocks if quote and quote in block["text"]]
+                if not candidates or len(quote) > 600:
+                    raise ModelRetry(f"Для {key} приведи короткую буквальную цитату из текста.")
+                block = next(
+                    (block for block in candidates if block["id"] == occurrence["block_id"]),
+                    candidates[0],
+                )
+                evidence.append(Evidence(block_id=block["id"], quote=quote))
+            checks.append(
+                ContextCheck(
+                    block_id=occurrence["block_id"],
+                    token_ids=occurrence["token_ids"],
+                    evidence=evidence,
+                    **judgment,
+                )
+            )
+        return ContextReview(**_identity(analysis), context_checks=checks)
+
     agent = Agent(
         model,
         name="context_reviewer",
-        output_type=ContextReview,
+        output_type=response_type,
         capabilities=[Caching()],
         retries=1,
         model_settings=OpenAIResponsesModelSettings(
@@ -218,9 +276,14 @@ async def review_context(
             "Получен ПОЛНЫЙ черновик, включая заголовок: подсказка может быть в другом предложении "
             "или абзаце. clear: контекст поддерживает понимание значения; weak: помогает слабо; "
             "unclear: не помогает. Твоё собственное знание английского не доказывает понятность "
-            "контекста для учащегося. Явное определение возле каждого слова не обязательно. "
-            "Верни ровно одну context_check для КАЖДОГО переданного вхождения, включая повторы. "
-            "Сохрани block_id и token_ids каждого вхождения. Приведи буквальное свидетельство "
+            "контекста для учащегося. Оценивай опору для узнавания значения в ситуации, "
+            "а не возможность вывести точное словарное определение с нуля. "
+            "Косвенная, но конкретная подсказка допустима: borrow вместе с обещанием вернуть "
+            "вещь раскрывает временное пользование. Определение возле каждого слова не требуется. "
+            "Верни context_checks со всеми обязательными ключами из review_keys. "
+            "Каждый ключ обозначает отдельное вхождение, включая повторы одного слова. "
+            "Приложение само связывает ответ с версией, абзацами и токенами. "
+            "В evidence верни строки с буквальными короткими цитатами "
             "из любого подходящего абзаца; для weak/unclear дай конкретное указание автору. "
             "Не меняй текст, знакомость, требования или проценты. Не пропускай трудные слова. "
             "Пиши кратко: explanation — одно предложение, evidence — только нужная цитата. "
@@ -229,16 +292,9 @@ async def review_context(
     )
 
     @agent.output_validator
-    def validate(review: ContextReview) -> ContextReview:
-        _validate_identity(review, analysis)
-        actual = [(check.block_id, tuple(check.token_ids)) for check in review.context_checks]
-        if len(set(actual)) != len(actual) or set(actual) != expected:
-            raise ModelRetry(
-                "Верни ровно одну проверку каждого переданного вхождения без пропусков."
-            )
-        for check in review.context_checks:
-            _validate_evidence(check.evidence, analysis)
-        return review
+    def validate(response: BaseModel) -> BaseModel:
+        canonical_report(response)
+        return response
 
     async with agent:
         result = await agent.run(
@@ -246,13 +302,17 @@ async def review_context(
                 {
                     "draft": _reading_draft(analysis["versioned_draft"]),
                     "insufficient_vocabulary": analysis["insufficient_vocabulary"],
+                    "review_keys": {
+                        key: {"lemma": item["lemma"], **occurrence}
+                        for key, (item, occurrence) in zip(references, occurrences, strict=True)
+                    },
                 },
                 ensure_ascii=False,
             ),
             usage=usage,
             usage_limits=usage_limits or UsageLimits(request_limit=3),
         )
-    return result.output
+    return canonical_report(result.output)
 
 
 async def review_requirements(
@@ -367,7 +427,11 @@ async def write_text(
             "Запрашивай лишь недостающие сведения; не нужно перечислять весь словарь или "
             "проверять каждое слово отдельно. Когда инструменты больше не предлагаются, "
             "верни черновик: приложение обязательно проверит его сложность и контекст. "
-            "При доработке используй полученные замечания и не повторяй уже выполненный поиск. "
+            "При доработке исправь каждое замечание или замени соответствующее слово. "
+            "earlier_semantic_issues — ещё не перепроверенные советы прежних версий: "
+            "учти их для оставшихся в тексте слов. Это советы, а не действующие отчёты проверки. "
+            "При сокращении сохраняй уже добавленные подсказки к значениям слов. "
+            "Предпочитай точечные правки и не повторяй уже выполненный поиск. "
             "При переработке можно менять используемые слова. Создавай понятный окружающий "
             "контекст, без искусственных списков слов, повторяющихся предложений и заполнителя "
             "ради процентов. Ты не можешь менять знакомость, условия или сохранять материал. "
