@@ -150,6 +150,77 @@ def test_real_context_card_reuses_context_cache_and_rejects_mismatched_ids(
         assert wrong.status_code == 404
 
 
+def test_pre_text_video_card_reopens_without_ai_and_retains_cache_boundaries(tmp_path):
+    """Persist the cache contract used before text blocks were introduced (ef215af)."""
+    import hashlib
+    import json
+
+    from fastapi import HTTPException
+
+    from backend.app.agents.learning import PROMPT_VERSION
+    from backend.app.ai_connection.settings import AISettings, AISettingsStore
+    from backend.app.learning import create_learning_router
+    from backend.app.learning_context import LearningContext
+
+    database = tmp_path / "learning.sqlite3"
+
+    class Disconnected:
+        settings_store = AISettingsStore(tmp_path)
+
+        async def execute(self, operation, *, settings=None):
+            raise HTTPException(409, "Сначала подключите подписку.")
+
+    def application():
+        app = create_app(database, seed_demo=False, include_ai=False)
+        app.include_router(create_learning_router(
+            library=app.state.materials, connection=Disconnected(), mcp_url="http://unused/mcp",
+        ))
+        return app
+
+    app = application()
+    with TestClient(app, base_url="http://localhost") as client:
+        selected = import_selection(client)
+        context = LearningContext(app.state.materials)
+        legacy_selection = context.selection(**selected)
+        for field in ("kind", "block_id"):
+            legacy_selection.pop(field)
+        legacy_context = context.subtitle_context(selected["material_id"], selected["cue_id"])
+        for cue in legacy_context["cues"]:
+            for field in ("kind", "block_id", "material_url"):
+                cue.pop(field)
+        key = hashlib.sha256(json.dumps({
+            "selection": legacy_selection, "context": legacy_context,
+            "profile": client.get("/api/profile").json(), "prompt": PROMPT_VERSION,
+            "model": "gpt-6-luna", "reasoning_effort": "low",
+        }, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+        card = {"translation": "бросила", "explanation": "Отказалась от привычки.",
+                "expression": "give up", "example": "She gave up smoking."}
+        stored = {"request_id": "old-request", "model": "gpt-6-luna",
+                  "reasoning_effort": "low", "selection": legacy_selection,
+                  "card": card, "cached": False}
+        with app.state.materials.connect() as db:
+            db.execute("INSERT INTO contextual_cards VALUES(?,?,?)",
+                       (key, json.dumps(stored), "2026-10-25T12:00:00Z"))
+
+    with TestClient(application(), base_url="http://localhost") as client:
+        reopened = client.post("/api/cards", json=selected)
+        assert reopened.status_code == 200, reopened.text
+        assert reopened.json()["card"] == card
+        assert reopened.json()["cached"] is True
+        assert reopened.json()["selection"]["kind"] == "video"
+        assert reopened.json()["selection"]["block_id"] == selected["cue_id"]
+        assert client.post("/api/cards", json={**selected, "cue_id": "foreign"}).status_code == 404
+        assert client.post("/api/cards", json={**selected, "force_refresh": True}).status_code == 409
+        for settings in (AISettings("gpt-6-luna", "medium"), AISettings("gpt-6-sol", "low")):
+            Disconnected.settings_store.write(settings)
+            assert client.post("/api/cards", json=selected).status_code == 409
+        Disconnected.settings_store.write(AISettings("gpt-6-luna", "low"))
+        assert client.post("/api/cards", json=selected).json()["card"] == card
+        assert client.put(f"/api/lexemes/{legacy_selection['lexeme_id']}/knowledge",
+                          json={"score": 2}).status_code == 200
+        assert client.post("/api/cards", json=selected).status_code == 409
+
+
 async def test_queued_chat_keeps_settings_captured_before_conversation_lock(
     learning_mcp: tuple[str, Path],
     tmp_path: Path,
