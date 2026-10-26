@@ -1,0 +1,627 @@
+{
+  "synthetic_profile": true,
+  "attempts": [
+    {
+      "mode": "live-subscription-real-mcp",
+      "source_commit": null,
+      "duration_seconds": 2.06,
+      "states": [
+        {
+          "status": "writing",
+          "revision": 1
+        },
+        {
+          "status": "failed",
+          "revision": 1
+        }
+      ],
+      "status": "failed",
+      "revision": 1,
+      "error": "Не удалось получить каталог моделей. Повторите запрос.",
+      "usage": {
+        "model_requests": 0,
+        "tool_calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0
+      },
+      "draft_reviews": []
+    },
+    {
+      "mode": "live-subscription-real-mcp-on-host",
+      "source_commit": null,
+      "duration_seconds": 14.21,
+      "states": [
+        {
+          "status": "writing",
+          "revision": 1
+        },
+        {
+          "status": "needs_changes",
+          "revision": 1
+        }
+      ],
+      "status": "needs_changes",
+      "revision": 1,
+      "error": "I can’t reliably create a 150–200 word story within the vocabulary limits from this profile. It confirms familiarity for only a small set of common words, while the remaining vocabulary is truncated or unassessed; treating those words as familiar would be unsupported.",
+      "usage": null,
+      "draft_reviews": []
+    },
+    {
+      "mode": "live-subscription-real-mcp",
+      "source_commit": "cb3efc8f912a5f98f2f714397c4f9dd490dd54db",
+      "duration_seconds": 31.32,
+      "states": [
+        {
+          "status": "writing",
+          "revision": 1
+        },
+        {
+          "status": "failed",
+          "revision": 1
+        }
+      ],
+      "status": "failed",
+      "revision": 1,
+      "error": "AI не ответил за 30 секунд. Повторите запрос.",
+      "usage": {
+        "model_requests": 5,
+        "tool_calls": 4,
+        "input_tokens": 36787,
+        "output_tokens": 821
+      },
+      "draft_reviews": []
+    },
+    {
+      "mode": "live-subscription-real-mcp",
+      "source_commit": "cb3efc8f912a5f98f2f714397c4f9dd490dd54db",
+      "duration_seconds": 91.25,
+      "states": [
+        {
+          "status": "writing",
+          "revision": 1
+        },
+        {
+          "status": "checking",
+          "revision": 1
+        },
+        {
+          "status": "writing",
+          "revision": 2
+        },
+        {
+          "status": "failed",
+          "revision": 2
+        }
+      ],
+      "status": "failed",
+      "revision": 2,
+      "error": "AI не ответил за 30 секунд. Повторите запрос.",
+      "usage": {
+        "model_requests": 11,
+        "tool_calls": 8,
+        "input_tokens": 71316,
+        "output_tokens": 2921
+      },
+      "metrics": {
+        "word_count": 182,
+        "counted_tokens": 180,
+        "known_tokens": 175,
+        "learning_tokens": 0,
+        "explicit_unknown_tokens": 1,
+        "unassessed_tokens": 4,
+        "provisional_tokens": 175,
+        "learning_ratio": 0.0,
+        "new_or_unassessed_ratio": 0.027777777777777776,
+        "new_unique": 4
+      },
+      "draft_reviews": [
+        {
+          "revision": 1,
+          "title": "A Walk in the Rain",
+          "paragraphs": [
+            {
+              "text": "“I think I’ll go for a walk,” I said, looking out at the gray sky. A moment later, rain tapped on the window. I put on my coat and stepped outside anyway. The street was quiet, and little pools of water shone beside the path. I enjoyed the cool air, but soon my hair and sleeves were wet."
+            },
+            {
+              "text": "At the corner, I saw my neighbor, Mrs. Lee, carrying two bags. She had no umbrella, and one bag was tearing. “Would you like some help?” I asked. “That would be kind,” she said with a smile. I held the bag while she tied it with a piece of string. Then she offered me a warm cup of tea at her home."
+            },
+            {
+              "text": "We sat by the window and watched the rain run down the glass. Mrs. Lee told me about her garden and the small birds that came to visit. When the rain grew lighter, I thanked her and walked home. My short walk had turned into a lovely visit, and I was glad I had gone outside."
+            }
+          ],
+          "context": {
+            "draft_id": "497e6c1309d74c74aae15b8918c3201c",
+            "revision": 1,
+            "draft_hash": "b40ab13ab3fe7294016a28a978ad317852991fb14fcca8382d48f350382ac5f8",
+            "snapshot_id": "e4141115e2976c08b22fc93eb0fac32f2a9098fd94f1e195c1f56b85bbbf3571",
+            "context_checks": [
+              {
+                "block_id": "497e6c1309d74c74aae15b8918c3201c:r1:p1",
+                "token_ids": [
+                  "497e6c1309d74c74aae15b8918c3201c:r1:p1:t3"
+                ],
+                "context_status": "clear",
+                "explanation": "Форма «’ll» выражает будущее намерение говорящего, о чём свидетельствует его решение пойти гулять.",
+                "evidence": [
+                  {
+                    "block_id": "497e6c1309d74c74aae15b8918c3201c:r1:p1",
+                    "quote": "“I think I’ll go for a walk,” I said",
+                    "token_ids": []
+                  }
+                ],
+                "repair_instructions": null
+              },
+              {
+                "block_id": "497e6c1309d74c74aae15b8918c3201c:r1:p1",
+                "token_ids": [
+                  "497e6c1309d74c74aae15b8918c3201c:r1:p1:t56"
+                ],
+                "context_status": "weak",
+                "explanation": "По мокрым волосам и рукавам можно предположить, что речь об одежде, но точное значение слова не раскрыто.",
+                "evidence": [
+                  {
+                    "block_id": "497e6c1309d74c74aae15b8918c3201c:r1:p1",
+                    "quote": "my hair and sleeves were wet",
+                    "token_ids": []
+                  }
+                ],
+                "repair_instructions": "Добавьте пояснение, что sleeves — это части одежды, закрывающие руки."
+              },
+              {
+                "block_id": "497e6c1309d74c74aae15b8918c3201c:r1:p2",
+                "token_ids": [
+                  "497e6c1309d74c74aae15b8918c3201c:r1:p2:t7"
+                ],
+                "context_status": "unclear",
+                "explanation": "Имя и обращение не дают достаточно информации, чтобы понять значение титула Mrs.",
+                "evidence": [
+                  {
+                    "block_id": "497e6c1309d74c74aae15b8918c3201c:r1:p2",
+                    "quote": "my neighbor, Mrs. Lee",
+                    "token_ids": []
+                  }
+                ],
+                "repair_instructions": "Добавьте краткое пояснение, что Mrs. — вежливое обращение к замужней женщине или женщине, к которой обращаются без указания семейного положения."
+              },
+              {
+                "block_id": "497e6c1309d74c74aae15b8918c3201c:r1:p3",
+                "token_ids": [
+                  "497e6c1309d74c74aae15b8918c3201c:r1:p3:t13"
+                ],
+                "context_status": "unclear",
+                "explanation": "Повторное обращение к Mrs. Lee не поясняет значение титула.",
+                "evidence": [
+                  {
+                    "block_id": "497e6c1309d74c74aae15b8918c3201c:r1:p3",
+                    "quote": "Mrs. Lee told me about her garden",
+                    "token_ids": []
+                  }
+                ],
+                "repair_instructions": "Добавьте краткое пояснение к Mrs. при первом упоминании в предыдущем абзаце."
+              },
+              {
+                "block_id": "497e6c1309d74c74aae15b8918c3201c:r1:p2",
+                "token_ids": [
+                  "497e6c1309d74c74aae15b8918c3201c:r1:p2:t15"
+                ],
+                "context_status": "clear",
+                "explanation": "Контекст показывает, что зонта у соседки не было, хотя дождь шёл.",
+                "evidence": [
+                  {
+                    "block_id": "497e6c1309d74c74aae15b8918c3201c:r1:p1",
+                    "quote": "A moment later, rain tapped on the window.",
+                    "token_ids": []
+                  },
+                  {
+                    "block_id": "497e6c1309d74c74aae15b8918c3201c:r1:p2",
+                    "quote": "She had no umbrella",
+                    "token_ids": []
+                  }
+                ],
+                "repair_instructions": null
+              }
+            ],
+            "passed": false,
+            "blocking_issues": [
+              {
+                "criterion_id": "context_support",
+                "block_id": "497e6c1309d74c74aae15b8918c3201c:r1:p1",
+                "token_ids": [
+                  "497e6c1309d74c74aae15b8918c3201c:r1:p1:t56"
+                ],
+                "explanation": "По мокрым волосам и рукавам можно предположить, что речь об одежде, но точное значение слова не раскрыто.",
+                "repair_instructions": "Добавьте пояснение, что sleeves — это части одежды, закрывающие руки."
+              },
+              {
+                "criterion_id": "context_support",
+                "block_id": "497e6c1309d74c74aae15b8918c3201c:r1:p2",
+                "token_ids": [
+                  "497e6c1309d74c74aae15b8918c3201c:r1:p2:t7"
+                ],
+                "explanation": "Имя и обращение не дают достаточно информации, чтобы понять значение титула Mrs.",
+                "repair_instructions": "Добавьте краткое пояснение, что Mrs. — вежливое обращение к замужней женщине или женщине, к которой обращаются без указания семейного положения."
+              },
+              {
+                "criterion_id": "context_support",
+                "block_id": "497e6c1309d74c74aae15b8918c3201c:r1:p3",
+                "token_ids": [
+                  "497e6c1309d74c74aae15b8918c3201c:r1:p3:t13"
+                ],
+                "explanation": "Повторное обращение к Mrs. Lee не поясняет значение титула.",
+                "repair_instructions": "Добавьте краткое пояснение к Mrs. при первом упоминании в предыдущем абзаце."
+              }
+            ]
+          },
+          "requirements": {
+            "draft_id": "497e6c1309d74c74aae15b8918c3201c",
+            "revision": 1,
+            "draft_hash": "b40ab13ab3fe7294016a28a978ad317852991fb14fcca8382d48f350382ac5f8",
+            "snapshot_id": "e4141115e2976c08b22fc93eb0fac32f2a9098fd94f1e195c1f56b85bbbf3571",
+            "checks": [
+              {
+                "criterion_id": "coherence",
+                "status": "pass",
+                "explanation": "События связно развиваются от прогулки под дождём к помощи соседке, гостеприимству и возвращению домой.",
+                "evidence": [
+                  {
+                    "block_id": "497e6c1309d74c74aae15b8918c3201c:r1:p1",
+                    "quote": "I put on my coat and stepped outside anyway.",
+                    "token_ids": []
+                  },
+                  {
+                    "block_id": "497e6c1309d74c74aae15b8918c3201c:r1:p2",
+                    "quote": "Then she offered me a warm cup of tea at her home.",
+                    "token_ids": []
+                  },
+                  {
+                    "block_id": "497e6c1309d74c74aae15b8918c3201c:r1:p3",
+                    "quote": "When the rain grew lighter, I thanked her and walked home.",
+                    "token_ids": []
+                  }
+                ],
+                "repair_instructions": null
+              },
+              {
+                "criterion_id": "style",
+                "status": "pass",
+                "explanation": "Текст звучит как простой и естественный разговорный рассказ, например в репликах и повествовании от первого лица.",
+                "evidence": [
+                  {
+                    "block_id": "497e6c1309d74c74aae15b8918c3201c:r1:p1",
+                    "quote": "“I think I’ll go for a walk,” I said",
+                    "token_ids": []
+                  },
+                  {
+                    "block_id": "497e6c1309d74c74aae15b8918c3201c:r1:p2",
+                    "quote": "“Would you like some help?” I asked.",
+                    "token_ids": []
+                  }
+                ],
+                "repair_instructions": null
+              },
+              {
+                "criterion_id": "topic",
+                "status": "pass",
+                "explanation": "Рассказ посвящён прогулке в дождь и доброму поступку по отношению к соседке.",
+                "evidence": [
+                  {
+                    "block_id": "497e6c1309d74c74aae15b8918c3201c:r1:p1",
+                    "quote": "I enjoyed the cool air, but soon my hair and sleeves were wet.",
+                    "token_ids": []
+                  },
+                  {
+                    "block_id": "497e6c1309d74c74aae15b8918c3201c:r1:p2",
+                    "quote": "I held the bag while she tied it with a piece of string.",
+                    "token_ids": []
+                  }
+                ],
+                "repair_instructions": null
+              }
+            ],
+            "passed": true,
+            "blocking_issues": []
+          }
+        }
+      ]
+    },
+    {
+      "mode": "live-subscription-real-mcp",
+      "source_commit": "b9ea1f2605dec5188e5ab8231a9e8f82d61651b1",
+      "duration_seconds": 139.9,
+      "states": [
+        {
+          "status": "writing",
+          "revision": 1
+        },
+        {
+          "status": "checking",
+          "revision": 1
+        },
+        {
+          "status": "writing",
+          "revision": 2
+        },
+        {
+          "status": "failed",
+          "revision": 2
+        }
+      ],
+      "status": "failed",
+      "revision": 2,
+      "error": "AI достиг ограничения числа раундов. Уточните вопрос и повторите запрос.",
+      "usage": {
+        "model_requests": 18,
+        "tool_calls": 15,
+        "input_tokens": 144338,
+        "output_tokens": 4471
+      },
+      "metrics": {
+        "word_count": 199,
+        "counted_tokens": 199,
+        "known_tokens": 196,
+        "learning_tokens": 0,
+        "explicit_unknown_tokens": 1,
+        "unassessed_tokens": 2,
+        "provisional_tokens": 196,
+        "learning_ratio": 0.0,
+        "new_or_unassessed_ratio": 0.01507537688442211,
+        "new_unique": 2
+      },
+      "draft_reviews": [
+        {
+          "revision": 1,
+          "title": "A Walk in the Rain",
+          "paragraphs": [
+            {
+              "text": "Rain began as I left the shop. I had no coat, and the street grew wet and dark. I walked slowly, trying to keep my shoes out of the water. At the corner, my neighbour called to me from her home. “You look cold,” she said. “Would you like to share my umbrella?” I thanked her and walked beside her under it."
+            },
+            {
+              "text": "We went toward home together. She told me about her small garden and the flowers she hoped to plant when the weather was warm. I told her I had seen the red flowers by her gate, and she smiled. Rain tapped above us while cars passed on the road. She asked how long I had lived on the street. “Only a few months,” I said. She was glad to have a new neighbour."
+            },
+            {
+              "text": "At my door, I thanked her again and offered to bring her tea another day. “That sounds lovely,” she said. Before she went home, she made sure I could get inside without getting wet. The walk had started as a cold trip, but it ended with a friendly talk. Now, when I see her, I smile and say hello."
+            }
+          ],
+          "context": {
+            "draft_id": "63047660c56c425ebe17c426a80e4ace",
+            "revision": 1,
+            "draft_hash": "fc13f647c91fb82e48bf0ce7f8869ab6006f93d948860f1f937640957f0a6d29",
+            "snapshot_id": "63a7479b852322b60b1da1b277cacc2f2acf4b84a939874a4f1988962d334cb4",
+            "context_checks": [
+              {
+                "block_id": "63047660c56c425ebe17c426a80e4ace:r1:p1",
+                "token_ids": [
+                  "63047660c56c425ebe17c426a80e4ace:r1:p1:t34"
+                ],
+                "context_status": "weak",
+                "explanation": "Ситуация подсказывает, что это живущая поблизости женщина, но точное отношение не объяснено.",
+                "evidence": [
+                  {
+                    "block_id": "63047660c56c425ebe17c426a80e4ace:r1:p1",
+                    "quote": "At the corner, my neighbour called to me from her home.",
+                    "token_ids": []
+                  }
+                ],
+                "repair_instructions": "Добавьте короткую подсказку, что она живёт рядом с рассказчиком."
+              },
+              {
+                "block_id": "63047660c56c425ebe17c426a80e4ace:r1:p1",
+                "token_ids": [
+                  "63047660c56c425ebe17c426a80e4ace:r1:p1:t52"
+                ],
+                "context_status": "clear",
+                "explanation": "Предложение о совместном использовании зонта в дождь помогает понять, что это предмет, укрывающий от дождя.",
+                "evidence": [
+                  {
+                    "block_id": "63047660c56c425ebe17c426a80e4ace:r1:p1",
+                    "quote": "“Would you like to share my umbrella?”",
+                    "token_ids": []
+                  }
+                ],
+                "repair_instructions": null
+              },
+              {
+                "block_id": "63047660c56c425ebe17c426a80e4ace:r1:p2",
+                "token_ids": [
+                  "63047660c56c425ebe17c426a80e4ace:r1:p2:t72"
+                ],
+                "context_status": "clear",
+                "explanation": "Фраза о новой соседке и упоминание улицы проясняют значение слова как человека, живущего поблизости.",
+                "evidence": [
+                  {
+                    "block_id": "63047660c56c425ebe17c426a80e4ace:r1:p2",
+                    "quote": "She was glad to have a new neighbour.",
+                    "token_ids": []
+                  }
+                ],
+                "repair_instructions": null
+              }
+            ],
+            "passed": false,
+            "blocking_issues": [
+              {
+                "criterion_id": "context_support",
+                "block_id": "63047660c56c425ebe17c426a80e4ace:r1:p1",
+                "token_ids": [
+                  "63047660c56c425ebe17c426a80e4ace:r1:p1:t34"
+                ],
+                "explanation": "Ситуация подсказывает, что это живущая поблизости женщина, но точное отношение не объяснено.",
+                "repair_instructions": "Добавьте короткую подсказку, что она живёт рядом с рассказчиком."
+              }
+            ]
+          },
+          "requirements": {
+            "draft_id": "63047660c56c425ebe17c426a80e4ace",
+            "revision": 1,
+            "draft_hash": "fc13f647c91fb82e48bf0ce7f8869ab6006f93d948860f1f937640957f0a6d29",
+            "snapshot_id": "63a7479b852322b60b1da1b277cacc2f2acf4b84a939874a4f1988962d334cb4",
+            "checks": [
+              {
+                "criterion_id": "coherence",
+                "status": "pass",
+                "explanation": "События и разговор последовательно развивают историю прогулки под дождём и знакомства с соседкой.",
+                "evidence": [
+                  {
+                    "block_id": "63047660c56c425ebe17c426a80e4ace:r1:p1",
+                    "quote": "I thanked her and walked beside her under it.",
+                    "token_ids": []
+                  },
+                  {
+                    "block_id": "63047660c56c425ebe17c426a80e4ace:r1:p3",
+                    "quote": "The walk had started as a cold trip, but it ended with a friendly talk.",
+                    "token_ids": []
+                  }
+                ],
+                "repair_instructions": null
+              },
+              {
+                "criterion_id": "style",
+                "status": "pass",
+                "explanation": "Текст звучит просто и естественно благодаря ясным повествовательным фразам и разговорным репликам.",
+                "evidence": [
+                  {
+                    "block_id": "63047660c56c425ebe17c426a80e4ace:r1:p1",
+                    "quote": "“You look cold,” she said. “Would you like to share my umbrella?”",
+                    "token_ids": []
+                  }
+                ],
+                "repair_instructions": null
+              },
+              {
+                "criterion_id": "topic",
+                "status": "pass",
+                "explanation": "История посвящена прогулке под дождём и доброму поступку соседки, предложившей зонт.",
+                "evidence": [
+                  {
+                    "block_id": "63047660c56c425ebe17c426a80e4ace:r1:p1",
+                    "quote": "Would you like to share my umbrella?",
+                    "token_ids": []
+                  },
+                  {
+                    "block_id": "63047660c56c425ebe17c426a80e4ace:r1:p2",
+                    "quote": "She was glad to have a new neighbour.",
+                    "token_ids": []
+                  }
+                ],
+                "repair_instructions": null
+              }
+            ],
+            "passed": true,
+            "blocking_issues": []
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-10-26",
+      "source_commit": "4fd824ffe74ac4e88d2d7aa4f0f1c26319775488",
+      "mode": "live-subscription-real-mcp",
+      "synthetic_profile": true,
+      "normal_user_data_modified": false,
+      "profile": {
+        "prior_bands": [
+          1,
+          2,
+          3
+        ],
+        "source": "synthetic enabled frequency-band priors",
+        "ranked_lemmas": 6000,
+        "manual_learning": [
+          "borrow"
+        ],
+        "manual_unknown": [
+          "umbrella"
+        ]
+      },
+      "settings": {
+        "topic": "A rainy walk and a kind neighbour",
+        "style": "A simple, natural conversational story",
+        "length": "short",
+        "difficulty": "rich"
+      },
+      "duration_seconds": 42.48,
+      "states": [
+        {
+          "status": "writing",
+          "revision": 1
+        },
+        {
+          "status": "failed",
+          "revision": 1
+        }
+      ],
+      "writer_traces": [
+        {
+          "duration_seconds": 39.78,
+          "events": [
+            {
+              "kind": "tool_call",
+              "name": "get_generation_profile",
+              "args": {}
+            },
+            {
+              "kind": "tool_return",
+              "name": "get_generation_profile",
+              "summary": {}
+            },
+            {
+              "kind": "tool_call",
+              "name": "list_generation_vocabulary",
+              "args": {
+                "category": "known",
+                "limit": 80
+              }
+            },
+            {
+              "kind": "tool_return",
+              "name": "list_generation_vocabulary",
+              "summary": {
+                "next_offset": 45,
+                "item_count": 45
+              }
+            },
+            {
+              "kind": "tool_call",
+              "name": "list_generation_vocabulary",
+              "args": {
+                "category": "known",
+                "offset": 45,
+                "limit": 80
+              }
+            },
+            {
+              "kind": "tool_return",
+              "name": "list_generation_vocabulary",
+              "summary": {
+                "next_offset": 90,
+                "item_count": 45
+              }
+            }
+          ]
+        }
+      ],
+      "success": false,
+      "result": {
+        "status": "failed",
+        "revision": 1,
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "error": "Не удалось завершить запрос AI и MCP. Повторите запрос.",
+        "usage": {
+          "model_requests": 3,
+          "tool_calls": 3,
+          "input_tokens": 16898,
+          "output_tokens": 181
+        },
+        "result_material_id": null
+      },
+      "verification_scope": {
+        "real_model": true,
+        "real_mcp": true,
+        "model_or_tool_results_replaced": false,
+        "successful_live_generation_confirmed": false,
+        "synthetic_credentials_and_database_cleaned": true
+      }
+    }
+  ]
+}

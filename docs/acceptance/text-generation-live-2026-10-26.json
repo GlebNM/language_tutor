@@ -1,0 +1,111 @@
+{
+  "date": "2026-10-26",
+  "source_commit": "4fd824ffe74ac4e88d2d7aa4f0f1c26319775488",
+  "mode": "live-subscription-real-mcp",
+  "synthetic_profile": true,
+  "normal_user_data_modified": false,
+  "profile": {
+    "prior_bands": [
+      1,
+      2,
+      3
+    ],
+    "source": "synthetic enabled frequency-band priors",
+    "ranked_lemmas": 6000,
+    "manual_learning": [
+      "borrow"
+    ],
+    "manual_unknown": [
+      "umbrella"
+    ]
+  },
+  "settings": {
+    "topic": "A rainy walk and a kind neighbour",
+    "style": "A simple, natural conversational story",
+    "length": "short",
+    "difficulty": "rich"
+  },
+  "duration_seconds": 42.48,
+  "states": [
+    {
+      "status": "writing",
+      "revision": 1
+    },
+    {
+      "status": "failed",
+      "revision": 1
+    }
+  ],
+  "writer_traces": [
+    {
+      "duration_seconds": 39.78,
+      "events": [
+        {
+          "kind": "tool_call",
+          "name": "get_generation_profile",
+          "args": {}
+        },
+        {
+          "kind": "tool_return",
+          "name": "get_generation_profile",
+          "summary": {}
+        },
+        {
+          "kind": "tool_call",
+          "name": "list_generation_vocabulary",
+          "args": {
+            "category": "known",
+            "limit": 80
+          }
+        },
+        {
+          "kind": "tool_return",
+          "name": "list_generation_vocabulary",
+          "summary": {
+            "next_offset": 45,
+            "item_count": 45
+          }
+        },
+        {
+          "kind": "tool_call",
+          "name": "list_generation_vocabulary",
+          "args": {
+            "category": "known",
+            "offset": 45,
+            "limit": 80
+          }
+        },
+        {
+          "kind": "tool_return",
+          "name": "list_generation_vocabulary",
+          "summary": {
+            "next_offset": 90,
+            "item_count": 45
+          }
+        }
+      ]
+    }
+  ],
+  "success": false,
+  "result": {
+    "status": "failed",
+    "revision": 1,
+    "model": "gpt-6-luna",
+    "reasoning_effort": "medium",
+    "error": "Не удалось завершить запрос AI и MCP. Повторите запрос.",
+    "usage": {
+      "model_requests": 3,
+      "tool_calls": 3,
+      "input_tokens": 16898,
+      "output_tokens": 181
+    },
+    "result_material_id": null
+  },
+  "verification_scope": {
+    "real_model": true,
+    "real_mcp": true,
+    "model_or_tool_results_replaced": false,
+    "successful_live_generation_confirmed": false,
+    "synthetic_credentials_and_database_cleaned": true
+  }
+}
