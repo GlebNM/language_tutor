@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from backend.app.knowledge import create_knowledge_router
-from backend.app.main import create_app
+from backend.app.main import create_learner_app as create_app
 
 
 def client_for(path):

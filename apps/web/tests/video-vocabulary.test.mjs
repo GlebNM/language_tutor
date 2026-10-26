@@ -38,3 +38,16 @@ test("filters each score and ignored words separately and searches forms", () =>
   assert.equal(filterVideoVocabulary(entries, "", "0", "").length, 0);
   assert.equal(filterVideoVocabulary(entries, "ORL", "", "")[0].knowledge.provisional, true);
 });
+
+test("selection skips excluded occurrences but includes manually added tokens", () => {
+  const name = {...token("1", "apple", "PROPN", "Apple", null), vocabulary: {eligible: false, automatically_eligible: false, reason: "proper_name"}};
+  const fruit = {...token("2", "apple", "PROPN", "apple", null), vocabulary: {eligible: true, automatically_eligible: true, reason: null}};
+  const sound = {...token("3", "hmmm", "PROPN", "Hmmm", null), vocabulary: {eligible: false, automatically_eligible: false, reason: "filler"}};
+  const cues = [cue(1, [name, fruit, sound])];
+  const entries = groupVideoVocabulary(cues);
+  assert.deepEqual(entries.map(entry => [entry.lemma, entry.count, entry.forms]), [["apple", 1, ["apple"]]]);
+  assert.equal(entries[0].occurrences[0].token.id, "2");
+  sound.vocabulary.eligible = true;
+  sound.knowledge.source = "manual";
+  assert.deepEqual(groupVideoVocabulary(cues).map(entry => entry.lemma), ["apple", "hmmm"]);
+});

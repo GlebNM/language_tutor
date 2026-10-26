@@ -1,0 +1,69 @@
+{
+  "date": "2026-10-22",
+  "scope": "F20 / A49-A54: standalone web discovery",
+  "automated": {
+    "discovery_tests": "10 passed",
+    "web_tests": "27 passed",
+    "production_build": "passed",
+    "ruff_changed_python": "passed",
+    "mypy_discovery_modules": "4 files passed",
+    "backend_full_suite": "183 passed, 1 failed: test_accounts.py::test_learning_data_settings_reset_and_stale_tab_are_private expects 404, receives 409"
+  },
+  "browser": {
+    "environment": "isolated local test account, host virtualenv on port 18766",
+    "video_id": "LWULB9Aoopc",
+    "source": "youtube-authored",
+    "cold_seconds_displayed": 1.9,
+    "empty_profile_preserves_unassessed_words": true,
+    "category_withheld_for_insufficient_profile": true,
+    "open_in_existing_player": true,
+    "return_to_previous_results": true,
+    "screenshot": "screenshots/discovery-2026-10-22.png"
+  },
+  "docker": {
+    "video_id": "LWULB9Aoopc",
+    "temporary_learning_database": true,
+    "source": "youtube-authored",
+    "cold_seconds": 6.3,
+    "warm_seconds_rounded_to_tenths": 0.0,
+    "cue_count": 453,
+    "preview_matches_import": true,
+    "search_did_not_import": true,
+    "app_healthy": true,
+    "mcp_healthy": true,
+    "port": 18765
+  },
+  "existing_learning_data_before_and_after": {
+    "materials": {
+      "rows": 7,
+      "sha256": "e0b650d500baede55415a1e05f1d9b506d16b6028e3a349c8284f6d93a595fcf"
+    },
+    "lexemes": {
+      "rows": 1891,
+      "sha256": "ea59b1a58977e5645bce0d7725fda5fc737e9d3670a1205149be29baef3abbcf"
+    },
+    "word_knowledge": {
+      "rows": 15,
+      "sha256": "1c552a618c7057d510604126d70130d9a82051ade056396470a8be603c414c4d"
+    }
+  },
+  "covered_behaviors": [
+    "Search contract, metadata batch, language/duration/embed filters with controlled provider",
+    "Private persistent key and reset",
+    "No learning mutations during preview",
+    "Manual decisions, ignored and diagnostic priors match imported assessment",
+    "Partial failure, cancellation, timeout, source restrictions",
+    "Search and transcript cache reuse",
+    "User isolation of keys, jobs, cache and imports",
+    "Structured query translation through Pydantic AI FunctionModel"
+  ],
+  "limitations": [
+    "No configured YouTube Data API key: live topic search, real quota and result quality not verified",
+    "Query translation tested with FunctionModel; no live subscription request",
+    "Single-video live timings, not a p95 or success-rate benchmark",
+    "English only; lexical coverage is not CEFR or listening comprehension",
+    "YouTube availability limits apply; no ASR or paid provider",
+    "Browser QA at 710px viewport; no separate mobile-device acceptance",
+    "Full suite is not green: one account/viewing error-status assertion failed; all 10 discovery tests passed"
+  ]
+}

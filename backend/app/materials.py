@@ -37,8 +37,13 @@ def youtube_id(value: str) -> str:
     host = parsed.hostname
     if host == "youtu.be":
         candidate = parsed.path.strip("/")
-    elif host in {"youtube.com", "www.youtube.com", "m.youtube.com"} and parsed.path == "/watch":
-        candidate = parse_qs(parsed.query).get("v", [""])[0]
+    elif host in {"youtube.com", "www.youtube.com", "m.youtube.com"}:
+        if parsed.path == "/watch":
+            candidate = parse_qs(parsed.query).get("v", [""])[0]
+        elif re.fullmatch(r"/(shorts|live|embed)/[A-Za-z0-9_-]{11}/?", parsed.path):
+            candidate = parsed.path.strip("/").split("/")[1]
+        else:
+            raise MaterialError("Вставьте ссылку YouTube на отдельное видео.")
     else:
         raise MaterialError("Поддерживаются обычные ссылки youtube.com/watch и youtu.be.")
     if not re.fullmatch(r"[A-Za-z0-9_-]{11}", candidate):
@@ -250,6 +255,203 @@ MIGRATIONS = [
         created_at TEXT NOT NULL
     );
     """,
+    """
+    CREATE TABLE learning_activity(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_type TEXT NOT NULL CHECK(event_type IN (
+            'word_selected','translation_received','knowledge_changed',
+            'lexeme_corrected','message_sent')),
+        schema_version INTEGER NOT NULL DEFAULT 1,
+        occurred_at TEXT NOT NULL,
+        language TEXT NOT NULL,
+        material_id TEXT REFERENCES materials(id),
+        cue_id TEXT REFERENCES cues(id),
+        token_id TEXT REFERENCES occurrences(id),
+        lexeme_id TEXT NOT NULL REFERENCES lexemes(id),
+        request_id TEXT,
+        deduplication_key TEXT UNIQUE,
+        word_json TEXT NOT NULL,
+        data_json TEXT NOT NULL
+    );
+    CREATE INDEX activity_recent ON learning_activity(language,id DESC);
+    CREATE INDEX activity_type ON learning_activity(language,event_type,id DESC);
+    CREATE INDEX activity_material ON learning_activity(material_id,id DESC);
+    CREATE INDEX activity_lexeme ON learning_activity(lexeme_id,id DESC);
+    CREATE INDEX activity_time ON learning_activity(language,occurred_at,id DESC);
+    """,
+    """
+    CREATE TABLE conversations_next(id TEXT PRIMARY KEY,
+        material_id TEXT REFERENCES materials(id),
+        cue_id TEXT REFERENCES cues(id),token_id TEXT REFERENCES occurrences(id),
+        created_at TEXT NOT NULL);
+    INSERT INTO conversations_next SELECT * FROM conversations;
+    CREATE TABLE learning_messages_next(
+        conversation_id TEXT NOT NULL REFERENCES conversations_next(id),
+        request_id TEXT NOT NULL,user_text TEXT NOT NULL,
+        response_json TEXT,created_at TEXT NOT NULL,
+        PRIMARY KEY(conversation_id,request_id));
+    INSERT INTO learning_messages_next SELECT * FROM learning_messages;
+    DROP TABLE learning_messages;
+    DROP TABLE conversations;
+    ALTER TABLE conversations_next RENAME TO conversations;
+    ALTER TABLE learning_messages_next RENAME TO learning_messages;
+    CREATE INDEX conversations_material ON conversations(material_id,created_at);
+    CREATE INDEX messages_conversation ON learning_messages(conversation_id,created_at);
+    """,
+    """
+    ALTER TABLE conversations ADD COLUMN title TEXT NOT NULL DEFAULT 'Новый разговор';
+    CREATE TABLE conversation_materials(
+        conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+        material_id TEXT NOT NULL REFERENCES materials(id),
+        PRIMARY KEY(conversation_id,material_id));
+    INSERT INTO conversation_materials SELECT id,material_id FROM conversations
+        WHERE material_id IS NOT NULL;
+    """,
+    """
+    CREATE TABLE learning_activity_next(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,event_type TEXT NOT NULL CHECK(event_type IN (
+            'word_selected','translation_received','knowledge_changed',
+            'lexeme_corrected','message_sent')),
+        schema_version INTEGER NOT NULL DEFAULT 1,occurred_at TEXT NOT NULL,
+        language TEXT NOT NULL,material_id TEXT REFERENCES materials(id),
+        cue_id TEXT REFERENCES cues(id),token_id TEXT REFERENCES occurrences(id),
+        lexeme_id TEXT REFERENCES lexemes(id),request_id TEXT,deduplication_key TEXT UNIQUE,
+        word_json TEXT NOT NULL,data_json TEXT NOT NULL);
+    INSERT INTO learning_activity_next SELECT * FROM learning_activity;
+    DROP TABLE learning_activity;
+    ALTER TABLE learning_activity_next RENAME TO learning_activity;
+    CREATE INDEX activity_recent ON learning_activity(language,id DESC);
+    CREATE INDEX activity_type ON learning_activity(language,event_type,id DESC);
+    CREATE INDEX activity_material ON learning_activity(material_id,id DESC);
+    CREATE INDEX activity_lexeme ON learning_activity(lexeme_id,id DESC);
+    CREATE INDEX activity_time ON learning_activity(language,occurred_at,id DESC);
+    """,
+    """
+    ALTER TABLE conversations ADD COLUMN summary TEXT NOT NULL DEFAULT '';
+    ALTER TABLE conversations ADD COLUMN summary_count INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE learning_messages ADD COLUMN history_json TEXT;
+    """,
+    """
+    ALTER TABLE learning_messages ADD COLUMN status TEXT NOT NULL DEFAULT 'pending';
+    UPDATE learning_messages SET status=CASE WHEN response_json IS NULL THEN 'failed'
+        ELSE 'complete' END;
+    """,
+    """
+    CREATE TABLE message_occurrences(
+        id TEXT PRIMARY KEY,conversation_id TEXT NOT NULL,message_id TEXT NOT NULL,
+        lexeme_id TEXT NOT NULL REFERENCES lexemes(id),surface TEXT NOT NULL,
+        start_offset INTEGER NOT NULL,end_offset INTEGER NOT NULL,uncertain INTEGER NOT NULL,
+        language TEXT NOT NULL,adapter_version TEXT NOT NULL,
+        FOREIGN KEY(conversation_id,message_id)
+            REFERENCES learning_messages(conversation_id,request_id) ON DELETE CASCADE,
+        UNIQUE(conversation_id,message_id,start_offset));
+    CREATE INDEX message_words_context ON message_occurrences(conversation_id,message_id);
+    ALTER TABLE learning_activity ADD COLUMN conversation_id TEXT;
+    ALTER TABLE learning_activity ADD COLUMN message_id TEXT;
+    ALTER TABLE learning_activity ADD COLUMN message_token_id TEXT;
+    UPDATE learning_activity SET conversation_id=json_extract(data_json,'$.conversation_id')
+        WHERE event_type='message_sent';
+    CREATE INDEX activity_conversation ON learning_activity(conversation_id,id DESC);
+    """,
+    """
+    CREATE TABLE learning_settings(id INTEGER PRIMARY KEY CHECK(id=1),
+        enabled INTEGER NOT NULL DEFAULT 0,epoch INTEGER NOT NULL DEFAULT 0);
+    INSERT INTO learning_settings VALUES(1,0,0);
+    CREATE TABLE viewings(id TEXT PRIMARY KEY,
+        material_id TEXT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+        epoch INTEGER NOT NULL,created_at TEXT NOT NULL,result_json TEXT);
+    CREATE UNIQUE INDEX viewing_pending ON viewings(material_id) WHERE result_json IS NULL;
+    CREATE TABLE viewing_cues(viewing_id TEXT NOT NULL REFERENCES viewings(id) ON DELETE CASCADE,
+        cue_id TEXT NOT NULL REFERENCES cues(id),PRIMARY KEY(viewing_id,cue_id));
+    CREATE TABLE viewing_clicks(viewing_id TEXT NOT NULL REFERENCES viewings(id) ON DELETE CASCADE,
+        token_id TEXT NOT NULL REFERENCES occurrences(id),PRIMARY KEY(viewing_id,token_id));
+    CREATE TABLE viewing_choices(viewing_id TEXT NOT NULL REFERENCES viewings(id) ON DELETE CASCADE,
+        lexeme_id TEXT NOT NULL REFERENCES lexemes(id),
+        score INTEGER NOT NULL CHECK(score BETWEEN 0 AND 3),
+        included INTEGER NOT NULL CHECK(included IN (0,1)),PRIMARY KEY(viewing_id,lexeme_id));
+    CREATE TABLE learning_activity_viewing(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,event_type TEXT NOT NULL CHECK(event_type IN (
+            'word_selected','translation_received','knowledge_changed',
+            'lexeme_corrected','message_sent','cue_listened','viewing_confirmed')),
+        schema_version INTEGER NOT NULL DEFAULT 1,occurred_at TEXT NOT NULL,
+        language TEXT NOT NULL,material_id TEXT REFERENCES materials(id),
+        cue_id TEXT REFERENCES cues(id),token_id TEXT REFERENCES occurrences(id),
+        lexeme_id TEXT REFERENCES lexemes(id),request_id TEXT,deduplication_key TEXT UNIQUE,
+        word_json TEXT NOT NULL,data_json TEXT NOT NULL,
+        conversation_id TEXT,message_id TEXT,message_token_id TEXT);
+    INSERT INTO learning_activity_viewing SELECT * FROM learning_activity;
+    DROP TABLE learning_activity;
+    ALTER TABLE learning_activity_viewing RENAME TO learning_activity;
+    CREATE INDEX activity_recent ON learning_activity(language,id DESC);
+    CREATE INDEX activity_type ON learning_activity(language,event_type,id DESC);
+    CREATE INDEX activity_material ON learning_activity(material_id,id DESC);
+    CREATE INDEX activity_lexeme ON learning_activity(lexeme_id,id DESC);
+    CREATE INDEX activity_time ON learning_activity(language,occurred_at,id DESC);
+    CREATE INDEX activity_conversation ON learning_activity(conversation_id,id DESC);
+    """,
+    """
+    CREATE TABLE occurrence_vocabulary(
+        token_id TEXT PRIMARY KEY REFERENCES occurrences(id) ON DELETE CASCADE,
+        lexeme_id TEXT NOT NULL REFERENCES lexemes(id),reason TEXT,version TEXT NOT NULL);
+    CREATE TABLE message_vocabulary(
+        token_id TEXT PRIMARY KEY REFERENCES message_occurrences(id) ON DELETE CASCADE,
+        lexeme_id TEXT NOT NULL REFERENCES lexemes(id),reason TEXT,version TEXT NOT NULL);
+    CREATE INDEX IF NOT EXISTS message_words_lexeme ON message_occurrences(lexeme_id);
+    """,
+    """
+    CREATE TABLE subtitle_improvements(
+        source_id TEXT PRIMARY KEY REFERENCES materials(id) ON DELETE CASCADE,
+        id TEXT NOT NULL UNIQUE,status TEXT NOT NULL,
+        completed_batches INTEGER NOT NULL DEFAULT 0,total_batches INTEGER NOT NULL,
+        result_id TEXT REFERENCES materials(id) ON DELETE SET NULL,
+        changed_cues INTEGER NOT NULL DEFAULT 0,error TEXT,
+        model TEXT NOT NULL,reasoning_effort TEXT,prompt_version TEXT NOT NULL,
+        created_at TEXT NOT NULL);
+    """,
+    """
+    CREATE TABLE progress_vocabulary(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,occurred_at TEXT NOT NULL,
+        reason TEXT NOT NULL,counts_json TEXT NOT NULL);
+    CREATE TABLE playback_intervals(
+        id TEXT PRIMARY KEY,material_id TEXT NOT NULL REFERENCES materials(id),
+        started_at TEXT NOT NULL,ended_at TEXT NOT NULL);
+    CREATE INDEX playback_time ON playback_intervals(started_at,ended_at);
+    INSERT INTO storage_metadata VALUES('playback_tracking_since',
+        strftime('%Y-%m-%dT%H:%M:%f+00:00','now'));
+    """,
+    """
+    CREATE TABLE expressions(
+        id TEXT PRIMARY KEY,language TEXT NOT NULL,canonical TEXT NOT NULL,kind TEXT NOT NULL,
+        sense_key TEXT NOT NULL,translation TEXT NOT NULL,explanation TEXT NOT NULL,
+        example TEXT NOT NULL,usage TEXT NOT NULL,created_at TEXT NOT NULL,
+        UNIQUE(language,canonical,sense_key));
+    CREATE TABLE expression_knowledge(
+        expression_id TEXT PRIMARY KEY REFERENCES expressions(id) ON DELETE CASCADE,
+        score INTEGER CHECK(score BETWEEN 0 AND 3),ignored INTEGER NOT NULL DEFAULT 0,
+        updated_at TEXT NOT NULL);
+    CREATE TABLE expression_occurrences(
+        id TEXT PRIMARY KEY,
+        expression_id TEXT NOT NULL REFERENCES expressions(id) ON DELETE CASCADE,
+        source_key TEXT NOT NULL,material_id TEXT REFERENCES materials(id) ON DELETE CASCADE,
+        conversation_id TEXT,message_id TEXT,token_ids_json TEXT NOT NULL,
+        context_json TEXT NOT NULL,card_json TEXT NOT NULL,origin TEXT NOT NULL,
+        dismissed INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL,
+        FOREIGN KEY(conversation_id,message_id)
+            REFERENCES learning_messages(conversation_id,request_id) ON DELETE CASCADE,
+        UNIQUE(source_key,token_ids_json));
+    CREATE INDEX expression_sources ON expression_occurrences(source_key,dismissed);
+    CREATE INDEX expression_examples ON expression_occurrences(expression_id);
+    CREATE TABLE expression_events(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        expression_id TEXT NOT NULL REFERENCES expressions(id) ON DELETE CASCADE,
+        occurrence_id TEXT REFERENCES expression_occurrences(id) ON DELETE SET NULL,
+        event_type TEXT NOT NULL,occurred_at TEXT NOT NULL,data_json TEXT NOT NULL);
+    CREATE TABLE expression_jobs(
+        source_key TEXT PRIMARY KEY,id TEXT NOT NULL UNIQUE,status TEXT NOT NULL,
+        completed_batches INTEGER NOT NULL DEFAULT 0,total_batches INTEGER NOT NULL,
+        model TEXT NOT NULL,reasoning_effort TEXT,prompt_version TEXT NOT NULL,
+        error TEXT,created_at TEXT NOT NULL);
+    """,
 ]
 
 
@@ -343,6 +545,18 @@ class MaterialLibrary:
                     for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")
                 }
                 for table in (
+                    "expression_jobs",
+                    "expression_events",
+                    "expression_occurrences",
+                    "expression_knowledge",
+                    "expressions",
+                    "playback_intervals",
+                    "progress_vocabulary",
+                    "subtitle_improvements",
+                    "viewings",
+                    "learning_activity",
+                    "message_occurrences",
+                    "conversation_materials",
                     "learning_messages",
                     "conversations",
                     "contextual_cards",
@@ -365,6 +579,14 @@ class MaterialLibrary:
                     "UPDATE storage_metadata SET value=? WHERE key='generation'",
                     (uuid.uuid4().hex,),
                 )
+                db.execute(
+                    "UPDATE storage_metadata SET value=? WHERE key='playback_tracking_since'",
+                    (datetime.now(UTC).isoformat(),),
+                )
+                from backend.app.progress import ProgressService
+
+                ProgressService(self).capture(db)
+                db.execute("UPDATE learning_settings SET enabled=0,epoch=epoch+1 WHERE id=1")
                 db.execute("UPDATE storage_metadata SET value='1' WHERE key='seeded_demo'")
             backup_pattern = re.compile(
                 re.escape(self.database_path.name)
@@ -405,16 +627,20 @@ class MaterialLibrary:
         return result
 
     def get_material(self, material_id: str) -> dict[str, Any]:
+        from backend.app.vocabulary import VocabularyPolicy, vocabulary_value
+
         with self.connect() as db:
             row = db.execute("SELECT * FROM materials WHERE id=?", (material_id,)).fetchone()
             if row is None:
                 raise KeyError("Материал не найден.")
+            VocabularyPolicy(self).ensure_material(db, material_id)
             result = self._metadata(row)
             result["cues"] = []
             tokens_by_cue: dict[str, list[dict[str, Any]]] = {}
             for token in db.execute(
-                "SELECT o.*,l.language,l.lemma,l.part_of_speech "
+                "SELECT o.*,l.language,l.lemma,l.part_of_speech,v.reason AS vocabulary_reason "
                 "FROM occurrences o JOIN lexemes l ON l.id=o.lexeme_id "
+                "LEFT JOIN occurrence_vocabulary v ON v.token_id=o.id "
                 "WHERE o.material_id=? ORDER BY o.start_offset",
                 (material_id,),
             ):
@@ -423,6 +649,9 @@ class MaterialLibrary:
                 from backend.app.knowledge import KnowledgeService
 
                 occurrence["knowledge"] = KnowledgeService(self).get(occurrence["lexeme_id"], db=db)
+                occurrence["vocabulary"] = vocabulary_value(
+                    occurrence.pop("vocabulary_reason"), occurrence["knowledge"]
+                )
                 tokens_by_cue.setdefault(occurrence["cue_id"], []).append(occurrence)
             for cue in db.execute(
                 "SELECT * FROM cues WHERE material_id=? ORDER BY position", (material_id,)
@@ -464,18 +693,62 @@ class MaterialLibrary:
         source: str | None = None,
         is_complete: bool = True,
         replaces: str | None = None,
+        expected_generation: str | None = None,
     ) -> dict[str, Any]:
+        return self.import_cues(
+            youtube_url=youtube_url,
+            title=title,
+            cues=parse_track(content, format),
+            language=language,
+            source=source or format,
+            is_complete=is_complete,
+            replaces=replaces,
+            expected_generation=expected_generation,
+        )
+
+    def import_cues(
+        self,
+        *,
+        youtube_url: str,
+        title: str,
+        cues: list[dict[str, Any]],
+        language: str = "en",
+        source: str,
+        is_complete: bool = True,
+        replaces: str | None = None,
+        expected_generation: str | None = None,
+    ) -> dict[str, Any]:
+        """Save normalized cues without reparsing or changing their time boundaries."""
         video_id = youtube_id(youtube_url)
-        cues = parse_track(content, format)
+        if not cues or len(cues) > MAX_CUES:
+            raise MaterialError("Дорожка должна содержать от 1 до 10 000 реплик.")
+        if sum(len(cue["text"]) for cue in cues) > MAX_TEXT_CHARACTERS:
+            raise MaterialError("Текст субтитров должен содержать не больше 200 000 символов.")
+        previous_start = -1
+        for cue in cues:
+            if (
+                not cue["text"].strip()
+                or "\x00" in cue["text"]
+                or cue["start_ms"] < previous_start
+                or cue["end_ms"] <= cue["start_ms"]
+            ):
+                raise MaterialError("Проверьте текст и временные метки реплик.")
+            previous_start = cue["start_ms"]
         if language != "en":
             raise MaterialError("В этой версии поддерживается английский язык (en).")
         if replaces and self.get_material(replaces)["youtube_video_id"] != video_id:
             raise MaterialError("Новая дорожка должна относиться к тому же видео.")
-        canonical = {
+        canonical: dict[str, Any] = {
             "video_id": video_id,
             "language": language,
             "cues": [{k: cue[k] for k in ("start_ms", "end_ms", "text")} for cue in cues],
         }
+        # Equal text with a different known origin must not hide automatic captions
+        # behind a previous file import, or attach an edited result to the wrong source.
+        if source.startswith("youtube-"):
+            canonical["caption_source"] = source
+        if source == "youtube-improved":
+            canonical["origin_id"] = replaces
         digest = hashlib.sha256(
             json.dumps(
                 canonical, ensure_ascii=False, sort_keys=True, separators=(",", ":")
@@ -483,12 +756,21 @@ class MaterialLibrary:
         ).hexdigest()
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
+            if (
+                expected_generation is not None
+                and db.execute(
+                    "SELECT value FROM storage_metadata WHERE key='generation'"
+                ).fetchone()[0]
+                != expected_generation
+            ):
+                raise MaterialError("Данные были удалены. Добавьте материал заново.")
             existing = db.execute(
                 "SELECT id FROM materials "
                 "WHERE youtube_video_id=? AND language=? AND transcript_hash=?",
                 (video_id, language, digest),
             ).fetchone()
             if existing:
+                db.commit()
                 return self.get_material(existing["id"])
             material_id = uuid.uuid4().hex
             adapter = english_adapter()
@@ -504,11 +786,11 @@ class MaterialLibrary:
                     video_id,
                     title.strip() or video_id,
                     language,
-                    source or format,
+                    source,
                     int(is_complete),
                     digest,
                     previous["version"] + 1 if previous else 1,
-                    previous["id"] if previous else None,
+                    replaces or (previous["id"] if previous else None),
                     adapter.version,
                     datetime.now(UTC).isoformat(),
                 ),
@@ -555,4 +837,7 @@ class MaterialLibrary:
                             int(token["uncertain"]),
                         ),
                     )
+            from backend.app.progress import ProgressService
+
+            ProgressService(self).capture(db, reason="import")
         return self.get_material(material_id)

@@ -1,0 +1,102 @@
+{
+  "date": "2026-10-21",
+  "browser": "Codex in-app browser",
+  "environment": "Temporary local profile, http://127.0.0.1:8876, no subscription",
+  "checks": [
+    "Clicked subtitle word clockwork",
+    "AI disconnected error displayed",
+    "Saved score=1",
+    "Exactly one click and one knowledge change",
+    "No successful translation event on AI failure"
+  ],
+  "activity": {
+    "events": [
+      {
+        "id": 2,
+        "event_type": "knowledge_changed",
+        "schema_version": 1,
+        "occurred_at": "2026-10-21T10:48:55.177868+00:00",
+        "language": "en",
+        "material_id": null,
+        "cue_id": null,
+        "token_id": null,
+        "lexeme_id": "b7c43104b5f64847958e4a93333fbbd3",
+        "request_id": null,
+        "word": {
+          "language": "en",
+          "lemma": "clockwork",
+          "part_of_speech": "NOUN"
+        },
+        "data": {
+          "previous": {
+            "score": null,
+            "ignored": false,
+            "source": null,
+            "provisional": false,
+            "status": "Пока не оценено"
+          },
+          "current": {
+            "score": 1,
+            "ignored": false,
+            "source": "manual",
+            "provisional": false,
+            "status": "Учу"
+          }
+        },
+        "context": null
+      },
+      {
+        "id": 1,
+        "event_type": "word_selected",
+        "schema_version": 1,
+        "occurred_at": "2026-10-21T10:48:32.591333+00:00",
+        "language": "en",
+        "material_id": "f6911a84b1ba4434aefe7955f9adc5c1",
+        "cue_id": "fec93a51f8a64d22b66b76d3740e0278",
+        "token_id": "9c56328ee0974970ae09d4587d363d63",
+        "lexeme_id": "b7c43104b5f64847958e4a93333fbbd3",
+        "request_id": "05c0a672-5ab3-4e38-87d3-31919941fbd4",
+        "word": {
+          "language": "en",
+          "lemma": "clockwork",
+          "part_of_speech": "NOUN",
+          "surface": "clockwork"
+        },
+        "data": {},
+        "context": {
+          "citation_id": "f6911a84b1ba4434aefe7955f9adc5c1:fec93a51f8a64d22b66b76d3740e0278",
+          "material_id": "f6911a84b1ba4434aefe7955f9adc5c1",
+          "cue_id": "fec93a51f8a64d22b66b76d3740e0278",
+          "text": "Like clockwork!",
+          "truncated": false,
+          "start_ms": 273310,
+          "end_ms": 275260,
+          "youtube_video_id": "TLkA0RELQ1g",
+          "version": 1,
+          "title": "Elephants Dream"
+        }
+      }
+    ],
+    "has_more": false,
+    "next_before_id": null,
+    "notice": "События подтверждают действия в приложении, но не знание слова и не просмотр видео."
+  },
+  "compose_update": {
+    "materials_preserved": 7,
+    "dictionary_preserved": 1434,
+    "profile_preserved": true,
+    "subscription_status": "connected",
+    "activity_starts_empty": true,
+    "url": "http://localhost:18765",
+    "schema_version": 5,
+    "migration_backup_created": true,
+    "real_internal_mcp_read": true
+  },
+  "automated_checks": {
+    "backend_tests": 98,
+    "web_tests": 5,
+    "ruff": "passed",
+    "mypy": "passed",
+    "web_build": "passed"
+  }
+}

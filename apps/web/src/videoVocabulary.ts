@@ -14,6 +14,7 @@ export function groupVideoVocabulary(cues: Cue[]): VideoVocabularyEntry[] {
   const grouped = new Map<string, VideoVocabularyEntry>();
   for (const cue of cues) {
     for (const token of cue.tokens) {
+      if (token.vocabulary?.eligible === false) continue;
       const key = token.lexeme_id || `${token.lemma.toLocaleLowerCase()}\u0000${token.part_of_speech}`;
       let entry = grouped.get(key);
       if (!entry) {

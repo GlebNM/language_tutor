@@ -1,0 +1,322 @@
+{
+  "date": "2026-10-22",
+  "scope": "Standalone web conversation practice, SPEC F13–F14 / A21–A28",
+  "environment": {
+    "browser": "Codex in-app browser",
+    "os": "macOS arm64",
+    "application": "http://localhost:18765",
+    "deployment": "Docker Compose; app and MCP healthy",
+    "pydantic_ai": "2.57.0",
+    "model": "gpt-6-luna",
+    "reasoning_effort": "medium",
+    "saved_ai_settings_changed": false,
+    "external_telemetry": false
+  },
+  "checks": {
+    "backend": {
+      "command": ".venv/bin/pytest -q backend/tests",
+      "passed": 119,
+      "duration_seconds": 42.13,
+      "new_practice_tests": 13
+    },
+    "web": {
+      "command": "npm test --prefix apps/web",
+      "passed": 12
+    },
+    "ruff": {
+      "command": ".venv/bin/ruff check backend",
+      "passed": true
+    },
+    "mypy": {
+      "command": ".venv/bin/mypy backend/app backend/mcp_server",
+      "passed": true,
+      "source_files": 29
+    },
+    "build": {
+      "command": "npm run build --prefix apps/web",
+      "passed": true,
+      "modules": 25
+    },
+    "diff_check": {
+      "command": "git diff --check",
+      "passed": true
+    }
+  },
+  "migration": {
+    "baseline": {
+      "material_ids": [
+        "0b6ba0ca287040e28ca07163b3d028ae",
+        "10bbd0ea15f242698cf5b64c8be01ce0",
+        "4d51356bd69942c891f070943f129166",
+        "668f6153a3e4440cb2911c2211facd51",
+        "b563fda4731949dab5367c55a1194b34",
+        "c3c7877867e44ff5aa0ec0836faa63da",
+        "d0d43cd1e5e44e2c890a87583b07a2a0"
+      ],
+      "dictionary_count": 1434,
+      "dictionary_sha256": "0b56728be361c21bd11c8823698299b5abf77ee27cfce46c62f10e7bcb6f3380",
+      "conversations_count": 4,
+      "conversation_ids": [
+        "51945080817d4c179f05d85364a34514",
+        "68c1501d6bb6436099751d9957566203",
+        "822337cb66af4eebaa480ad46d41e6a8",
+        "d8bbf3adaba44d588366b3043ea3ab27"
+      ],
+      "conversations_sha256": "35b7fa07f784a7fff6572e370b48847abf7133059f0f78e39a8b7b7ef68ac99c"
+    },
+    "after_recreate_before_live_requests": {
+      "materials_preserved": true,
+      "dictionary_preserved": true,
+      "conversations_preserved": true,
+      "dictionary_count": 1434,
+      "prior_conversations_count": 4,
+      "materials_count": 7
+    },
+    "subscription_remained_connected": true,
+    "destructive_checks_used_isolated_test_databases": true
+  },
+  "controlled_api_and_real_mcp": [
+    "Standalone creation, restart, rename, multiple attached materials and deletion",
+    "Independent original messages and scoped MCP activity, including a forged other-conversation ID",
+    "Idempotent requests; stop and retry keep a single turn",
+    "History longer than six turns, rolling summary, unchanged original messages",
+    "Current familiarity, dates, transitions, manual source, reset and ignored state; older learning words remain candidates",
+    "Suggested topics without a selected word",
+    "Incremental structured JSON string output and a verified final SSE result",
+    "Shared lexeme knowledge between subtitles and assistant messages",
+    "Message-specific lemma correction and activity source records",
+    "Bank in two different messages opens different contextual cards and caches"
+  ],
+  "browser_controlled": {
+    "live_model": false,
+    "model": "Pydantic AI TestModel",
+    "real_mcp": true,
+    "results": [
+      "Create and switch two conversations",
+      "Rename and restore saved conversation",
+      "Click assistant word and open contextual panel",
+      "Set familiarity to 1 and see learning state",
+      "Draft survives word selection and familiarity save",
+      "Draft survives suggesting topics",
+      "Draft survives switching away and back"
+    ],
+    "fixed_regression": "Suggesting topics originally cleared the composer; it now keeps the draft.",
+    "temporary_server_stopped": true
+  },
+  "live_subscription": {
+    "initial_reply_before_stream_fix": {
+      "conversation_id": "4efa0f43372e4ee7a2aa0e1caa61eb10",
+      "request_id": "d8e9d69b-fbaa-43d3-b789-aeafed8a611e",
+      "prompt": "Let's have a short English conversation about travel. I want to practise vocabulary from my recent learning. Yesterday I go to a museum. Reply briefly, correct one useful mistake, and ask me a question.",
+      "first_text_ms": 8801,
+      "text_events": 1,
+      "total_ms": 9173,
+      "response": {
+        "request_id": "d8e9d69b-fbaa-43d3-b789-aeafed8a611e",
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "conversation_id": "4efa0f43372e4ee7a2aa0e1caa61eb10",
+        "message_id": "d8e9d69b-fbaa-43d3-b789-aeafed8a611e",
+        "answer": "That sounds like a nice trip! Did you work on your English while you were at the museum? What was your favorite thing there?",
+        "educational_example": null,
+        "correction": "“Yesterday I went to a museum.” Use “went” for the past.",
+        "suggested_topics": [],
+        "citations": [],
+        "tools": [
+          {
+            "name": "get_practice_context",
+            "success": true,
+            "duration_ms": 79
+          },
+          {
+            "name": "get_practice_context",
+            "success": true,
+            "duration_ms": 6
+          }
+        ],
+        "model_requests": 2,
+        "duration_ms": 9116
+      },
+      "errors": []
+    },
+    "contextual_card": {
+      "conversation_id": "4efa0f43372e4ee7a2aa0e1caa61eb10",
+      "message_id": "d8e9d69b-fbaa-43d3-b789-aeafed8a611e",
+      "word": "work",
+      "source_text": "That sounds like a nice trip! Did you work on your English while you were at the museum? What was your favorite thing there?",
+      "card": {
+        "translation": "заниматься английским",
+        "explanation": "В выражении work on something глагол означает «работать над чем-то», «заниматься чем-то, чтобы улучшить это». Здесь речь о том, занимался ли собеседник английским во время посещения музея.",
+        "expression": "work on your English",
+        "example": "I work on my English every day."
+      },
+      "model": "gpt-6-luna",
+      "reasoning_effort": "medium",
+      "tools": [
+        {
+          "name": "get_message_context",
+          "success": true,
+          "duration_ms": 43
+        },
+        {
+          "name": "get_word_knowledge",
+          "success": true,
+          "duration_ms": 13
+        }
+      ],
+      "duration_ms": 9856
+    },
+    "stream_after_partial_json_fix": {
+      "conversation_id": "4efa0f43372e4ee7a2aa0e1caa61eb10",
+      "request_id": "f9389296-7091-4354-a040-bbe493e7a3d2",
+      "prompt": "I enjoyed the paintings. Continue our conversation in English and naturally use vocabulary from my recent learning in your own reply.",
+      "first_text_ms": 10460,
+      "text_events": 38,
+      "first_text": "The",
+      "last_text": "The paintings sound lovely. I’d like to work in a museum someday—though I’d need a plumber if a pipe sprang a leak! Was the day there smooth or a bit rough?",
+      "total_ms": 12430,
+      "response": {
+        "request_id": "f9389296-7091-4354-a040-bbe493e7a3d2",
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "conversation_id": "4efa0f43372e4ee7a2aa0e1caa61eb10",
+        "message_id": "f9389296-7091-4354-a040-bbe493e7a3d2",
+        "answer": "The paintings sound lovely. I’d like to work in a museum someday—though I’d need a plumber if a pipe sprang a leak! Was the day there smooth or a bit rough?",
+        "educational_example": null,
+        "correction": null,
+        "suggested_topics": [],
+        "citations": [],
+        "tools": [
+          {
+            "name": "get_practice_context",
+            "success": true,
+            "duration_ms": 108
+          },
+          {
+            "name": "get_practice_context",
+            "success": true,
+            "duration_ms": 6
+          }
+        ],
+        "model_requests": 2,
+        "duration_ms": 12081
+      },
+      "errors": []
+    },
+    "topics": {
+      "duration_ms": 8016,
+      "response": {
+        "request_id": "48c950a9-b018-481a-ab72-5ffc2e85ef8c",
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "conversation_id": "4efa0f43372e4ee7a2aa0e1caa61eb10",
+        "message_id": "48c950a9-b018-481a-ab72-5ffc2e85ef8c",
+        "answer": "We could chat about a museum visit, a rough travel day, or how you work out where to go next.",
+        "educational_example": null,
+        "correction": null,
+        "suggested_topics": [
+          "Museum visits and favorite paintings",
+          "A rough day while traveling",
+          "Planning a trip and deciding what to do"
+        ],
+        "citations": [],
+        "tools": [
+          {
+            "name": "get_practice_context",
+            "success": true,
+            "duration_ms": 55
+          }
+        ],
+        "model_requests": 1,
+        "duration_ms": 7997
+      }
+    },
+    "final_topic_naturalness": {
+      "conversation_id": "d4ca581c00fa454eb88dd8cb1853502c",
+      "request_id": "b47bcb85-09ca-42b6-82ff-791f9e4be3a2",
+      "prompt": "I visited an art museum yesterday. My favourite part was the impressionist paintings. Ask me a short follow-up question in English, using appropriate recent vocabulary naturally.",
+      "first_text_ms": 5862,
+      "text_events": 14,
+      "total_ms": 8554,
+      "response": {
+        "request_id": "b47bcb85-09ca-42b6-82ff-791f9e4be3a2",
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "conversation_id": "d4ca581c00fa454eb88dd8cb1853502c",
+        "message_id": "b47bcb85-09ca-42b6-82ff-791f9e4be3a2",
+        "answer": "What was your favourite painting, and what did you like about it?",
+        "educational_example": null,
+        "correction": null,
+        "suggested_topics": [],
+        "citations": [],
+        "tools": [
+          {
+            "name": "get_practice_context",
+            "success": true,
+            "duration_ms": 90
+          }
+        ],
+        "model_requests": 1,
+        "duration_ms": 8044
+      },
+      "errors": []
+    },
+    "russian_help": {
+      "prompt": "Объясни коротко по-русски, чем painting отличается от drawing, и потом задай один простой вопрос по-английски, чтобы продолжить нашу беседу.",
+      "duration_ms": 6474,
+      "response": {
+        "request_id": "f697f2c0-1d57-41d2-be84-5bfe112b2cf4",
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "conversation_id": "d4ca581c00fa454eb88dd8cb1853502c",
+        "message_id": "f697f2c0-1d57-41d2-be84-5bfe112b2cf4",
+        "answer": "Painting — это картина, обычно созданная красками; drawing — рисунок, сделанный карандашом, ручкой или другими материалами. Which painting did you like best?",
+        "educational_example": null,
+        "correction": null,
+        "suggested_topics": [],
+        "citations": [],
+        "tools": [
+          {
+            "name": "get_practice_context",
+            "success": true,
+            "duration_ms": 67
+          }
+        ],
+        "model_requests": 1,
+        "duration_ms": 6367
+      }
+    },
+    "evaluation": {
+      "english_conversation": true,
+      "one_brief_useful_correction": true,
+      "three_topics": true,
+      "contextual_card_matches_source": true,
+      "russian_help_on_request": true,
+      "final_response_stays_on_topic": true
+    },
+    "quality_issue_and_fix": "An intermediate reply forced plumber and a pipe leak into an art topic. Prompt now prioritises the learner topic and permits skipping unsuitable words. Final live reply stayed on the art discussion.",
+    "stream_issue_and_fix": "Partial structured JSON initially withheld unfinished string values; trailing-string parsing now emits incremental answer text. Final live reply produced 14 updates."
+  },
+  "browser_live": {
+    "url": "http://localhost:18765",
+    "conversation_id": "d4ca581c00fa454eb88dd8cb1853502c",
+    "results": [
+      "Read saved genuine subscription response",
+      "Click painting in the completed reply",
+      "Correct card meaning картина and expression favourite painting",
+      "Composer draft remains I loved the light and colours."
+    ],
+    "screenshots": [
+      "screenshots/conversation-practice-2026-10-22.png",
+      "screenshots/conversation-word-2026-10-22.png"
+    ],
+    "responsive_layout": "At the observed narrow viewport the word panel is below the conversation; wider desktop layout puts it alongside."
+  },
+  "remaining_limits": [
+    "Live contextual card took 9856 ms; the 5000 ms target is not met.",
+    "Timings are individual requests, not representative medians.",
+    "A broad language-level and natural vocabulary quality evaluation remains; examples do not guarantee all future replies.",
+    "Long conversation compression was tested with controlled models, not a long live subscription run.",
+    "The complete browser error, timeout and disconnect matrix was not run; backend error/limit/cancel tests remain separate evidence."
+  ]
+}

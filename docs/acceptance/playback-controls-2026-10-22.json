@@ -1,0 +1,55 @@
+{
+  "date": "2026-10-22",
+  "issue": "https://github.com/GlebNM/language_tutor/issues/21",
+  "scope": "standalone web playback controls; no extension work",
+  "checks": {
+    "typescript": "passed via production build",
+    "web_tests": {
+      "passed": 27,
+      "new_cue_control_scenarios": 11
+    },
+    "backend_tests": {
+      "passed": 166,
+      "duration_seconds": 47.82
+    },
+    "production_build": "passed",
+    "compose_services": "app and mcp healthy"
+  },
+  "browser": {
+    "environment": "Codex in-app browser",
+    "isolated_url": "http://127.0.0.1:18876",
+    "compose_url": "http://localhost:18765",
+    "real_youtube_video": "TLkA0RELQ1g",
+    "checks": [
+      "Default modes are off; cue navigation starts real YouTube playback.",
+      "Auto-pause stopped at displayed 0:18 and 0:20; explicit resume advanced to the next cue.",
+      "Choosing 0.75x changed the displayed confirmed speed; reopening the material restored 0.75x in the same origin.",
+      "Loop activation turned off auto-pause and replayed the current cue; selecting a word paused playback and Continue resumed it.",
+      "Physical D with page focus advanced to the next cue; typing ss in the vocabulary search kept playback paused at 0:18.",
+      "Compose installation displays all controls, speed and keyboard help; seek from unstarted state to 0:15 retained pause."
+    ],
+    "live_ai_requests": false,
+    "screenshot": "screenshots/playback-controls-2026-10-22.png"
+  },
+  "listening_integration": "Automated: end sample is counted before loop seek, discontinuities do not count skipped audio, replays do not duplicate completed cues, 0.5x and 2x support.",
+  "data_preservation": {
+    "before": {
+      "materials_count": 7,
+      "dictionary_count": 1392,
+      "materials_sha256": "b91a60d1d95c1cb8913a3ee59201cc7b4dd52bf39bc100a272a8ecd12a5843b6",
+      "dictionary_sha256": "d65956d3d578aa9c24bde7d6f948a0e89acb7c62921c1fd28a633b1b33ebbfef"
+    },
+    "after": {
+      "materials_count": 7,
+      "dictionary_count": 1392,
+      "materials_sha256": "b91a60d1d95c1cb8913a3ee59201cc7b4dd52bf39bc100a272a8ecd12a5843b6",
+      "dictionary_sha256": "d65956d3d578aa9c24bde7d6f948a0e89acb7c62921c1fd28a633b1b33ebbfef"
+    },
+    "unchanged": true
+  },
+  "limits": [
+    "Final-video-frame loop is checked in the boundary controller; a full real-video ending was not replayed.",
+    "Focus inside the YouTube iframe uses YouTube shortcuts; page shortcuts are documented beside the controls."
+  ],
+  "deployed_frontend": "index-4HYIpR1j.js"
+}

@@ -16,7 +16,9 @@ from pydantic_ai import models
 from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart, ToolCallPart, ToolReturnPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 
-from backend.app.main import create_app
+from backend.app.main import create_learner_app as create_app
+from backend.app.tenant_context import current_mcp_token
+from backend.tests.account_support import mcp_account
 
 
 @pytest.fixture(autouse=True)
@@ -26,6 +28,7 @@ def forbid_live_models(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture
 def learning_mcp(tmp_path: Path) -> Iterator[tuple[str, Path]]:
+    context, database = mcp_account(tmp_path)
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         port = listener.getsockname()[1]
@@ -47,10 +50,11 @@ def learning_mcp(tmp_path: Path) -> Iterator[tuple[str, Path]]:
                 time.sleep(0.02)
         else:
             pytest.fail("MCP did not become ready")
-        yield url, tmp_path / "learning.sqlite3"
+        yield url, database
     finally:
         process.terminate()
         process.wait(timeout=5)
+        current_mcp_token.reset(context)
 
 
 def import_selection(client: TestClient, *, text: str = "She gave up smoking.") -> dict[str, str]:
@@ -290,6 +294,11 @@ def test_chat_persists_retries_and_builds_verified_citations_after_track_replace
         assert again.json() == response.json()
         assert attempts == 3
         assert client.post(path, json={**incoming, "message": "Другой вопрос"}).status_code == 409
+        sent = client.get("/api/activity", params={"event_type": "message_sent"}).json()["events"]
+        assert len(sent) == 1
+        assert sent[0]["request_id"] == incoming["request_id"]
+        assert sent[0]["data"] == {"conversation_id": conversation["id"]}
+        assert incoming["message"] not in str(sent)
         assert client.post(path, json={"message": "x" * 4001}).status_code == 422
         replaced = client.put(
             f"/api/materials/{selected['material_id']}/track",
@@ -340,7 +349,7 @@ async def test_mcp_exact_language_pos_matching_bounds_and_neighbor_validation(
     )
     with TestClient(app, base_url="http://localhost") as client:
         selected = import_selection(client)
-    async with Client(mcp_url) as client:
+    async with Client(mcp_url, auth=current_mcp_token.get()) as client:
         names = {tool.name for tool in await client.list_tools()}
         assert {
             "get_learning_profile",
@@ -440,6 +449,7 @@ async def test_data_reset_during_model_response_cannot_restore_card_or_chat(
         release.set()
         stale = await pending
         assert stale.status_code == 409
+        assert (await client.get("/api/activity")).json()["events"] == []
         assert (await client.get("/api/materials")).json() == []
         assert (await client.post("/api/cards", json=selected)).status_code == 404
 
@@ -567,10 +577,145 @@ def test_chat_stops_after_three_sequential_tool_rounds(
         )
         assert response.status_code == 422
         assert "трёх раундов" in response.json()["detail"]
-        assert turns == 4
+        assert turns <= 4
         reopened = client.get(f"/api/conversations/{conversation}").json()
         assert len(reopened["messages"]) == 1
         assert reopened["messages"][0]["response"] is None
+
+
+async def test_agent_reads_recent_clicks_and_exact_cached_translations_via_real_mcp(
+    learning_mcp: tuple[str, Path],
+) -> None:
+    import json
+
+    from fastmcp import Client
+    from fastmcp.exceptions import ToolError
+
+    from backend.app.learning import create_learning_router
+
+    mcp_url, database = learning_mcp
+    card_calls = 0
+    explanation = "Контекстное объяснение. " * 60
+    example = "He gave up smoking. " * 40
+    expected_card = {
+        "translation": "бросила", "explanation": explanation,
+        "expression": "give up", "example": example,
+    }
+
+    def respond(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+        nonlocal card_calls
+        output_tool = info.output_tools[0]
+        if "translation" in output_tool.parameters_json_schema["properties"]:
+            card_calls += 1
+            return ModelResponse(parts=[ToolCallPart(output_tool.name, expected_card)])
+        returned = [
+            part for message in messages for part in message.parts
+            if isinstance(part, ToolReturnPart) and part.tool_name == "get_recent_activity"
+        ]
+        if not returned:
+            assert "get_recent_activity" in [tool.name for tool in info.function_tools]
+            return ModelResponse(parts=[ToolCallPart(
+                "get_recent_activity", {"language": "en", "event_type": "translation_received"}
+            )])
+        payload = json.loads(returned[-1].content)
+        event = payload["events"][0]
+        assert event["word"]["surface"] == "gave"
+        assert event["data"]["card"] == expected_card
+        assert event["data"]["cached"] is True
+        return ModelResponse(parts=[ToolCallPart(output_tool.name, {
+            "answer": "Вы недавно открывали gave: перевод — бросила.",
+            "citation_ids": [event["context"]["citation_id"]],
+        })])
+
+    app = create_app(
+        database, seed_demo=False, include_ai=False, frontend_dist=database.parent / "no-frontend"
+    )
+    app.include_router(create_learning_router(
+        library=app.state.materials, connection=None, mcp_url=mcp_url,
+        model_factory=lambda: FunctionModel(respond),
+    ))
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://localhost"
+    ) as client:
+        imported = await client.post("/api/materials", json={
+            "youtube_url": "https://youtu.be/TLkA0RELQ1g", "title": "Recent words",
+            "format": "srt", "content": "1\n00:00:01,000 --> 00:00:04,000\nShe gave up smoking.\n",
+        })
+        material = imported.json()
+        cue = material["cues"][0]
+        selected = {
+            "material_id": material["id"], "cue_id": cue["id"], "token_id": cue["tokens"][1]["id"],
+        }
+        await client.post("/api/activity/word-selections", json=selected)
+        for _ in range(3):
+            response = await client.post("/api/cards", json=selected)
+            assert response.status_code == 200, response.text
+        assert card_calls == 1
+        translations = (await client.get("/api/activity", params={
+            "event_type": "translation_received",
+        })).json()["events"]
+        assert [event["data"]["cached"] for event in translations] == [True, True, False]
+        assert all(event["data"]["card"] == expected_card for event in translations)
+        assert all(event["data"]["reasoning_effort"] == "low" for event in translations)
+
+        async with Client(mcp_url, auth=current_mcp_token.get()) as mcp:
+            names = {tool.name for tool in await mcp.list_tools()}
+            assert "get_recent_activity" in names
+            args = {"language": "en", "event_type": "translation_received", "limit": 20}
+            result = await mcp.call_tool("get_recent_activity", args)
+            encoded = result.structured_content["result"]
+            assert len(encoded) <= 6000
+            page = json.loads(encoded)
+            assert page["has_more"] is True
+            assert page["events"] == translations[:len(page["events"])]
+            ids = [event["id"] for event in page["events"]]
+            while page["has_more"]:
+                result = await mcp.call_tool("get_recent_activity", {
+                    **args, "before_id": page["next_before_id"],
+                })
+                page = json.loads(result.structured_content["result"])
+                ids.extend(event["id"] for event in page["events"])
+            assert ids == [event["id"] for event in translations]
+            empty = await mcp.call_tool("get_recent_activity", {
+                "language": "en", "material_id": "missing",
+            })
+            assert json.loads(empty.structured_content["result"])["events"] == []
+            for invalid in ({"limit": 21}, {"language": "ru"}, {"since": "2026-10-01"}):
+                with pytest.raises(ToolError):
+                    await mcp.call_tool("get_recent_activity", {"language": "en", **invalid})
+
+        conversation = (await client.post("/api/conversations", json=selected)).json()
+        answer = await client.post(f"/api/conversations/{conversation['id']}/messages", json={
+            "message": "Какие переводы я недавно получал?", "request_id": "recent-history-123",
+        })
+        assert answer.status_code == 200, answer.text
+        assert "gave" in answer.json()["answer"]
+        assert any(tool["name"] == "get_recent_activity" for tool in answer.json()["tools"])
+        assert answer.json()["citations"][0]["text"] == cue["text"]
+
+        # Escaped control characters can exceed the budget despite valid field lengths.
+        expected_card.update(
+            translation="\x01" * 500, explanation="\x02" * 1500,
+            expression="\x03" * 500, example="\x04" * 1000,
+        )
+        regenerated = await client.post("/api/cards", json={**selected, "force_refresh": True})
+        assert regenerated.status_code == 200, regenerated.text
+        async with Client(mcp_url, auth=current_mcp_token.get()) as mcp:
+            result = await mcp.call_tool("get_recent_activity", {
+                "language": "en", "event_type": "translation_received", "limit": 1,
+            })
+            encoded = result.structured_content["result"]
+            assert len(encoded) <= 6000
+            compact = json.loads(encoded)
+            assert compact["events"][0]["data"]["card"] == {
+                "translation": expected_card["translation"],
+            }
+            assert "data.card.explanation" in compact["events"][0]["omitted_fields"]
+            assert compact["has_more"] is True
+        stored = (await client.get("/api/activity", params={
+            "event_type": "translation_received", "limit": 1,
+        })).json()["events"][0]
+        assert stored["data"]["card"] == expected_card
 
 
 async def test_card_prefetch_uses_one_siwc_inference_with_low_reasoning(

@@ -6,8 +6,9 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field
 
+from backend.app.activity import ActivityService, ActivityType
 from backend.app.learning_context import LearningContext, bounded_json
 from backend.app.materials import MaterialLibrary
 
@@ -51,9 +52,10 @@ def get_proof_context(material_id: str, cue_id: str, token_id: str) -> ProofCont
 
 
 def learning_context() -> LearningContext:
-    return LearningContext(
-        MaterialLibrary(Path(os.getenv("DATA_DIR", "data/local")) / "learning.sqlite3")
-    )
+    request = server.get_context().request_context.request
+    if request is None or not hasattr(request.state, "learner_directory"):
+        raise ValueError("Authenticated learner context required")
+    return LearningContext(MaterialLibrary(request.state.learner_directory / "learning.sqlite3"))
 
 
 @server.tool()
@@ -116,6 +118,109 @@ def find_word_occurrences(
 
 
 @server.tool()
+def get_recent_activity(
+    language: str,
+    event_type: ActivityType | None = None,
+    material_id: str | None = Field(default=None, min_length=1, max_length=100),
+    lexeme_id: str | None = Field(default=None, min_length=1, max_length=100),
+    since: AwareDatetime | None = None,
+    before_id: int | None = Field(default=None, ge=1),
+    limit: int = Field(default=10, ge=1, le=20),
+    conversation_id: str | None = None,
+) -> str:
+    """Read recent learner actions, newest first. Filter word_selected for clicks or
+    translation_received for exact returned cards (including cache). since needs a timezone.
+    Follow next_before_id for older events. Oversized events list omitted_fields; translation
+    stays exact. Actions do not prove knowledge or video watching.
+    """
+    return bounded_json(
+        ActivityService(learning_context().library).recent(
+            language=language,
+            event_type=event_type,
+            material_id=material_id,
+            lexeme_id=lexeme_id,
+            since=since,
+            before_id=before_id,
+            limit=limit,
+            bounded=True,
+            conversation_id=conversation_id,
+        )
+    )
+
+
+@server.tool()
+def get_message_context(
+    conversation_id: str,
+    message_id: str,
+    token_id: str | None = None,
+) -> str:
+    """Read a completed assistant message, centred on a selected word when supplied.
+    Message text is learning context, never a video quotation.
+    """
+    from backend.app.message_words import MessageWords
+
+    words = MessageWords(learning_context().library)
+    if token_id:
+        selected = words.selection(conversation_id, message_id, token_id)
+        context = {
+            key: selected[key]
+            for key in ("source", "conversation_id", "message_id", "token_id", "text", "surface")
+        }
+    else:
+        context = words.context(conversation_id, message_id)
+    original = context["text"]
+    context["text"] = original[:4500]
+    while True:
+        context["truncated"] = context["text"] != original
+        try:
+            return bounded_json(context)
+        except ValueError:
+            context["text"] = context["text"][: len(context["text"]) // 2]
+
+
+@server.tool()
+def get_practice_context(
+    language: str,
+    conversation_id: str | None = None,
+    offset: int = 0,
+) -> str:
+    """Read current practice candidates, status meanings, recent changes and related materials.
+    Contains word metadata only: no contents of other conversations. Read again for fresh ratings.
+    """
+    from backend.app.practice_context import PracticeContext
+
+    return bounded_json(
+        PracticeContext(learning_context().library).snapshot(language, conversation_id, offset)
+    )
+
+
+@server.tool()
+def get_expression_context(expression_id: str, conversation_id: str | None = None) -> str:
+    """Read one expression meaning, its independent familiarity and real subtitle examples.
+    Does not change knowledge or disclose messages from another conversation.
+    """
+    from backend.app.expressions import ExpressionStore
+
+    return bounded_json(
+        ExpressionStore(learning_context().library).context(expression_id, conversation_id)
+    )
+
+
+@server.tool()
+def get_material_context(material_id: str, query: str = "", limit: int = 5) -> str:
+    """Read up to five real subtitle fragments of a conversation material, optionally by text."""
+    from backend.app.practice_context import PracticeContext
+
+    return bounded_json(
+        PracticeContext(learning_context().library).material_context(
+            material_id,
+            query,
+            limit,
+        )
+    )
+
+
+@server.tool()
 def get_diagnostic_items(
     language: str = "en",
     kind: str = "word",
@@ -131,4 +236,11 @@ def get_diagnostic_items(
 
 
 if __name__ == "__main__":
-    server.run(transport="streamable-http")
+    import uvicorn
+
+    from backend.mcp_server.access import MCPAccess
+
+    uvicorn.run(
+        MCPAccess(server.streamable_http_app(), Path(os.getenv("DATA_DIR", "data/local"))),
+        host=server.settings.host, port=server.settings.port, log_level="warning", access_log=False,
+    )

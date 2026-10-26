@@ -1,0 +1,48 @@
+{
+  "checked_at": "2026-10-22T11:17:50.662307+00:00",
+  "scope": "standalone web / F18 / A40-A43",
+  "checks": {
+    "backend": "166 passed",
+    "web": "27 passed",
+    "build": "passed",
+    "ruff": "passed",
+    "mypy": "passed"
+  },
+  "compose": {
+    "url": "http://localhost:18765",
+    "profile_before": {
+      "known": 1387,
+      "confident": 0,
+      "dictionary_entries": 1392
+    },
+    "profile_after": {
+      "known": 1387,
+      "confident": 0,
+      "dictionary_entries": 1392
+    },
+    "known_change": 0,
+    "vocabulary_tracking_since": "2026-10-22T11:07:58.628615+00:00",
+    "playback_tracking_since": "2026-10-22T11:07:58.585+00:00"
+  },
+  "browser": {
+    "test_profile": "Separate temporary SQLite profile; historical fixture data never copied into the learner profile.",
+    "verified": [
+      "Month and week totals",
+      "Day opens saved word changes and materials",
+      "Material opens from day details",
+      "Actual YouTube playback with automatic vocabulary disabled",
+      "Pause and navigation flush elapsed playback",
+      "Existing learner baseline shown in Compose UI"
+    ],
+    "actual_youtube_playback_ms": 25054,
+    "screenshots": [
+      "screenshots/progress-qa-2026-10-22.png",
+      "screenshots/progress-compose-2026-10-22.png"
+    ]
+  },
+  "limitations": [
+    "Vocabulary size history and elapsed playback start with this update.",
+    "Force-closing the browser can lose its last unsent playback interval (normally up to 15 seconds).",
+    "Mobile layout not included in this desktop-browser acceptance."
+  ]
+}

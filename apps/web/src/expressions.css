@@ -1,0 +1,26 @@
+.expression-toolbar {display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin:.6rem 0;color:var(--muted,#61716b);font-size:.85rem}
+.word.expression-highlight,.chat-word.expression-highlight {background:#f4df83!important;color:#243c32!important;border-radius:4px;box-shadow:0 2px 0 #8c6c1f!important;text-decoration:none!important}
+.word.expression-highlight:focus-visible,.chat-word.expression-highlight:focus-visible {outline:3px solid #355c48;outline-offset:2px}
+.expression-card {padding:1rem;margin:.8rem 0;border:1px solid #d2d9cd;border-left:4px solid #b8963d;border-radius:12px;background:#fffdf5;overflow-wrap:anywhere}
+.expression-card h3 {font-size:1.25rem;margin:.3rem 0}
+.expression-component {background:#f4df83;color:#243c32;border-radius:3px;padding:1px 2px}
+.expression-translation {font-weight:650}
+.expression-card blockquote {margin:.8rem 0;padding:.6rem;border-left:2px solid #c5cdbd}
+.expression-card blockquote button {display:block}
+.expression-knowledge {display:grid;gap:.65rem;margin-top:.8rem}
+.expression-ignore {display:flex!important;gap:.5rem;align-items:center;font-size:.85rem}
+.expression-ignore input {width:auto}
+.expression-dismiss {font-size:.8rem;margin-top:.8rem}
+.other-expressions {margin:1rem 0;border-top:1px solid #dce1d8;padding-top:.8rem}
+.other-expressions summary,.expression-usage summary {cursor:pointer;color:#526358}
+.material-expressions {margin:1.5rem 0;padding:1rem;border:1px solid #dce1d8;border-radius:14px}
+.expression-list {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:.6rem;margin:.8rem 0}
+.expression-item {display:flex;flex-direction:column;gap:.3rem;align-items:flex-start;text-align:left;background:#f8f8f1!important;color:#294636!important;border:1px solid #dce1d8!important;padding:.8rem;border-radius:10px}
+.expression-item:hover {border-color:#6e8976!important}
+.expression-item small {font-weight:400;color:#647265}
+.expression-dictionary-detail {max-width:780px;margin-top:1rem}
+.dictionary-tabs {display:flex;gap:.6rem;margin:1rem 0}
+.dictionary-tabs [aria-pressed=true] {box-shadow:0 0 0 2px #52705d}
+.word-details {margin:.8rem 0}
+.word-details>summary {cursor:pointer}
+@media(max-width:700px) {.expression-toolbar {align-items:flex-start}.material-expressions {padding:.7rem}.expression-card {padding:.8rem}}

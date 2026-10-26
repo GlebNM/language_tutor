@@ -16,6 +16,8 @@ from pydantic_ai.messages import ModelMessage, ModelResponse, ToolCallPart, Tool
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 
 from backend.app.agents.subscription_proof import run_proof
+from backend.app.tenant_context import current_mcp_token
+from backend.tests.account_support import mcp_account
 
 
 @pytest.fixture(autouse=True)
@@ -24,11 +26,12 @@ def forbid_live_models(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture
-def mcp_url() -> Iterator[str]:
+def mcp_url(tmp_path: Path) -> Iterator[str]:
+    context, database = mcp_account(tmp_path)
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         port = listener.getsockname()[1]
-    env = {**os.environ, "MCP_HOST": "127.0.0.1", "MCP_PORT": str(port)}
+    env = {**os.environ, "MCP_HOST": "127.0.0.1", "MCP_PORT": str(port), "DATA_DIR": str(tmp_path)}
     process = subprocess.Popen(
         [sys.executable, "-m", "backend.mcp_server"],
         env=env,
@@ -50,6 +53,7 @@ def mcp_url() -> Iterator[str]:
     finally:
         process.terminate()
         process.wait(timeout=5)
+        current_mcp_token.reset(context)
 
 
 async def test_agent_selects_real_mcp_tool_and_validates_contextual_card(mcp_url: str) -> None:
@@ -140,7 +144,7 @@ async def test_mcp_rejects_selection_from_another_material(mcp_url: str) -> None
     from fastmcp import Client
     from fastmcp.exceptions import ToolError
 
-    async with Client(mcp_url) as client:
+    async with Client(mcp_url, auth=current_mcp_token.get()) as client:
         names = [tool.name for tool in await client.list_tools()]
         assert "get_proof_context" in names
         with pytest.raises(ToolError, match="mismatched"):

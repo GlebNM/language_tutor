@@ -244,6 +244,9 @@ class DiagnosticsService:
                 "UPDATE diagnostic_sessions SET status='completed',summary_json=? WHERE id=?",
                 (json.dumps(summary, ensure_ascii=False), session_id),
             )
+            from backend.app.progress import ProgressService
+
+            ProgressService(self.library).capture(db, reason="diagnostic")
             return self.public_session(self.row(db, session_id))
 
 

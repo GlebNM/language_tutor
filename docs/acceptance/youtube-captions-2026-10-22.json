@@ -1,0 +1,159 @@
+{
+  "date": "2026-10-22",
+  "scope": "standalone web",
+  "automated_checks": {
+    "backend": "162 passed; 31 caption scenarios rerun after prompt/context refinement",
+    "web": "13 passed",
+    "ruff": "passed",
+    "mypy": "passed (33 files)",
+    "production_build": "passed"
+  },
+  "real_youtube_fetches": [
+    {
+      "youtube_video_id": "TLkA0RELQ1g",
+      "title": "Elephants Dream",
+      "source": "youtube-automatic",
+      "browser_import_without_file": true
+    },
+    {
+      "youtube_video_id": "jNQXAC9IVRw",
+      "title": "Me at the zoo",
+      "source": "youtube-authored",
+      "browser_import_without_file": true,
+      "ai_not_started": true
+    }
+  ],
+  "live_ai": {
+    "youtube_video_id": "TLkA0RELQ1g",
+    "title": "Elephants Dream",
+    "source": "youtube-automatic",
+    "cue_count": 91,
+    "job": {
+      "source_id": "c6f118a70d10467599c532aefadd3707",
+      "id": "0746e62b8e4a40dcb4984443f3d076a3",
+      "status": "completed",
+      "completed_batches": 8,
+      "total_batches": 8,
+      "result_id": "568a1fd261774550b81cc4982ea3848f",
+      "changed_cues": 55,
+      "error": null,
+      "model": "gpt-6-luna",
+      "reasoning_effort": "medium",
+      "prompt_version": "caption-edit-1",
+      "created_at": "2026-10-22T10:00:46.691278+00:00"
+    },
+    "duration_seconds": 152.77,
+    "agent_calls": [
+      {
+        "agent": "caption_editor",
+        "seconds": 16.82
+      },
+      {
+        "agent": "caption_reviewer",
+        "seconds": 5.98
+      },
+      {
+        "agent": "caption_editor",
+        "seconds": 10.73
+      },
+      {
+        "agent": "caption_reviewer",
+        "seconds": 5.92
+      },
+      {
+        "agent": "caption_editor",
+        "seconds": 10.52
+      },
+      {
+        "agent": "caption_reviewer",
+        "seconds": 4.89
+      },
+      {
+        "agent": "caption_editor",
+        "seconds": 16.88
+      },
+      {
+        "agent": "caption_reviewer",
+        "seconds": 6.51
+      },
+      {
+        "agent": "caption_editor",
+        "seconds": 13.76
+      },
+      {
+        "agent": "caption_reviewer",
+        "seconds": 7.98
+      },
+      {
+        "agent": "caption_editor",
+        "seconds": 13.64
+      },
+      {
+        "agent": "caption_reviewer",
+        "seconds": 5.6
+      },
+      {
+        "agent": "caption_editor",
+        "seconds": 12.29
+      },
+      {
+        "agent": "caption_reviewer",
+        "seconds": 4.68
+      },
+      {
+        "agent": "caption_editor",
+        "seconds": 5.56
+      },
+      {
+        "agent": "caption_reviewer",
+        "seconds": 2.9
+      }
+    ],
+    "timings_preserved": true,
+    "source_preserved": true,
+    "offsets_valid": true
+  },
+  "initial_live_attempt": {
+    "max_batch_cues": 40,
+    "status": "failed",
+    "error": "AI не ответил за 30 секунд. Повторите запрос.",
+    "duration_seconds": 30.05
+  },
+  "final_batch_limits": {
+    "cues": 12,
+    "characters": 1600,
+    "seconds": 30
+  },
+  "migration_public_data_preserved": {
+    "/profile": true,
+    "/materials": true,
+    "/dictionary": true,
+    "/activity": true,
+    "/conversations": true,
+    "/ai/settings": true
+  },
+  "limitations": [
+    "One full automatic track tested live; no reference transcript or WER benchmark.",
+    "Text-only editing cannot guarantee fidelity to audio.",
+    "YouTube may restrict caption retrieval; SRT/VTT remains available."
+  ],
+  "browser_checks": {
+    "authored_no_ai": true,
+    "disconnected_import_usable": true,
+    "file_import_form": true,
+    "comparison": true,
+    "return_to_source": true,
+    "open_improved_result": true
+  },
+  "deployed_prompt_version": "caption-edit-2",
+  "refined_prompt_live_check": {
+    "prompt_version": "caption-edit-2",
+    "target_cues": 12,
+    "accepted_edits": 2,
+    "duration_seconds": 16.15,
+    "model": "gpt-6-luna",
+    "reasoning_effort": "medium",
+    "sentence_continuation_keeps_lowercase": true,
+    "context_sides_explicit": true
+  }
+}

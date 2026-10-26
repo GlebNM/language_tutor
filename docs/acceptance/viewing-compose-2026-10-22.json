@@ -1,0 +1,23 @@
+{
+  "date": "2026-10-22",
+  "origin": "http://localhost:18765",
+  "health": {
+    "status": "ok"
+  },
+  "materials": 7,
+  "dictionary_entries": 1439,
+  "public_data_sha256": "e2bf94d276005ca1b147512894cabab9eac291bde669136c1a6d27f9ee9f6fb8",
+  "subscription_status": "connected",
+  "settings": {
+    "enabled": false,
+    "epoch": 0
+  },
+  "frontend_asset": "/assets/index-D5ESH6nj.js",
+  "first_recreate_public_data_unchanged": true,
+  "final_recreate_existing_data_preserved": true,
+  "final_dictionary_count": 1448,
+  "concurrent_added_entries": 9,
+  "added_entry_sources": {
+    "prior": 9
+  }
+}

@@ -198,7 +198,8 @@ class ConnectionService:
                     {
                         "code": "callback_port_in_use",
                         "message": (
-                            f"Порт OAuth {self.callback_port} занят. Измените AI_CALLBACK_PORT."
+                            f"Порт подключения AI {self.callback_port} занят. "
+                            "Дождитесь завершения подключения другого пользователя и повторите."
                         ),
                     },
                 ) from None

@@ -9,6 +9,7 @@ services:
       MCP_URL: http://mcp:8001/mcp
       AI_MODEL: "${AI_MODEL:-gpt-6-luna}"
       AI_CALLBACK_PORT: ${AI_CALLBACK_PORT:-1456}
+      YOUTUBE_API_KEY: "${YOUTUBE_API_KEY:-}"
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:8765,http://127.0.0.1:8765}
     volumes:
       - learning-data:/data

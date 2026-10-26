@@ -11,7 +11,7 @@ COPY --from=uv /uv /usr/local/bin/uv
 WORKDIR /app
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy PYTHONUNBUFFERED=1 DATA_DIR=/data
 COPY pyproject.toml uv.lock .python-version ./
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev --no-cache
 COPY backend/ ./backend/
 COPY data/demo/ ./data/demo/
 COPY data/diagnostics/ ./data/diagnostics/

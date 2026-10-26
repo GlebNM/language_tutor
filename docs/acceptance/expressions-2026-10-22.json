@@ -1,0 +1,72 @@
+{
+  "checked_at": "2026-10-22T15:03:26.862315+00:00",
+  "scope": "F21 / A55–A61: standalone web expressions",
+  "automated": {
+    "backend": {
+      "passed": 196,
+      "duration_seconds": 85.54,
+      "command": ".venv/bin/pytest -q"
+    },
+    "expression_backend_tests": 12,
+    "web": {
+      "passed": 37,
+      "expression_tests": 5,
+      "command": "npm test"
+    },
+    "production_build": "passed",
+    "ruff_backend": "passed",
+    "mypy_production": {
+      "passed": true,
+      "sources": 44,
+      "command": ".venv/bin/mypy backend/app backend/mcp_server"
+    }
+  },
+  "browser": {
+    "environment": "Codex in-app browser; isolated account and temporary database; controlled Pydantic AI FunctionModel; no learner data changed",
+    "checks": [
+      "Click turned and off in He turned it off: both source components highlighted at score 3 and ignored=true",
+      "Final card quote highlights turned and off separately, without replaceable it",
+      "Idioms and collocations disclosure collapsed by default",
+      "Manual make / a / decision selection in subtitles, saved familiarity, dictionary and source examples",
+      "Completed assistant message: phrasal highlight and manual component selection; draft retained"
+    ],
+    "screenshots": [
+      "screenshots/expression-card-2026-10-22.png",
+      "screenshots/expressions-selected-2026-10-22.png",
+      "screenshots/expression-chat-2026-10-22.png"
+    ]
+  },
+  "live_model": {
+    "model": "gpt-6-luna",
+    "reasoning_effort": "medium",
+    "synthetic_cues": 10,
+    "single_extraction": {
+      "occurrences": 8,
+      "duration_seconds": 26.16,
+      "evidence": "expressions-live-extraction-2026-10-22.json"
+    },
+    "background": {
+      "batches": 2,
+      "occurrences": 8,
+      "duration_seconds": 33.66,
+      "give_up_occurrences": 2,
+      "give_up_meanings": 1,
+      "take_off_meanings": 2,
+      "false_put_on": false,
+      "evidence": "expressions-live-background-2026-10-22.json"
+    },
+    "regression_fixed": "Incomplete look forward to anchors at a batch boundary: overlap expanded to two neighboring cues; each canonical phrasal component must have an actual source anchor. Final live run contains no incomplete duplicate.",
+    "limitations": "Ten synthetic cues verify these examples, not general recognition accuracy. Real two-account simultaneous inference and long-video throughput were not measured."
+  },
+  "compose": {
+    "url": "http://localhost:18765",
+    "app": "healthy",
+    "mcp": "healthy",
+    "mcp_public_port": false,
+    "legacy_materials_preserved": 7,
+    "legacy_word_scores_preserved": 15,
+    "subscription_file_present": true,
+    "legacy_profile_adopted": false,
+    "qa_profile_copied": false
+  }
+}

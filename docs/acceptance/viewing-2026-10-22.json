@@ -1,0 +1,1979 @@
+{
+  "date": "2026-10-22",
+  "browser": "Codex in-app browser",
+  "origin": "http://127.0.0.1:18872",
+  "real_youtube_player": true,
+  "before_confirmation": {
+    "dictionary_count": 0,
+    "proposals": 30,
+    "left": {
+      "lexeme_id": "88487cf7d50643c495683ba448af12f3",
+      "lemma": "left",
+      "part_of_speech": "NOUN",
+      "suggested_score": 0,
+      "score": 1,
+      "included": true,
+      "preparation": "click",
+      "cue_id": "31488549d8634d5886fd70cd4e68ee65",
+      "token_id": "a9834380bfaf4ce2a3929857d7d090f8"
+    },
+    "at": {
+      "lexeme_id": "e17df7844d3247938be1f0c3d8a900de",
+      "lemma": "at",
+      "part_of_speech": "ADP",
+      "suggested_score": 2,
+      "score": 2,
+      "included": false,
+      "preparation": "listening",
+      "cue_id": "31488549d8634d5886fd70cd4e68ee65",
+      "token_id": "e8cac2b17916414f947fad7c0c5a7f2b"
+    }
+  },
+  "events_before": {
+    "events": [
+      {
+        "id": 12,
+        "event_type": "word_selected",
+        "schema_version": 1,
+        "occurred_at": "2026-10-22T08:16:26.955768+00:00",
+        "language": "en",
+        "material_id": "58551b927bbb431789caac6007fc97f8",
+        "cue_id": "31488549d8634d5886fd70cd4e68ee65",
+        "token_id": "a9834380bfaf4ce2a3929857d7d090f8",
+        "lexeme_id": "88487cf7d50643c495683ba448af12f3",
+        "request_id": "7773c212-2bf0-4b97-aea1-c4cad3e49c34",
+        "conversation_id": null,
+        "message_id": null,
+        "message_token_id": null,
+        "word": {
+          "language": "en",
+          "lemma": "left",
+          "part_of_speech": "NOUN",
+          "surface": "left"
+        },
+        "data": {
+          "selection_origin": "current_subtitles",
+          "viewing_id": "7d1ce4d282d741caaa4c50064125a158"
+        },
+        "context": {
+          "citation_id": "58551b927bbb431789caac6007fc97f8:31488549d8634d5886fd70cd4e68ee65",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "31488549d8634d5886fd70cd4e68ee65",
+          "text": "At the left we can see…",
+          "truncated": false,
+          "start_ms": 15000,
+          "end_ms": 18130,
+          "youtube_video_id": "TLkA0RELQ1g",
+          "version": 1,
+          "title": "Elephants Dream"
+        }
+      },
+      {
+        "id": 11,
+        "event_type": "cue_listened",
+        "schema_version": 1,
+        "occurred_at": "2026-10-22T08:16:25.632695+00:00",
+        "language": "en",
+        "material_id": "58551b927bbb431789caac6007fc97f8",
+        "cue_id": "6675e35242b04c13afbe211a00bef7db",
+        "token_id": null,
+        "lexeme_id": null,
+        "request_id": null,
+        "conversation_id": null,
+        "message_id": null,
+        "message_token_id": null,
+        "word": {},
+        "data": {
+          "viewing_id": "7d1ce4d282d741caaa4c50064125a158"
+        },
+        "context": {
+          "citation_id": "58551b927bbb431789caac6007fc97f8:6675e35242b04c13afbe211a00bef7db",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "6675e35242b04c13afbe211a00bef7db",
+          "text": "Get up, Emo! It’s not safe here.",
+          "truncated": false,
+          "start_ms": 57090,
+          "end_ms": 61110,
+          "youtube_video_id": "TLkA0RELQ1g",
+          "version": 1,
+          "title": "Elephants Dream"
+        }
+      },
+      {
+        "id": 10,
+        "event_type": "cue_listened",
+        "schema_version": 1,
+        "occurred_at": "2026-10-22T08:16:21.633890+00:00",
+        "language": "en",
+        "material_id": "58551b927bbb431789caac6007fc97f8",
+        "cue_id": "254a51a0bdc443c8aa7a96fb060909e3",
+        "token_id": null,
+        "lexeme_id": null,
+        "request_id": null,
+        "conversation_id": null,
+        "message_id": null,
+        "message_token_id": null,
+        "word": {},
+        "data": {
+          "viewing_id": "7d1ce4d282d741caaa4c50064125a158"
+        },
+        "context": {
+          "citation_id": "58551b927bbb431789caac6007fc97f8:254a51a0bdc443c8aa7a96fb060909e3",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "254a51a0bdc443c8aa7a96fb060909e3",
+          "text": "I’m OK.",
+          "truncated": false,
+          "start_ms": 55520,
+          "end_ms": 57090,
+          "youtube_video_id": "TLkA0RELQ1g",
+          "version": 1,
+          "title": "Elephants Dream"
+        }
+      },
+      {
+        "id": 9,
+        "event_type": "cue_listened",
+        "schema_version": 1,
+        "occurred_at": "2026-10-22T08:16:18.733744+00:00",
+        "language": "en",
+        "material_id": "58551b927bbb431789caac6007fc97f8",
+        "cue_id": "186e46ee176f442284a5874686ec6425",
+        "token_id": null,
+        "lexeme_id": null,
+        "request_id": null,
+        "conversation_id": null,
+        "message_id": null,
+        "message_token_id": null,
+        "word": {},
+        "data": {
+          "viewing_id": "7d1ce4d282d741caaa4c50064125a158"
+        },
+        "context": {
+          "citation_id": "58551b927bbb431789caac6007fc97f8:186e46ee176f442284a5874686ec6425",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "186e46ee176f442284a5874686ec6425",
+          "text": "I don’t think so. You?",
+          "truncated": false,
+          "start_ms": 51990,
+          "end_ms": 54200,
+          "youtube_video_id": "TLkA0RELQ1g",
+          "version": 1,
+          "title": "Elephants Dream"
+        }
+      },
+      {
+        "id": 8,
+        "event_type": "cue_listened",
+        "schema_version": 1,
+        "occurred_at": "2026-10-22T08:16:12.835170+00:00",
+        "language": "en",
+        "material_id": "58551b927bbb431789caac6007fc97f8",
+        "cue_id": "6e916a3159ca471fbbecae632343cf68",
+        "token_id": null,
+        "lexeme_id": null,
+        "request_id": null,
+        "conversation_id": null,
+        "message_id": null,
+        "message_token_id": null,
+        "word": {},
+        "data": {
+          "viewing_id": "7d1ce4d282d741caaa4c50064125a158"
+        },
+        "context": {
+          "citation_id": "58551b927bbb431789caac6007fc97f8:6e916a3159ca471fbbecae632343cf68",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "6e916a3159ca471fbbecae632343cf68",
+          "text": "Are you hurt?",
+          "truncated": false,
+          "start_ms": 46560,
+          "end_ms": 48260,
+          "youtube_video_id": "TLkA0RELQ1g",
+          "version": 1,
+          "title": "Elephants Dream"
+        }
+      },
+      {
+        "id": 7,
+        "event_type": "cue_listened",
+        "schema_version": 1,
+        "occurred_at": "2026-10-22T08:15:54.636319+00:00",
+        "language": "en",
+        "material_id": "58551b927bbb431789caac6007fc97f8",
+        "cue_id": "c108dc2ffcbb485a984d6c97c687265e",
+        "token_id": null,
+        "lexeme_id": null,
+        "request_id": null,
+        "conversation_id": null,
+        "message_id": null,
+        "message_token_id": null,
+        "word": {},
+        "data": {
+          "viewing_id": "7d1ce4d282d741caaa4c50064125a158"
+        },
+        "context": {
+          "citation_id": "58551b927bbb431789caac6007fc97f8:c108dc2ffcbb485a984d6c97c687265e",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "c108dc2ffcbb485a984d6c97c687265e",
+          "text": "Watch out!",
+          "truncated": false,
+          "start_ms": 28620,
+          "end_ms": 30104,
+          "youtube_video_id": "TLkA0RELQ1g",
+          "version": 1,
+          "title": "Elephants Dream"
+        }
+      },
+      {
+        "id": 6,
+        "event_type": "cue_listened",
+        "schema_version": 1,
+        "occurred_at": "2026-10-22T08:15:51.733832+00:00",
+        "language": "en",
+        "material_id": "58551b927bbb431789caac6007fc97f8",
+        "cue_id": "6e6f8183bdf24cd88b1444e88feb09e7",
+        "token_id": null,
+        "lexeme_id": null,
+        "request_id": null,
+        "conversation_id": null,
+        "message_id": null,
+        "message_token_id": null,
+        "word": {},
+        "data": {
+          "viewing_id": "7d1ce4d282d741caaa4c50064125a158"
+        },
+        "context": {
+          "citation_id": "58551b927bbb431789caac6007fc97f8:6e6f8183bdf24cd88b1444e88feb09e7",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "6e6f8183bdf24cd88b1444e88feb09e7",
+          "text": "Emo?",
+          "truncated": false,
+          "start_ms": 26120,
+          "end_ms": 27220,
+          "youtube_video_id": "TLkA0RELQ1g",
+          "version": 1,
+          "title": "Elephants Dream"
+        }
+      },
+      {
+        "id": 5,
+        "event_type": "cue_listened",
+        "schema_version": 1,
+        "occurred_at": "2026-10-22T08:15:50.335353+00:00",
+        "language": "en",
+        "material_id": "58551b927bbb431789caac6007fc97f8",
+        "cue_id": "ac3f58a45652494ea6c0af3512f29652",
+        "token_id": null,
+        "lexeme_id": null,
+        "request_id": null,
+        "conversation_id": null,
+        "message_id": null,
+        "message_token_id": null,
+        "word": {},
+        "data": {
+          "viewing_id": "7d1ce4d282d741caaa4c50064125a158"
+        },
+        "context": {
+          "citation_id": "58551b927bbb431789caac6007fc97f8:ac3f58a45652494ea6c0af3512f29652",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "ac3f58a45652494ea6c0af3512f29652",
+          "text": "Emo?",
+          "truncated": false,
+          "start_ms": 24550,
+          "end_ms": 25770,
+          "youtube_video_id": "TLkA0RELQ1g",
+          "version": 1,
+          "title": "Elephants Dream"
+        }
+      },
+      {
+        "id": 4,
+        "event_type": "cue_listened",
+        "schema_version": 1,
+        "occurred_at": "2026-10-22T08:15:49.134625+00:00",
+        "language": "en",
+        "material_id": "58551b927bbb431789caac6007fc97f8",
+        "cue_id": "9315660e91c04a98b2949bd71ba374cc",
+        "token_id": null,
+        "lexeme_id": null,
+        "request_id": null,
+        "conversation_id": null,
+        "message_id": null,
+        "message_token_id": null,
+        "word": {},
+        "data": {
+          "viewing_id": "7d1ce4d282d741caaa4c50064125a158"
+        },
+        "context": {
+          "citation_id": "58551b927bbb431789caac6007fc97f8:9315660e91c04a98b2949bd71ba374cc",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "9315660e91c04a98b2949bd71ba374cc",
+          "text": "Everything is safe… Perfectly safe.",
+          "truncated": false,
+          "start_ms": 21980,
+          "end_ms": 24550,
+          "youtube_video_id": "TLkA0RELQ1g",
+          "version": 1,
+          "title": "Elephants Dream"
+        }
+      },
+      {
+        "id": 3,
+        "event_type": "cue_listened",
+        "schema_version": 1,
+        "occurred_at": "2026-10-22T08:15:46.534926+00:00",
+        "language": "en",
+        "material_id": "58551b927bbb431789caac6007fc97f8",
+        "cue_id": "6a77095ae5be4370a44d37064ccfa437",
+        "token_id": null,
+        "lexeme_id": null,
+        "request_id": null,
+        "conversation_id": null,
+        "message_id": null,
+        "message_token_id": null,
+        "word": {},
+        "data": {
+          "viewing_id": "7d1ce4d282d741caaa4c50064125a158"
+        },
+        "context": {
+          "citation_id": "58551b927bbb431789caac6007fc97f8:6a77095ae5be4370a44d37064ccfa437",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "6a77095ae5be4370a44d37064ccfa437",
+          "text": "…the head-snarlers.",
+          "truncated": false,
+          "start_ms": 20500,
+          "end_ms": 21980,
+          "youtube_video_id": "TLkA0RELQ1g",
+          "version": 1,
+          "title": "Elephants Dream"
+        }
+      },
+      {
+        "id": 2,
+        "event_type": "cue_listened",
+        "schema_version": 1,
+        "occurred_at": "2026-10-22T08:15:45.031778+00:00",
+        "language": "en",
+        "material_id": "58551b927bbb431789caac6007fc97f8",
+        "cue_id": "28b8cc4939be49dfb0615a0619da5092",
+        "token_id": null,
+        "lexeme_id": null,
+        "request_id": null,
+        "conversation_id": null,
+        "message_id": null,
+        "message_token_id": null,
+        "word": {},
+        "data": {
+          "viewing_id": "7d1ce4d282d741caaa4c50064125a158"
+        },
+        "context": {
+          "citation_id": "58551b927bbb431789caac6007fc97f8:28b8cc4939be49dfb0615a0619da5092",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "28b8cc4939be49dfb0615a0619da5092",
+          "text": "At the right we can see the—",
+          "truncated": false,
+          "start_ms": 18130,
+          "end_ms": 20500,
+          "youtube_video_id": "TLkA0RELQ1g",
+          "version": 1,
+          "title": "Elephants Dream"
+        }
+      },
+      {
+        "id": 1,
+        "event_type": "cue_listened",
+        "schema_version": 1,
+        "occurred_at": "2026-10-22T08:15:42.635463+00:00",
+        "language": "en",
+        "material_id": "58551b927bbb431789caac6007fc97f8",
+        "cue_id": "31488549d8634d5886fd70cd4e68ee65",
+        "token_id": null,
+        "lexeme_id": null,
+        "request_id": null,
+        "conversation_id": null,
+        "message_id": null,
+        "message_token_id": null,
+        "word": {},
+        "data": {
+          "viewing_id": "7d1ce4d282d741caaa4c50064125a158"
+        },
+        "context": {
+          "citation_id": "58551b927bbb431789caac6007fc97f8:31488549d8634d5886fd70cd4e68ee65",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "31488549d8634d5886fd70cd4e68ee65",
+          "text": "At the left we can see…",
+          "truncated": false,
+          "start_ms": 15000,
+          "end_ms": 18130,
+          "youtube_video_id": "TLkA0RELQ1g",
+          "version": 1,
+          "title": "Elephants Dream"
+        }
+      }
+    ],
+    "has_more": false,
+    "next_before_id": null,
+    "notice": "События подтверждают действия в приложении, но не знание слова и не просмотр видео."
+  },
+  "after_confirmation": {
+    "dictionary_count": 29,
+    "left_score": 1,
+    "at_saved": false,
+    "knowledge_events": {
+      "events": [
+        {
+          "id": 41,
+          "event_type": "knowledge_changed",
+          "schema_version": 1,
+          "occurred_at": "2026-10-22T08:17:27.792442+00:00",
+          "language": "en",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "254a51a0bdc443c8aa7a96fb060909e3",
+          "token_id": "51ae3b5e9b69465083d36640c0dda215",
+          "lexeme_id": "aaa11424320e465ca2aa1e285a733157",
+          "request_id": null,
+          "conversation_id": null,
+          "message_id": null,
+          "message_token_id": null,
+          "word": {
+            "language": "en",
+            "lemma": "’m",
+            "part_of_speech": "VERB",
+            "surface": "’m"
+          },
+          "data": {
+            "previous": {
+              "score": null,
+              "ignored": false,
+              "source": null,
+              "provisional": false,
+              "status": "Пока не оценено"
+            },
+            "current": {
+              "score": 2,
+              "ignored": false,
+              "source": "manual",
+              "provisional": false,
+              "status": "Узнаю в контексте"
+            },
+            "reason": "viewing_summary",
+            "viewing_id": "7d1ce4d282d741caaa4c50064125a158",
+            "preparation": "listening",
+            "suggested_score": 2
+          },
+          "context": {
+            "citation_id": "58551b927bbb431789caac6007fc97f8:254a51a0bdc443c8aa7a96fb060909e3",
+            "material_id": "58551b927bbb431789caac6007fc97f8",
+            "cue_id": "254a51a0bdc443c8aa7a96fb060909e3",
+            "text": "I’m OK.",
+            "truncated": false,
+            "start_ms": 55520,
+            "end_ms": 57090,
+            "youtube_video_id": "TLkA0RELQ1g",
+            "version": 1,
+            "title": "Elephants Dream"
+          }
+        },
+        {
+          "id": 40,
+          "event_type": "knowledge_changed",
+          "schema_version": 1,
+          "occurred_at": "2026-10-22T08:17:27.792415+00:00",
+          "language": "en",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "6675e35242b04c13afbe211a00bef7db",
+          "token_id": "59e10eeb002a4930afcdabcbde83fe6c",
+          "lexeme_id": "b8b1e5c04cf34d29a890a1506adc9e56",
+          "request_id": null,
+          "conversation_id": null,
+          "message_id": null,
+          "message_token_id": null,
+          "word": {
+            "language": "en",
+            "lemma": "’",
+            "part_of_speech": "VERB",
+            "surface": "’s"
+          },
+          "data": {
+            "previous": {
+              "score": null,
+              "ignored": false,
+              "source": null,
+              "provisional": false,
+              "status": "Пока не оценено"
+            },
+            "current": {
+              "score": 2,
+              "ignored": false,
+              "source": "manual",
+              "provisional": false,
+              "status": "Узнаю в контексте"
+            },
+            "reason": "viewing_summary",
+            "viewing_id": "7d1ce4d282d741caaa4c50064125a158",
+            "preparation": "listening",
+            "suggested_score": 2
+          },
+          "context": {
+            "citation_id": "58551b927bbb431789caac6007fc97f8:6675e35242b04c13afbe211a00bef7db",
+            "material_id": "58551b927bbb431789caac6007fc97f8",
+            "cue_id": "6675e35242b04c13afbe211a00bef7db",
+            "text": "Get up, Emo! It’s not safe here.",
+            "truncated": false,
+            "start_ms": 57090,
+            "end_ms": 61110,
+            "youtube_video_id": "TLkA0RELQ1g",
+            "version": 1,
+            "title": "Elephants Dream"
+          }
+        },
+        {
+          "id": 39,
+          "event_type": "knowledge_changed",
+          "schema_version": 1,
+          "occurred_at": "2026-10-22T08:17:27.792387+00:00",
+          "language": "en",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "6e916a3159ca471fbbecae632343cf68",
+          "token_id": "9e87333f4f6d4a4988eef66e922127c9",
+          "lexeme_id": "e8bfd8adb9c347bc924847a4d1b0714e",
+          "request_id": null,
+          "conversation_id": null,
+          "message_id": null,
+          "message_token_id": null,
+          "word": {
+            "language": "en",
+            "lemma": "you",
+            "part_of_speech": "PRON",
+            "surface": "you"
+          },
+          "data": {
+            "previous": {
+              "score": null,
+              "ignored": false,
+              "source": null,
+              "provisional": false,
+              "status": "Пока не оценено"
+            },
+            "current": {
+              "score": 2,
+              "ignored": false,
+              "source": "manual",
+              "provisional": false,
+              "status": "Узнаю в контексте"
+            },
+            "reason": "viewing_summary",
+            "viewing_id": "7d1ce4d282d741caaa4c50064125a158",
+            "preparation": "listening",
+            "suggested_score": 2
+          },
+          "context": {
+            "citation_id": "58551b927bbb431789caac6007fc97f8:6e916a3159ca471fbbecae632343cf68",
+            "material_id": "58551b927bbb431789caac6007fc97f8",
+            "cue_id": "6e916a3159ca471fbbecae632343cf68",
+            "text": "Are you hurt?",
+            "truncated": false,
+            "start_ms": 46560,
+            "end_ms": 48260,
+            "youtube_video_id": "TLkA0RELQ1g",
+            "version": 1,
+            "title": "Elephants Dream"
+          }
+        },
+        {
+          "id": 38,
+          "event_type": "knowledge_changed",
+          "schema_version": 1,
+          "occurred_at": "2026-10-22T08:17:27.792360+00:00",
+          "language": "en",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "31488549d8634d5886fd70cd4e68ee65",
+          "token_id": "dae658dec08b4d55a2a3f74850f7ee87",
+          "lexeme_id": "7b2ded61e4e44bf78a1a73fe5ac23216",
+          "request_id": null,
+          "conversation_id": null,
+          "message_id": null,
+          "message_token_id": null,
+          "word": {
+            "language": "en",
+            "lemma": "we",
+            "part_of_speech": "PRON",
+            "surface": "we"
+          },
+          "data": {
+            "previous": {
+              "score": null,
+              "ignored": false,
+              "source": null,
+              "provisional": false,
+              "status": "Пока не оценено"
+            },
+            "current": {
+              "score": 2,
+              "ignored": false,
+              "source": "manual",
+              "provisional": false,
+              "status": "Узнаю в контексте"
+            },
+            "reason": "viewing_summary",
+            "viewing_id": "7d1ce4d282d741caaa4c50064125a158",
+            "preparation": "listening",
+            "suggested_score": 2
+          },
+          "context": {
+            "citation_id": "58551b927bbb431789caac6007fc97f8:31488549d8634d5886fd70cd4e68ee65",
+            "material_id": "58551b927bbb431789caac6007fc97f8",
+            "cue_id": "31488549d8634d5886fd70cd4e68ee65",
+            "text": "At the left we can see…",
+            "truncated": false,
+            "start_ms": 15000,
+            "end_ms": 18130,
+            "youtube_video_id": "TLkA0RELQ1g",
+            "version": 1,
+            "title": "Elephants Dream"
+          }
+        },
+        {
+          "id": 37,
+          "event_type": "knowledge_changed",
+          "schema_version": 1,
+          "occurred_at": "2026-10-22T08:17:27.792333+00:00",
+          "language": "en",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "c108dc2ffcbb485a984d6c97c687265e",
+          "token_id": "77b9b15e559b46c78156b21427e533ae",
+          "lexeme_id": "f4011fd805824ba0aaa42b368861d33d",
+          "request_id": null,
+          "conversation_id": null,
+          "message_id": null,
+          "message_token_id": null,
+          "word": {
+            "language": "en",
+            "lemma": "watch",
+            "part_of_speech": "VERB",
+            "surface": "Watch"
+          },
+          "data": {
+            "previous": {
+              "score": null,
+              "ignored": false,
+              "source": null,
+              "provisional": false,
+              "status": "Пока не оценено"
+            },
+            "current": {
+              "score": 2,
+              "ignored": false,
+              "source": "manual",
+              "provisional": false,
+              "status": "Узнаю в контексте"
+            },
+            "reason": "viewing_summary",
+            "viewing_id": "7d1ce4d282d741caaa4c50064125a158",
+            "preparation": "listening",
+            "suggested_score": 2
+          },
+          "context": {
+            "citation_id": "58551b927bbb431789caac6007fc97f8:c108dc2ffcbb485a984d6c97c687265e",
+            "material_id": "58551b927bbb431789caac6007fc97f8",
+            "cue_id": "c108dc2ffcbb485a984d6c97c687265e",
+            "text": "Watch out!",
+            "truncated": false,
+            "start_ms": 28620,
+            "end_ms": 30104,
+            "youtube_video_id": "TLkA0RELQ1g",
+            "version": 1,
+            "title": "Elephants Dream"
+          }
+        },
+        {
+          "id": 36,
+          "event_type": "knowledge_changed",
+          "schema_version": 1,
+          "occurred_at": "2026-10-22T08:17:27.792307+00:00",
+          "language": "en",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "6675e35242b04c13afbe211a00bef7db",
+          "token_id": "5dc3eb77055443c287f6814755ffe371",
+          "lexeme_id": "8c97f381dd2d47548a95597546f439f7",
+          "request_id": null,
+          "conversation_id": null,
+          "message_id": null,
+          "message_token_id": null,
+          "word": {
+            "language": "en",
+            "lemma": "up",
+            "part_of_speech": "ADP",
+            "surface": "up"
+          },
+          "data": {
+            "previous": {
+              "score": null,
+              "ignored": false,
+              "source": null,
+              "provisional": false,
+              "status": "Пока не оценено"
+            },
+            "current": {
+              "score": 2,
+              "ignored": false,
+              "source": "manual",
+              "provisional": false,
+              "status": "Узнаю в контексте"
+            },
+            "reason": "viewing_summary",
+            "viewing_id": "7d1ce4d282d741caaa4c50064125a158",
+            "preparation": "listening",
+            "suggested_score": 2
+          },
+          "context": {
+            "citation_id": "58551b927bbb431789caac6007fc97f8:6675e35242b04c13afbe211a00bef7db",
+            "material_id": "58551b927bbb431789caac6007fc97f8",
+            "cue_id": "6675e35242b04c13afbe211a00bef7db",
+            "text": "Get up, Emo! It’s not safe here.",
+            "truncated": false,
+            "start_ms": 57090,
+            "end_ms": 61110,
+            "youtube_video_id": "TLkA0RELQ1g",
+            "version": 1,
+            "title": "Elephants Dream"
+          }
+        },
+        {
+          "id": 35,
+          "event_type": "knowledge_changed",
+          "schema_version": 1,
+          "occurred_at": "2026-10-22T08:17:27.792280+00:00",
+          "language": "en",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "186e46ee176f442284a5874686ec6425",
+          "token_id": "bb027b87f2e9470da3cce52f9f2c1d83",
+          "lexeme_id": "16a33c1bb95a4442a1e6a05f617988a9",
+          "request_id": null,
+          "conversation_id": null,
+          "message_id": null,
+          "message_token_id": null,
+          "word": {
+            "language": "en",
+            "lemma": "think",
+            "part_of_speech": "VERB",
+            "surface": "think"
+          },
+          "data": {
+            "previous": {
+              "score": null,
+              "ignored": false,
+              "source": null,
+              "provisional": false,
+              "status": "Пока не оценено"
+            },
+            "current": {
+              "score": 2,
+              "ignored": false,
+              "source": "manual",
+              "provisional": false,
+              "status": "Узнаю в контексте"
+            },
+            "reason": "viewing_summary",
+            "viewing_id": "7d1ce4d282d741caaa4c50064125a158",
+            "preparation": "listening",
+            "suggested_score": 2
+          },
+          "context": {
+            "citation_id": "58551b927bbb431789caac6007fc97f8:186e46ee176f442284a5874686ec6425",
+            "material_id": "58551b927bbb431789caac6007fc97f8",
+            "cue_id": "186e46ee176f442284a5874686ec6425",
+            "text": "I don’t think so. You?",
+            "truncated": false,
+            "start_ms": 51990,
+            "end_ms": 54200,
+            "youtube_video_id": "TLkA0RELQ1g",
+            "version": 1,
+            "title": "Elephants Dream"
+          }
+        },
+        {
+          "id": 34,
+          "event_type": "knowledge_changed",
+          "schema_version": 1,
+          "occurred_at": "2026-10-22T08:17:27.792254+00:00",
+          "language": "en",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "31488549d8634d5886fd70cd4e68ee65",
+          "token_id": "a2a750f7b6204f19a993d0f7b641e18d",
+          "lexeme_id": "dbde93a8263e4bd3b7ae588ac84df954",
+          "request_id": null,
+          "conversation_id": null,
+          "message_id": null,
+          "message_token_id": null,
+          "word": {
+            "language": "en",
+            "lemma": "the",
+            "part_of_speech": "DET",
+            "surface": "the"
+          },
+          "data": {
+            "previous": {
+              "score": null,
+              "ignored": false,
+              "source": null,
+              "provisional": false,
+              "status": "Пока не оценено"
+            },
+            "current": {
+              "score": 2,
+              "ignored": false,
+              "source": "manual",
+              "provisional": false,
+              "status": "Узнаю в контексте"
+            },
+            "reason": "viewing_summary",
+            "viewing_id": "7d1ce4d282d741caaa4c50064125a158",
+            "preparation": "listening",
+            "suggested_score": 2
+          },
+          "context": {
+            "citation_id": "58551b927bbb431789caac6007fc97f8:31488549d8634d5886fd70cd4e68ee65",
+            "material_id": "58551b927bbb431789caac6007fc97f8",
+            "cue_id": "31488549d8634d5886fd70cd4e68ee65",
+            "text": "At the left we can see…",
+            "truncated": false,
+            "start_ms": 15000,
+            "end_ms": 18130,
+            "youtube_video_id": "TLkA0RELQ1g",
+            "version": 1,
+            "title": "Elephants Dream"
+          }
+        },
+        {
+          "id": 33,
+          "event_type": "knowledge_changed",
+          "schema_version": 1,
+          "occurred_at": "2026-10-22T08:17:27.792226+00:00",
+          "language": "en",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "186e46ee176f442284a5874686ec6425",
+          "token_id": "79b17ee8db5b47f38a780f9024fdf763",
+          "lexeme_id": "4948d2f9da33486bb6e005d207cce3d1",
+          "request_id": null,
+          "conversation_id": null,
+          "message_id": null,
+          "message_token_id": null,
+          "word": {
+            "language": "en",
+            "lemma": "so",
+            "part_of_speech": "ADV",
+            "surface": "so"
+          },
+          "data": {
+            "previous": {
+              "score": null,
+              "ignored": false,
+              "source": null,
+              "provisional": false,
+              "status": "Пока не оценено"
+            },
+            "current": {
+              "score": 2,
+              "ignored": false,
+              "source": "manual",
+              "provisional": false,
+              "status": "Узнаю в контексте"
+            },
+            "reason": "viewing_summary",
+            "viewing_id": "7d1ce4d282d741caaa4c50064125a158",
+            "preparation": "listening",
+            "suggested_score": 2
+          },
+          "context": {
+            "citation_id": "58551b927bbb431789caac6007fc97f8:186e46ee176f442284a5874686ec6425",
+            "material_id": "58551b927bbb431789caac6007fc97f8",
+            "cue_id": "186e46ee176f442284a5874686ec6425",
+            "text": "I don’t think so. You?",
+            "truncated": false,
+            "start_ms": 51990,
+            "end_ms": 54200,
+            "youtube_video_id": "TLkA0RELQ1g",
+            "version": 1,
+            "title": "Elephants Dream"
+          }
+        },
+        {
+          "id": 32,
+          "event_type": "knowledge_changed",
+          "schema_version": 1,
+          "occurred_at": "2026-10-22T08:17:27.792200+00:00",
+          "language": "en",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "6a77095ae5be4370a44d37064ccfa437",
+          "token_id": "409583d57c5f404cab4528cf6a9f50a1",
+          "lexeme_id": "8a1ff0dc23084722bd670e83c93c5b7b",
+          "request_id": null,
+          "conversation_id": null,
+          "message_id": null,
+          "message_token_id": null,
+          "word": {
+            "language": "en",
+            "lemma": "snarler",
+            "part_of_speech": "NOUN",
+            "surface": "snarlers"
+          },
+          "data": {
+            "previous": {
+              "score": null,
+              "ignored": false,
+              "source": null,
+              "provisional": false,
+              "status": "Пока не оценено"
+            },
+            "current": {
+              "score": 2,
+              "ignored": false,
+              "source": "manual",
+              "provisional": false,
+              "status": "Узнаю в контексте"
+            },
+            "reason": "viewing_summary",
+            "viewing_id": "7d1ce4d282d741caaa4c50064125a158",
+            "preparation": "listening",
+            "suggested_score": 2
+          },
+          "context": {
+            "citation_id": "58551b927bbb431789caac6007fc97f8:6a77095ae5be4370a44d37064ccfa437",
+            "material_id": "58551b927bbb431789caac6007fc97f8",
+            "cue_id": "6a77095ae5be4370a44d37064ccfa437",
+            "text": "…the head-snarlers.",
+            "truncated": false,
+            "start_ms": 20500,
+            "end_ms": 21980,
+            "youtube_video_id": "TLkA0RELQ1g",
+            "version": 1,
+            "title": "Elephants Dream"
+          }
+        },
+        {
+          "id": 31,
+          "event_type": "knowledge_changed",
+          "schema_version": 1,
+          "occurred_at": "2026-10-22T08:17:27.792172+00:00",
+          "language": "en",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "31488549d8634d5886fd70cd4e68ee65",
+          "token_id": "afc4ee24cfed408b9780c55c47d3ba18",
+          "lexeme_id": "8c39849cb27e4c27a8942300065fe9dc",
+          "request_id": null,
+          "conversation_id": null,
+          "message_id": null,
+          "message_token_id": null,
+          "word": {
+            "language": "en",
+            "lemma": "see",
+            "part_of_speech": "VERB",
+            "surface": "see"
+          },
+          "data": {
+            "previous": {
+              "score": null,
+              "ignored": false,
+              "source": null,
+              "provisional": false,
+              "status": "Пока не оценено"
+            },
+            "current": {
+              "score": 2,
+              "ignored": false,
+              "source": "manual",
+              "provisional": false,
+              "status": "Узнаю в контексте"
+            },
+            "reason": "viewing_summary",
+            "viewing_id": "7d1ce4d282d741caaa4c50064125a158",
+            "preparation": "listening",
+            "suggested_score": 2
+          },
+          "context": {
+            "citation_id": "58551b927bbb431789caac6007fc97f8:31488549d8634d5886fd70cd4e68ee65",
+            "material_id": "58551b927bbb431789caac6007fc97f8",
+            "cue_id": "31488549d8634d5886fd70cd4e68ee65",
+            "text": "At the left we can see…",
+            "truncated": false,
+            "start_ms": 15000,
+            "end_ms": 18130,
+            "youtube_video_id": "TLkA0RELQ1g",
+            "version": 1,
+            "title": "Elephants Dream"
+          }
+        },
+        {
+          "id": 30,
+          "event_type": "knowledge_changed",
+          "schema_version": 1,
+          "occurred_at": "2026-10-22T08:17:27.792138+00:00",
+          "language": "en",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "9315660e91c04a98b2949bd71ba374cc",
+          "token_id": "a0f96a267d1c4c418da16ebf46e37129",
+          "lexeme_id": "dfac23eb7fbd46dabb8498f3f387c573",
+          "request_id": null,
+          "conversation_id": null,
+          "message_id": null,
+          "message_token_id": null,
+          "word": {
+            "language": "en",
+            "lemma": "safe",
+            "part_of_speech": "ADJ",
+            "surface": "safe"
+          },
+          "data": {
+            "previous": {
+              "score": null,
+              "ignored": false,
+              "source": null,
+              "provisional": false,
+              "status": "Пока не оценено"
+            },
+            "current": {
+              "score": 2,
+              "ignored": false,
+              "source": "manual",
+              "provisional": false,
+              "status": "Узнаю в контексте"
+            },
+            "reason": "viewing_summary",
+            "viewing_id": "7d1ce4d282d741caaa4c50064125a158",
+            "preparation": "listening",
+            "suggested_score": 2
+          },
+          "context": {
+            "citation_id": "58551b927bbb431789caac6007fc97f8:9315660e91c04a98b2949bd71ba374cc",
+            "material_id": "58551b927bbb431789caac6007fc97f8",
+            "cue_id": "9315660e91c04a98b2949bd71ba374cc",
+            "text": "Everything is safe… Perfectly safe.",
+            "truncated": false,
+            "start_ms": 21980,
+            "end_ms": 24550,
+            "youtube_video_id": "TLkA0RELQ1g",
+            "version": 1,
+            "title": "Elephants Dream"
+          }
+        },
+        {
+          "id": 29,
+          "event_type": "knowledge_changed",
+          "schema_version": 1,
+          "occurred_at": "2026-10-22T08:17:27.792111+00:00",
+          "language": "en",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "28b8cc4939be49dfb0615a0619da5092",
+          "token_id": "a9569cc2e8bb4392a69622f46658d7bf",
+          "lexeme_id": "65d7c86fd6a346f2a1bf1c04c27274da",
+          "request_id": null,
+          "conversation_id": null,
+          "message_id": null,
+          "message_token_id": null,
+          "word": {
+            "language": "en",
+            "lemma": "right",
+            "part_of_speech": "NOUN",
+            "surface": "right"
+          },
+          "data": {
+            "previous": {
+              "score": null,
+              "ignored": false,
+              "source": null,
+              "provisional": false,
+              "status": "Пока не оценено"
+            },
+            "current": {
+              "score": 2,
+              "ignored": false,
+              "source": "manual",
+              "provisional": false,
+              "status": "Узнаю в контексте"
+            },
+            "reason": "viewing_summary",
+            "viewing_id": "7d1ce4d282d741caaa4c50064125a158",
+            "preparation": "listening",
+            "suggested_score": 2
+          },
+          "context": {
+            "citation_id": "58551b927bbb431789caac6007fc97f8:28b8cc4939be49dfb0615a0619da5092",
+            "material_id": "58551b927bbb431789caac6007fc97f8",
+            "cue_id": "28b8cc4939be49dfb0615a0619da5092",
+            "text": "At the right we can see the—",
+            "truncated": false,
+            "start_ms": 18130,
+            "end_ms": 20500,
+            "youtube_video_id": "TLkA0RELQ1g",
+            "version": 1,
+            "title": "Elephants Dream"
+          }
+        },
+        {
+          "id": 28,
+          "event_type": "knowledge_changed",
+          "schema_version": 1,
+          "occurred_at": "2026-10-22T08:17:27.792083+00:00",
+          "language": "en",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "9315660e91c04a98b2949bd71ba374cc",
+          "token_id": "8888bb4713014928b9b3e92164f46fdd",
+          "lexeme_id": "77e327b1106f4aedb96d72b5ee999f1f",
+          "request_id": null,
+          "conversation_id": null,
+          "message_id": null,
+          "message_token_id": null,
+          "word": {
+            "language": "en",
+            "lemma": "perfectly",
+            "part_of_speech": "ADV",
+            "surface": "Perfectly"
+          },
+          "data": {
+            "previous": {
+              "score": null,
+              "ignored": false,
+              "source": null,
+              "provisional": false,
+              "status": "Пока не оценено"
+            },
+            "current": {
+              "score": 2,
+              "ignored": false,
+              "source": "manual",
+              "provisional": false,
+              "status": "Узнаю в контексте"
+            },
+            "reason": "viewing_summary",
+            "viewing_id": "7d1ce4d282d741caaa4c50064125a158",
+            "preparation": "listening",
+            "suggested_score": 2
+          },
+          "context": {
+            "citation_id": "58551b927bbb431789caac6007fc97f8:9315660e91c04a98b2949bd71ba374cc",
+            "material_id": "58551b927bbb431789caac6007fc97f8",
+            "cue_id": "9315660e91c04a98b2949bd71ba374cc",
+            "text": "Everything is safe… Perfectly safe.",
+            "truncated": false,
+            "start_ms": 21980,
+            "end_ms": 24550,
+            "youtube_video_id": "TLkA0RELQ1g",
+            "version": 1,
+            "title": "Elephants Dream"
+          }
+        },
+        {
+          "id": 27,
+          "event_type": "knowledge_changed",
+          "schema_version": 1,
+          "occurred_at": "2026-10-22T08:17:27.792047+00:00",
+          "language": "en",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "c108dc2ffcbb485a984d6c97c687265e",
+          "token_id": "4335d7e7f91a4b4895ea55f8a8b0795f",
+          "lexeme_id": "f6de48fb4393403ba29e382ef54e7820",
+          "request_id": null,
+          "conversation_id": null,
+          "message_id": null,
+          "message_token_id": null,
+          "word": {
+            "language": "en",
+            "lemma": "out",
+            "part_of_speech": "ADP",
+            "surface": "out"
+          },
+          "data": {
+            "previous": {
+              "score": null,
+              "ignored": false,
+              "source": null,
+              "provisional": false,
+              "status": "Пока не оценено"
+            },
+            "current": {
+              "score": 2,
+              "ignored": false,
+              "source": "manual",
+              "provisional": false,
+              "status": "Узнаю в контексте"
+            },
+            "reason": "viewing_summary",
+            "viewing_id": "7d1ce4d282d741caaa4c50064125a158",
+            "preparation": "listening",
+            "suggested_score": 2
+          },
+          "context": {
+            "citation_id": "58551b927bbb431789caac6007fc97f8:c108dc2ffcbb485a984d6c97c687265e",
+            "material_id": "58551b927bbb431789caac6007fc97f8",
+            "cue_id": "c108dc2ffcbb485a984d6c97c687265e",
+            "text": "Watch out!",
+            "truncated": false,
+            "start_ms": 28620,
+            "end_ms": 30104,
+            "youtube_video_id": "TLkA0RELQ1g",
+            "version": 1,
+            "title": "Elephants Dream"
+          }
+        },
+        {
+          "id": 26,
+          "event_type": "knowledge_changed",
+          "schema_version": 1,
+          "occurred_at": "2026-10-22T08:17:27.792020+00:00",
+          "language": "en",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "254a51a0bdc443c8aa7a96fb060909e3",
+          "token_id": "0a089d78a4954568b7bd711baec97bf4",
+          "lexeme_id": "eb00433d85ed42aba475c6171faa2055",
+          "request_id": null,
+          "conversation_id": null,
+          "message_id": null,
+          "message_token_id": null,
+          "word": {
+            "language": "en",
+            "lemma": "ok",
+            "part_of_speech": "ADJ",
+            "surface": "OK"
+          },
+          "data": {
+            "previous": {
+              "score": null,
+              "ignored": false,
+              "source": null,
+              "provisional": false,
+              "status": "Пока не оценено"
+            },
+            "current": {
+              "score": 2,
+              "ignored": false,
+              "source": "manual",
+              "provisional": false,
+              "status": "Узнаю в контексте"
+            },
+            "reason": "viewing_summary",
+            "viewing_id": "7d1ce4d282d741caaa4c50064125a158",
+            "preparation": "listening",
+            "suggested_score": 2
+          },
+          "context": {
+            "citation_id": "58551b927bbb431789caac6007fc97f8:254a51a0bdc443c8aa7a96fb060909e3",
+            "material_id": "58551b927bbb431789caac6007fc97f8",
+            "cue_id": "254a51a0bdc443c8aa7a96fb060909e3",
+            "text": "I’m OK.",
+            "truncated": false,
+            "start_ms": 55520,
+            "end_ms": 57090,
+            "youtube_video_id": "TLkA0RELQ1g",
+            "version": 1,
+            "title": "Elephants Dream"
+          }
+        },
+        {
+          "id": 25,
+          "event_type": "knowledge_changed",
+          "schema_version": 1,
+          "occurred_at": "2026-10-22T08:17:27.791992+00:00",
+          "language": "en",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "186e46ee176f442284a5874686ec6425",
+          "token_id": "c0069a19f603404fbd516ec252c6fbe5",
+          "lexeme_id": "0622abb4e2a642aaa3284a79b5ebd5b9",
+          "request_id": null,
+          "conversation_id": null,
+          "message_id": null,
+          "message_token_id": null,
+          "word": {
+            "language": "en",
+            "lemma": "not",
+            "part_of_speech": "PART",
+            "surface": "n’t"
+          },
+          "data": {
+            "previous": {
+              "score": null,
+              "ignored": false,
+              "source": null,
+              "provisional": false,
+              "status": "Пока не оценено"
+            },
+            "current": {
+              "score": 2,
+              "ignored": false,
+              "source": "manual",
+              "provisional": false,
+              "status": "Узнаю в контексте"
+            },
+            "reason": "viewing_summary",
+            "viewing_id": "7d1ce4d282d741caaa4c50064125a158",
+            "preparation": "listening",
+            "suggested_score": 2
+          },
+          "context": {
+            "citation_id": "58551b927bbb431789caac6007fc97f8:186e46ee176f442284a5874686ec6425",
+            "material_id": "58551b927bbb431789caac6007fc97f8",
+            "cue_id": "186e46ee176f442284a5874686ec6425",
+            "text": "I don’t think so. You?",
+            "truncated": false,
+            "start_ms": 51990,
+            "end_ms": 54200,
+            "youtube_video_id": "TLkA0RELQ1g",
+            "version": 1,
+            "title": "Elephants Dream"
+          }
+        },
+        {
+          "id": 24,
+          "event_type": "knowledge_changed",
+          "schema_version": 1,
+          "occurred_at": "2026-10-22T08:17:27.791964+00:00",
+          "language": "en",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "6675e35242b04c13afbe211a00bef7db",
+          "token_id": "5aa3ae97f9824e9db5dff6db6a3d284e",
+          "lexeme_id": "17ffec9d15374c36bebe6356f701d4ff",
+          "request_id": null,
+          "conversation_id": null,
+          "message_id": null,
+          "message_token_id": null,
+          "word": {
+            "language": "en",
+            "lemma": "it",
+            "part_of_speech": "PRON",
+            "surface": "It"
+          },
+          "data": {
+            "previous": {
+              "score": null,
+              "ignored": false,
+              "source": null,
+              "provisional": false,
+              "status": "Пока не оценено"
+            },
+            "current": {
+              "score": 2,
+              "ignored": false,
+              "source": "manual",
+              "provisional": false,
+              "status": "Узнаю в контексте"
+            },
+            "reason": "viewing_summary",
+            "viewing_id": "7d1ce4d282d741caaa4c50064125a158",
+            "preparation": "listening",
+            "suggested_score": 2
+          },
+          "context": {
+            "citation_id": "58551b927bbb431789caac6007fc97f8:6675e35242b04c13afbe211a00bef7db",
+            "material_id": "58551b927bbb431789caac6007fc97f8",
+            "cue_id": "6675e35242b04c13afbe211a00bef7db",
+            "text": "Get up, Emo! It’s not safe here.",
+            "truncated": false,
+            "start_ms": 57090,
+            "end_ms": 61110,
+            "youtube_video_id": "TLkA0RELQ1g",
+            "version": 1,
+            "title": "Elephants Dream"
+          }
+        },
+        {
+          "id": 23,
+          "event_type": "knowledge_changed",
+          "schema_version": 1,
+          "occurred_at": "2026-10-22T08:17:27.791934+00:00",
+          "language": "en",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "186e46ee176f442284a5874686ec6425",
+          "token_id": "ec9f4267864143f0ad0f21b2cb7dc116",
+          "lexeme_id": "b7c3ed13266c4f398c5e90bf77090e47",
+          "request_id": null,
+          "conversation_id": null,
+          "message_id": null,
+          "message_token_id": null,
+          "word": {
+            "language": "en",
+            "lemma": "i",
+            "part_of_speech": "PRON",
+            "surface": "I"
+          },
+          "data": {
+            "previous": {
+              "score": null,
+              "ignored": false,
+              "source": null,
+              "provisional": false,
+              "status": "Пока не оценено"
+            },
+            "current": {
+              "score": 2,
+              "ignored": false,
+              "source": "manual",
+              "provisional": false,
+              "status": "Узнаю в контексте"
+            },
+            "reason": "viewing_summary",
+            "viewing_id": "7d1ce4d282d741caaa4c50064125a158",
+            "preparation": "listening",
+            "suggested_score": 2
+          },
+          "context": {
+            "citation_id": "58551b927bbb431789caac6007fc97f8:186e46ee176f442284a5874686ec6425",
+            "material_id": "58551b927bbb431789caac6007fc97f8",
+            "cue_id": "186e46ee176f442284a5874686ec6425",
+            "text": "I don’t think so. You?",
+            "truncated": false,
+            "start_ms": 51990,
+            "end_ms": 54200,
+            "youtube_video_id": "TLkA0RELQ1g",
+            "version": 1,
+            "title": "Elephants Dream"
+          }
+        },
+        {
+          "id": 22,
+          "event_type": "knowledge_changed",
+          "schema_version": 1,
+          "occurred_at": "2026-10-22T08:17:27.791901+00:00",
+          "language": "en",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "6e916a3159ca471fbbecae632343cf68",
+          "token_id": "dddeebdf9d524ff28d8d0415c979b358",
+          "lexeme_id": "2e4351f2e7f845feabe6486a6124c7ac",
+          "request_id": null,
+          "conversation_id": null,
+          "message_id": null,
+          "message_token_id": null,
+          "word": {
+            "language": "en",
+            "lemma": "hurt",
+            "part_of_speech": "VERB",
+            "surface": "hurt"
+          },
+          "data": {
+            "previous": {
+              "score": null,
+              "ignored": false,
+              "source": null,
+              "provisional": false,
+              "status": "Пока не оценено"
+            },
+            "current": {
+              "score": 2,
+              "ignored": false,
+              "source": "manual",
+              "provisional": false,
+              "status": "Узнаю в контексте"
+            },
+            "reason": "viewing_summary",
+            "viewing_id": "7d1ce4d282d741caaa4c50064125a158",
+            "preparation": "listening",
+            "suggested_score": 2
+          },
+          "context": {
+            "citation_id": "58551b927bbb431789caac6007fc97f8:6e916a3159ca471fbbecae632343cf68",
+            "material_id": "58551b927bbb431789caac6007fc97f8",
+            "cue_id": "6e916a3159ca471fbbecae632343cf68",
+            "text": "Are you hurt?",
+            "truncated": false,
+            "start_ms": 46560,
+            "end_ms": 48260,
+            "youtube_video_id": "TLkA0RELQ1g",
+            "version": 1,
+            "title": "Elephants Dream"
+          }
+        },
+        {
+          "id": 21,
+          "event_type": "knowledge_changed",
+          "schema_version": 1,
+          "occurred_at": "2026-10-22T08:17:27.791850+00:00",
+          "language": "en",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "6675e35242b04c13afbe211a00bef7db",
+          "token_id": "05c011838e6141efa505c3ee04c18c52",
+          "lexeme_id": "68fac815d5c14436bdbf3f3ee30f25f4",
+          "request_id": null,
+          "conversation_id": null,
+          "message_id": null,
+          "message_token_id": null,
+          "word": {
+            "language": "en",
+            "lemma": "here",
+            "part_of_speech": "ADV",
+            "surface": "here"
+          },
+          "data": {
+            "previous": {
+              "score": null,
+              "ignored": false,
+              "source": null,
+              "provisional": false,
+              "status": "Пока не оценено"
+            },
+            "current": {
+              "score": 2,
+              "ignored": false,
+              "source": "manual",
+              "provisional": false,
+              "status": "Узнаю в контексте"
+            },
+            "reason": "viewing_summary",
+            "viewing_id": "7d1ce4d282d741caaa4c50064125a158",
+            "preparation": "listening",
+            "suggested_score": 2
+          },
+          "context": {
+            "citation_id": "58551b927bbb431789caac6007fc97f8:6675e35242b04c13afbe211a00bef7db",
+            "material_id": "58551b927bbb431789caac6007fc97f8",
+            "cue_id": "6675e35242b04c13afbe211a00bef7db",
+            "text": "Get up, Emo! It’s not safe here.",
+            "truncated": false,
+            "start_ms": 57090,
+            "end_ms": 61110,
+            "youtube_video_id": "TLkA0RELQ1g",
+            "version": 1,
+            "title": "Elephants Dream"
+          }
+        },
+        {
+          "id": 20,
+          "event_type": "knowledge_changed",
+          "schema_version": 1,
+          "occurred_at": "2026-10-22T08:17:27.791789+00:00",
+          "language": "en",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "6a77095ae5be4370a44d37064ccfa437",
+          "token_id": "5c6ddbb75781444bb661272e0cb7a2e5",
+          "lexeme_id": "d00227b987804adfa7e1be211b1b109a",
+          "request_id": null,
+          "conversation_id": null,
+          "message_id": null,
+          "message_token_id": null,
+          "word": {
+            "language": "en",
+            "lemma": "head",
+            "part_of_speech": "NOUN",
+            "surface": "head"
+          },
+          "data": {
+            "previous": {
+              "score": null,
+              "ignored": false,
+              "source": null,
+              "provisional": false,
+              "status": "Пока не оценено"
+            },
+            "current": {
+              "score": 2,
+              "ignored": false,
+              "source": "manual",
+              "provisional": false,
+              "status": "Узнаю в контексте"
+            },
+            "reason": "viewing_summary",
+            "viewing_id": "7d1ce4d282d741caaa4c50064125a158",
+            "preparation": "listening",
+            "suggested_score": 2
+          },
+          "context": {
+            "citation_id": "58551b927bbb431789caac6007fc97f8:6a77095ae5be4370a44d37064ccfa437",
+            "material_id": "58551b927bbb431789caac6007fc97f8",
+            "cue_id": "6a77095ae5be4370a44d37064ccfa437",
+            "text": "…the head-snarlers.",
+            "truncated": false,
+            "start_ms": 20500,
+            "end_ms": 21980,
+            "youtube_video_id": "TLkA0RELQ1g",
+            "version": 1,
+            "title": "Elephants Dream"
+          }
+        },
+        {
+          "id": 19,
+          "event_type": "knowledge_changed",
+          "schema_version": 1,
+          "occurred_at": "2026-10-22T08:17:27.791753+00:00",
+          "language": "en",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "6675e35242b04c13afbe211a00bef7db",
+          "token_id": "046fd321821646d5b01b35cd65bca71d",
+          "lexeme_id": "55a63fb895b246bfb8bcf9f287cc98e7",
+          "request_id": null,
+          "conversation_id": null,
+          "message_id": null,
+          "message_token_id": null,
+          "word": {
+            "language": "en",
+            "lemma": "get",
+            "part_of_speech": "VERB",
+            "surface": "Get"
+          },
+          "data": {
+            "previous": {
+              "score": null,
+              "ignored": false,
+              "source": null,
+              "provisional": false,
+              "status": "Пока не оценено"
+            },
+            "current": {
+              "score": 2,
+              "ignored": false,
+              "source": "manual",
+              "provisional": false,
+              "status": "Узнаю в контексте"
+            },
+            "reason": "viewing_summary",
+            "viewing_id": "7d1ce4d282d741caaa4c50064125a158",
+            "preparation": "listening",
+            "suggested_score": 2
+          },
+          "context": {
+            "citation_id": "58551b927bbb431789caac6007fc97f8:6675e35242b04c13afbe211a00bef7db",
+            "material_id": "58551b927bbb431789caac6007fc97f8",
+            "cue_id": "6675e35242b04c13afbe211a00bef7db",
+            "text": "Get up, Emo! It’s not safe here.",
+            "truncated": false,
+            "start_ms": 57090,
+            "end_ms": 61110,
+            "youtube_video_id": "TLkA0RELQ1g",
+            "version": 1,
+            "title": "Elephants Dream"
+          }
+        },
+        {
+          "id": 18,
+          "event_type": "knowledge_changed",
+          "schema_version": 1,
+          "occurred_at": "2026-10-22T08:17:27.791724+00:00",
+          "language": "en",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "9315660e91c04a98b2949bd71ba374cc",
+          "token_id": "ad1a198571f1462daf294835064a53dd",
+          "lexeme_id": "b29b13b6f4074881984ff7093d1bdc12",
+          "request_id": null,
+          "conversation_id": null,
+          "message_id": null,
+          "message_token_id": null,
+          "word": {
+            "language": "en",
+            "lemma": "everything",
+            "part_of_speech": "PRON",
+            "surface": "Everything"
+          },
+          "data": {
+            "previous": {
+              "score": null,
+              "ignored": false,
+              "source": null,
+              "provisional": false,
+              "status": "Пока не оценено"
+            },
+            "current": {
+              "score": 2,
+              "ignored": false,
+              "source": "manual",
+              "provisional": false,
+              "status": "Узнаю в контексте"
+            },
+            "reason": "viewing_summary",
+            "viewing_id": "7d1ce4d282d741caaa4c50064125a158",
+            "preparation": "listening",
+            "suggested_score": 2
+          },
+          "context": {
+            "citation_id": "58551b927bbb431789caac6007fc97f8:9315660e91c04a98b2949bd71ba374cc",
+            "material_id": "58551b927bbb431789caac6007fc97f8",
+            "cue_id": "9315660e91c04a98b2949bd71ba374cc",
+            "text": "Everything is safe… Perfectly safe.",
+            "truncated": false,
+            "start_ms": 21980,
+            "end_ms": 24550,
+            "youtube_video_id": "TLkA0RELQ1g",
+            "version": 1,
+            "title": "Elephants Dream"
+          }
+        },
+        {
+          "id": 17,
+          "event_type": "knowledge_changed",
+          "schema_version": 1,
+          "occurred_at": "2026-10-22T08:17:27.791690+00:00",
+          "language": "en",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "ac3f58a45652494ea6c0af3512f29652",
+          "token_id": "98b9f9ec810c4902aa0e1d06ea1fa2d7",
+          "lexeme_id": "0338b873d7184b79a67c04ffaf7811b3",
+          "request_id": null,
+          "conversation_id": null,
+          "message_id": null,
+          "message_token_id": null,
+          "word": {
+            "language": "en",
+            "lemma": "emo",
+            "part_of_speech": "PROPN",
+            "surface": "Emo"
+          },
+          "data": {
+            "previous": {
+              "score": null,
+              "ignored": false,
+              "source": null,
+              "provisional": false,
+              "status": "Пока не оценено"
+            },
+            "current": {
+              "score": 2,
+              "ignored": false,
+              "source": "manual",
+              "provisional": false,
+              "status": "Узнаю в контексте"
+            },
+            "reason": "viewing_summary",
+            "viewing_id": "7d1ce4d282d741caaa4c50064125a158",
+            "preparation": "listening",
+            "suggested_score": 2
+          },
+          "context": {
+            "citation_id": "58551b927bbb431789caac6007fc97f8:ac3f58a45652494ea6c0af3512f29652",
+            "material_id": "58551b927bbb431789caac6007fc97f8",
+            "cue_id": "ac3f58a45652494ea6c0af3512f29652",
+            "text": "Emo?",
+            "truncated": false,
+            "start_ms": 24550,
+            "end_ms": 25770,
+            "youtube_video_id": "TLkA0RELQ1g",
+            "version": 1,
+            "title": "Elephants Dream"
+          }
+        },
+        {
+          "id": 16,
+          "event_type": "knowledge_changed",
+          "schema_version": 1,
+          "occurred_at": "2026-10-22T08:17:27.791660+00:00",
+          "language": "en",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "186e46ee176f442284a5874686ec6425",
+          "token_id": "dae10cb11b8b454bb6ed0f3af5e0ccc0",
+          "lexeme_id": "c52046ab5e8243f3ab04f738703dc246",
+          "request_id": null,
+          "conversation_id": null,
+          "message_id": null,
+          "message_token_id": null,
+          "word": {
+            "language": "en",
+            "lemma": "do",
+            "part_of_speech": "AUX",
+            "surface": "do"
+          },
+          "data": {
+            "previous": {
+              "score": null,
+              "ignored": false,
+              "source": null,
+              "provisional": false,
+              "status": "Пока не оценено"
+            },
+            "current": {
+              "score": 2,
+              "ignored": false,
+              "source": "manual",
+              "provisional": false,
+              "status": "Узнаю в контексте"
+            },
+            "reason": "viewing_summary",
+            "viewing_id": "7d1ce4d282d741caaa4c50064125a158",
+            "preparation": "listening",
+            "suggested_score": 2
+          },
+          "context": {
+            "citation_id": "58551b927bbb431789caac6007fc97f8:186e46ee176f442284a5874686ec6425",
+            "material_id": "58551b927bbb431789caac6007fc97f8",
+            "cue_id": "186e46ee176f442284a5874686ec6425",
+            "text": "I don’t think so. You?",
+            "truncated": false,
+            "start_ms": 51990,
+            "end_ms": 54200,
+            "youtube_video_id": "TLkA0RELQ1g",
+            "version": 1,
+            "title": "Elephants Dream"
+          }
+        },
+        {
+          "id": 15,
+          "event_type": "knowledge_changed",
+          "schema_version": 1,
+          "occurred_at": "2026-10-22T08:17:27.791612+00:00",
+          "language": "en",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "31488549d8634d5886fd70cd4e68ee65",
+          "token_id": "bab70abe89d147adbab71bacd806b3a0",
+          "lexeme_id": "d09aaec7c90346b3a1221d3b3f1c6ead",
+          "request_id": null,
+          "conversation_id": null,
+          "message_id": null,
+          "message_token_id": null,
+          "word": {
+            "language": "en",
+            "lemma": "can",
+            "part_of_speech": "AUX",
+            "surface": "can"
+          },
+          "data": {
+            "previous": {
+              "score": null,
+              "ignored": false,
+              "source": null,
+              "provisional": false,
+              "status": "Пока не оценено"
+            },
+            "current": {
+              "score": 2,
+              "ignored": false,
+              "source": "manual",
+              "provisional": false,
+              "status": "Узнаю в контексте"
+            },
+            "reason": "viewing_summary",
+            "viewing_id": "7d1ce4d282d741caaa4c50064125a158",
+            "preparation": "listening",
+            "suggested_score": 2
+          },
+          "context": {
+            "citation_id": "58551b927bbb431789caac6007fc97f8:31488549d8634d5886fd70cd4e68ee65",
+            "material_id": "58551b927bbb431789caac6007fc97f8",
+            "cue_id": "31488549d8634d5886fd70cd4e68ee65",
+            "text": "At the left we can see…",
+            "truncated": false,
+            "start_ms": 15000,
+            "end_ms": 18130,
+            "youtube_video_id": "TLkA0RELQ1g",
+            "version": 1,
+            "title": "Elephants Dream"
+          }
+        },
+        {
+          "id": 14,
+          "event_type": "knowledge_changed",
+          "schema_version": 1,
+          "occurred_at": "2026-10-22T08:17:27.791568+00:00",
+          "language": "en",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "9315660e91c04a98b2949bd71ba374cc",
+          "token_id": "ae2f1643a57e445a8493355cae16aa99",
+          "lexeme_id": "d75f247080e9439b94eb83aa2f253cf0",
+          "request_id": null,
+          "conversation_id": null,
+          "message_id": null,
+          "message_token_id": null,
+          "word": {
+            "language": "en",
+            "lemma": "be",
+            "part_of_speech": "AUX",
+            "surface": "is"
+          },
+          "data": {
+            "previous": {
+              "score": null,
+              "ignored": false,
+              "source": null,
+              "provisional": false,
+              "status": "Пока не оценено"
+            },
+            "current": {
+              "score": 2,
+              "ignored": false,
+              "source": "manual",
+              "provisional": false,
+              "status": "Узнаю в контексте"
+            },
+            "reason": "viewing_summary",
+            "viewing_id": "7d1ce4d282d741caaa4c50064125a158",
+            "preparation": "listening",
+            "suggested_score": 2
+          },
+          "context": {
+            "citation_id": "58551b927bbb431789caac6007fc97f8:9315660e91c04a98b2949bd71ba374cc",
+            "material_id": "58551b927bbb431789caac6007fc97f8",
+            "cue_id": "9315660e91c04a98b2949bd71ba374cc",
+            "text": "Everything is safe… Perfectly safe.",
+            "truncated": false,
+            "start_ms": 21980,
+            "end_ms": 24550,
+            "youtube_video_id": "TLkA0RELQ1g",
+            "version": 1,
+            "title": "Elephants Dream"
+          }
+        },
+        {
+          "id": 13,
+          "event_type": "knowledge_changed",
+          "schema_version": 1,
+          "occurred_at": "2026-10-22T08:17:27.791086+00:00",
+          "language": "en",
+          "material_id": "58551b927bbb431789caac6007fc97f8",
+          "cue_id": "31488549d8634d5886fd70cd4e68ee65",
+          "token_id": "a9834380bfaf4ce2a3929857d7d090f8",
+          "lexeme_id": "88487cf7d50643c495683ba448af12f3",
+          "request_id": null,
+          "conversation_id": null,
+          "message_id": null,
+          "message_token_id": null,
+          "word": {
+            "language": "en",
+            "lemma": "left",
+            "part_of_speech": "NOUN",
+            "surface": "left"
+          },
+          "data": {
+            "previous": {
+              "score": null,
+              "ignored": false,
+              "source": null,
+              "provisional": false,
+              "status": "Пока не оценено"
+            },
+            "current": {
+              "score": 1,
+              "ignored": false,
+              "source": "manual",
+              "provisional": false,
+              "status": "Учу"
+            },
+            "reason": "viewing_summary",
+            "viewing_id": "7d1ce4d282d741caaa4c50064125a158",
+            "preparation": "click",
+            "suggested_score": 0
+          },
+          "context": {
+            "citation_id": "58551b927bbb431789caac6007fc97f8:31488549d8634d5886fd70cd4e68ee65",
+            "material_id": "58551b927bbb431789caac6007fc97f8",
+            "cue_id": "31488549d8634d5886fd70cd4e68ee65",
+            "text": "At the left we can see…",
+            "truncated": false,
+            "start_ms": 15000,
+            "end_ms": 18130,
+            "youtube_video_id": "TLkA0RELQ1g",
+            "version": 1,
+            "title": "Elephants Dream"
+          }
+        }
+      ],
+      "has_more": false,
+      "next_before_id": null,
+      "notice": "События подтверждают действия в приложении, но не знание слова и не просмотр видео."
+    }
+  },
+  "natural_end": {
+    "position_label": "10:54",
+    "playback_rate": 2,
+    "summary_opened": true,
+    "dictionary_count_before_confirmation": 29
+  },
+  "verification": {
+    "backend_tests": 117,
+    "web_tests": 12,
+    "mypy_sources": 27,
+    "ruff": "passed",
+    "web_build": "passed"
+  }
+}

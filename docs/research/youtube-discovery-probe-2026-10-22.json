@@ -1,0 +1,80 @@
+{
+  "scope": "read-only local macOS probe; no application DB; no AI; no Search API key available",
+  "platform": "macOS-26.3.1-arm64-arm-64bit",
+  "versions": {
+    "spacy": "3.8.11",
+    "en-core-web-sm": "3.8.0",
+    "youtube-transcript-api": "1.2.4"
+  },
+  "videos": [
+    {
+      "video_id": "TLkA0RELQ1g",
+      "fetch_seconds": 0.6853,
+      "source": "youtube-automatic",
+      "title": "Elephants Dream",
+      "cue_count": 91,
+      "characters": 1917,
+      "transcript_end_seconds": 653.829,
+      "normalization_seconds": 0.0012,
+      "whole_text_tokenize_seconds": 0.0442,
+      "whole_text_vocabulary_features_seconds": 0.0506,
+      "aggregate_seconds": 0.00064,
+      "token_count": 424,
+      "distinct_lexemes": 146,
+      "synthetic_profile_rescore_median_ms": 0.0126,
+      "current_per_cue_tokenize_seconds": 0.0831,
+      "current_per_cue_token_count": 424,
+      "note": "Prototype analysis in memory; production import still tokenizes cues separately. No CEFR or quality validation."
+    },
+    {
+      "video_id": "jNQXAC9IVRw",
+      "fetch_seconds": 0.6693,
+      "source": "youtube-authored",
+      "title": "Me at the zoo",
+      "cue_count": 6,
+      "characters": 217,
+      "transcript_end_seconds": 18.881,
+      "normalization_seconds": 0.0002,
+      "whole_text_tokenize_seconds": 0.0167,
+      "whole_text_vocabulary_features_seconds": 0.014,
+      "aggregate_seconds": 0.00015,
+      "token_count": 41,
+      "distinct_lexemes": 31,
+      "synthetic_profile_rescore_median_ms": 0.0048,
+      "current_per_cue_tokenize_seconds": 0.0112,
+      "current_per_cue_token_count": 41,
+      "note": "Prototype analysis in memory; production import still tokenizes cues separately. No CEFR or quality validation."
+    },
+    {
+      "video_id": "LWULB9Aoopc",
+      "fetch_seconds": 0.8091,
+      "source": "youtube-authored",
+      "title": "Why do we sleep? | Russell Foster",
+      "cue_count": 453,
+      "characters": 19825,
+      "transcript_end_seconds": 1300.992,
+      "normalization_seconds": 0.006,
+      "whole_text_tokenize_seconds": 0.3009,
+      "whole_text_vocabulary_features_seconds": 0.42,
+      "aggregate_seconds": 0.00534,
+      "token_count": 3580,
+      "distinct_lexemes": 812,
+      "synthetic_profile_rescore_median_ms": 0.0747,
+      "current_per_cue_tokenize_seconds": 0.4862,
+      "current_per_cue_token_count": 3580,
+      "note": "Prototype analysis in memory; production import still tokenizes cues separately. No CEFR or quality validation."
+    }
+  ],
+  "nlp_cold_load_seconds": 0.1994,
+  "recorded_at_utc": "2026-10-22T12:33:19.554922+00:00",
+  "limitations": [
+    "Three sequential selected videos, one attempt per video; not a representative success-rate or p95 latency benchmark.",
+    "macOS host virtualenv, not the Docker deployment; first NLP model load measured separately.",
+    "Fetch includes caption listing, full track retrieval, SRT conversion and optional oEmbed metadata; local transcript cache not used.",
+    "Text analysis uses existing whole-text tokenize and vocabulary_features methods in memory; no DB import or LLM calls.",
+    "Synthetic profile rescore measures only in-memory weighted counter lookup, not the learner profile, DB access or UI.",
+    "Prototype aggregation is not verified for full parity with production exclusions, manual overrides and per-cue lemmatization.",
+    "Transcript end time is not video metadata duration; no certified CEFR or listening comprehension measured.",
+    "Official YouTube Search API and external paid transcript services were not called; expected key names were absent."
+  ]
+}

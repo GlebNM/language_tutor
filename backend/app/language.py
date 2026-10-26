@@ -16,11 +16,11 @@ class EnglishAdapter:
     version = "spacy-3.8.11/en_core_web_sm-3.8.0/1"
 
     def __init__(self) -> None:
-        self._nlp: Language = spacy.load("en_core_web_sm", disable=["ner", "parser"])
+        self._nlp: Language = spacy.load("en_core_web_sm", disable=["parser"])
         self._lock = Lock()
 
     def tokenize(self, text: str) -> list[dict[str, Any]]:
-        with self._lock:
+        with self._lock, self._nlp.select_pipes(disable=["ner"]):
             document = self._nlp(text)
         result = []
         for token in document:
@@ -49,6 +49,14 @@ class EnglishAdapter:
 
     def lemmatize(self, text: str) -> list[dict[str, Any]]:
         return self.tokenize(text)
+
+    def vocabulary_features(self, text: str) -> dict[tuple[int, int], tuple[str, str]]:
+        with self._lock:
+            document = self._nlp(text)
+        return {
+            (token.idx, token.idx + len(token.text)): (token.pos_, token.ent_type_)
+            for token in document if not token.is_space and not token.is_punct
+        }
 
     def get_frequency_band(self, lemma: str, part_of_speech: str) -> None:
         # A reviewed frequency list is supplied by the diagnosis ticket.

@@ -17,7 +17,9 @@ from backend.app.ai_connection.settings import AISettingsStore
 from backend.app.diagnostic_data import pool
 from backend.app.diagnostics import create_diagnostics_router
 from backend.app.knowledge import create_knowledge_router
-from backend.app.main import create_app
+from backend.app.main import create_learner_app as create_app
+from backend.app.tenant_context import current_mcp_token
+from backend.tests.account_support import mcp_account
 from backend.tests.test_knowledge import import_text, token_for
 
 
@@ -52,8 +54,10 @@ def test_diagnostic_progress_persists_and_skip_does_not_apply_assumptions(tmp_pa
         assert client.get("/api/profile").json()["diagnostic_version"] == 0
 
 
+
 @pytest.fixture
 def diagnostic_mcp(tmp_path):
+    context, database = mcp_account(tmp_path)
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         port = listener.getsockname()[1]
@@ -83,6 +87,7 @@ def diagnostic_mcp(tmp_path):
     finally:
         process.terminate()
         process.wait(timeout=5)
+        current_mcp_token.reset(context)
 
 
 def graded_connection(correct_ids, bad_ids=False, settings_dir=None):

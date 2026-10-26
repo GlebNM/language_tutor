@@ -11,7 +11,9 @@ from typing import Any, Literal
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, ConfigDict, Field
 
+from backend.app.activity import ActivityService
 from backend.app.materials import MaterialError, MaterialLibrary
+from backend.app.vocabulary import VocabularyPolicy
 
 STATUSES = {
     None: "Пока не оценено",
@@ -32,6 +34,20 @@ def knowledge_value(
         "provisional": source in {"diagnostic", "prior"},
         "status": "Исключено" if ignored else STATUSES[score],
     }
+
+
+def knowledge_snapshot(library: MaterialLibrary) -> dict[tuple[str, str, str], dict[str, Any]]:
+    """Read explicit decisions once; candidate analysis never registers new lexemes."""
+    with library.connect() as db:
+        return {
+            (row["language"], row["lemma"], row["part_of_speech"]): knowledge_value(
+                row["score"], bool(row["ignored"]), row["source"]
+            )
+            for row in db.execute(
+                "SELECT l.language,l.lemma,l.part_of_speech,k.score,k.ignored,k.source "
+                "FROM word_knowledge k JOIN lexemes l ON l.id=k.lexeme_id"
+            )
+        }
 
 
 class KnowledgeService:
@@ -86,31 +102,46 @@ class KnowledgeService:
                 ),
             )
             db.execute("UPDATE learning_profile SET revision=revision+1 WHERE id=1")
-            return self.get(lexeme_id, db=db)
+            current = self.get(lexeme_id, db=db)
+            if current != previous:
+                ActivityService(self.library).record(
+                    db, "knowledge_changed", lexeme_id=lexeme_id,
+                    data={"previous": previous, "current": current},
+                )
+                from backend.app.progress import ProgressService
+
+                ProgressService(self.library).capture(db)
+            return current
 
     def dictionary(
-        self, search: str = "", score: str | None = None, ignored: bool | None = None
+        self, search: str = "", score: str | None = None, ignored: bool | None = None,
+        *, db: sqlite3.Connection | None = None,
     ) -> list[dict[str, Any]]:
-        with self.library.connect() as db:
-            entries = []
-            for row in db.execute("SELECT * FROM lexemes ORDER BY lemma,part_of_speech"):
-                knowledge = self.get(row["id"], db=db)
-                if search.casefold() not in row["lemma"]:
-                    continue
-                if score is not None and knowledge["score"] != (
-                    None if score == "unassessed" else int(score)
-                ):
-                    continue
-                if ignored is not None and knowledge["ignored"] != ignored:
-                    continue
-                # Dictionary contains saved and provisional words, rather than every unseen token.
-                if knowledge["source"] is None:
-                    continue
-                entry = dict(row)
-                entry["lexeme_id"] = entry.pop("id")
-                entry["knowledge"] = knowledge
-                entries.append(entry)
-            return entries
+        if db is None:
+            with self.library.connect() as connection:
+                return self.dictionary(search, score, ignored, db=connection)
+        eligible = VocabularyPolicy(self.library).eligible_lexemes(db)
+        entries = []
+        for row in db.execute("SELECT * FROM lexemes ORDER BY lemma,part_of_speech"):
+            if row["id"] not in eligible:
+                continue
+            knowledge = self.get(row["id"], db=db)
+            if search.casefold() not in row["lemma"]:
+                continue
+            if score is not None and knowledge["score"] != (
+                None if score == "unassessed" else int(score)
+            ):
+                continue
+            if ignored is not None and knowledge["ignored"] != ignored:
+                continue
+            # Dictionary contains saved and provisional words, rather than every unseen token.
+            if knowledge["source"] is None:
+                continue
+            entry = dict(row)
+            entry["lexeme_id"] = entry.pop("id")
+            entry["knowledge"] = knowledge
+            entries.append(entry)
+        return entries
 
     def correct_lexeme(
         self, material_id: str, cue_id: str, token_id: str, lemma: str, part_of_speech: str
@@ -160,6 +191,18 @@ class KnowledgeService:
                 (row["id"], token_id, cue_id, material_id),
             )
             db.execute("UPDATE learning_profile SET revision=revision+1 WHERE id=1")
+            if row["id"] != selected["token"]["lexeme_id"] or selected["token"]["uncertain"]:
+                ActivityService(self.library).record(
+                    db, "lexeme_corrected", lexeme_id=row["id"], material_id=material_id,
+                    cue_id=cue_id, token_id=token_id,
+                    data={"previous_word": {
+                        key: selected["token"][key]
+                        for key in ("lexeme_id", "lemma", "part_of_speech")
+                    }},
+                )
+                from backend.app.progress import ProgressService
+
+                ProgressService(self.library).capture(db)
         return self.library.selection(material_id, cue_id, token_id)
 
 
@@ -173,6 +216,7 @@ def calculate_difficulty(material: dict[str, Any]) -> dict[str, Any]:
             token
             for token in cue["tokens"]
             if not token["knowledge"]["ignored"]
+            and token.get("vocabulary", {}).get("eligible", True)
             and not any(start <= token["start_offset"] < end for start, end in markers)
         )
     known = sum(t["knowledge"]["score"] in {2, 3} for t in tokens)

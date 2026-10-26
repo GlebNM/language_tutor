@@ -18,6 +18,8 @@ from pydantic_ai.models import Model
 from pydantic_ai.models.openai import OpenAIResponsesModelSettings
 from pydantic_ai.usage import UsageLimits
 
+from backend.app.tenant_context import mcp_headers
+
 logger = logging.getLogger(__name__)
 
 
@@ -85,7 +87,11 @@ async def run_diagnosis(
 
     # The single small read tool is needed every time; deferred discovery adds a round trip.
     tools = MCPToolset(
-        mcp_url, process_tool_call=scoped_call, read_timeout=10, init_timeout=5
+        mcp_url,
+        headers=mcp_headers(),
+        process_tool_call=scoped_call,
+        read_timeout=10,
+        init_timeout=5,
     ).filtered(lambda ctx, tool: tool.name == "get_diagnostic_items")
     agent = Agent(
         model,

@@ -1,0 +1,73 @@
+{
+  "date": "2026-10-22",
+  "scope": "standalone web UI, SPEC 5.10, A62–A65",
+  "tests": {
+    "web": {
+      "passed": 37
+    },
+    "backend_knowledge_expressions_viewing": {
+      "passed": 36
+    },
+    "production_build": "passed",
+    "typescript": "passed"
+  },
+  "browser": {
+    "environment": "isolated local account, real API, real YouTube iframe",
+    "desktop": {
+      "viewport": [
+        1366,
+        820
+      ],
+      "video": [
+        498,
+        280
+      ],
+      "document": [
+        1366,
+        820
+      ]
+    },
+    "mobile": {
+      "viewport": [
+        390,
+        844
+      ],
+      "document_width": 390
+    },
+    "passed": [
+      "library search and empty results",
+      "subtitle search",
+      "independent transcript scrolling",
+      "one-click status persisted and dictionary refreshed",
+      "ignored and reset to null",
+      "HTTP 503 retains previous status and retry saves requested status",
+      "viewing summary edits do not apply before explicit save",
+      "URL retains current material and section on reload",
+      "keyboard tabs retain focus",
+      "Escape closes inspector",
+      "import dialog Escape restores focus to Add video",
+      "composer within viewport",
+      "mobile card accessible without page-width overflow"
+    ],
+    "limitations": [
+      "No new live AI generation in this UI acceptance run",
+      "No new YouTube API-key search run",
+      "Saved expression and conversation domain behavior covered by backend tests; full live expression generation not repeated"
+    ]
+  },
+  "screenshots": [
+    "screenshots/ui-watch-2026-10-22.jpg",
+    "screenshots/ui-dictionary-2026-10-22.jpg",
+    "screenshots/ui-mobile-2026-10-22.jpg"
+  ],
+  "deployment": {
+    "url": "http://127.0.0.1:18765",
+    "compose": "app and mcp healthy",
+    "health": "ok",
+    "javascript_asset": "index-LnLQ2QD0.js",
+    "stylesheet_asset": "index-BTizLW4f.css",
+    "database_table_counts_unchanged": true,
+    "databases_checked": 2,
+    "table_counts_checked": 28
+  }
+}

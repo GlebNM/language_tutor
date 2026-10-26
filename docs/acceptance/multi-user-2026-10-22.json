@@ -1,0 +1,44 @@
+{
+  "date": "2026-10-22",
+  "scope": "standalone web / F19 / A44-A48",
+  "authentication": "Local username and password, as confirmed by the user",
+  "checks": {
+    "backend": "184 passed in 60.79s in the final full suite, including all 8 account tests",
+    "web": "30 passed",
+    "production_build": "passed",
+    "ruff": "passed for backend/app, backend/mcp_server and backend/tests",
+    "mypy": "passed for 41 source files",
+    "diff_whitespace": "passed"
+  },
+  "acceptance": {
+    "A44": "Registration, duplicate names, generic invalid credentials, validation without password echo, throttling, cookies, expiry, restart, logout and password change; concurrent registration and late login versus password change",
+    "A45": "Separate materials, vocabulary, diagnostics, conversations, viewings, progress, AI settings and reset; foreign IDs denied; stale session headers cannot write as the new account",
+    "A46": "Private settings and credentials, authenticated real Streamable HTTP MCP, simultaneous requests for two owners and Pydantic AI FunctionModel requests retaining their owner context",
+    "A47": "Explicit first-account adoption, SQLite backup, copied AI configuration, originals retained, restart and second registration without copying another account",
+    "A48": "Browser login, registration with adoption checkbox, visible account name, logout across two tabs, switching both tabs to another user, private material absent from the second account, native password dialog"
+  },
+  "browser": {
+    "surface": "Codex in-app browser",
+    "fixture_origin": "http://127.0.0.1:19961",
+    "fixture_accounts": ["auth-alice", "auth-bob"],
+    "fixture_data": "Alice has a demo and a private material; Bob has only his own demo. No fixture data was copied into the working learner profile.",
+    "screenshots": [
+      "screenshots/auth-login-2026-10-22.png",
+      "screenshots/auth-registration-2026-10-22.png"
+    ]
+  },
+  "compose": {
+    "primary_origin": "http://127.0.0.1:18765",
+    "services": "app and mcp healthy after rebuild",
+    "primary_auth_state": {"user": null, "first_account": true, "legacy_profile": true},
+    "migration": "Working legacy profile remains unclaimed; the owner confirms adoption during first registration.",
+    "qa_cleanup": "Dedicated language-tutor-auth-qa containers and network removed; test volume retained."
+  },
+  "limitations": [
+    "Live OAuth connections and simultaneous live model calls for two subscriptions were not exercised; model tests use FunctionModel and a real local MCP server.",
+    "OAuth connections are established sequentially because of one callback port; connected accounts can work concurrently.",
+    "Local loopback deployment remains the supported environment.",
+    "Email password recovery, shared materials and administrator workflows are outside this increment.",
+    "A complete mobile browser acceptance was not performed."
+  ]
+}

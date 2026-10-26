@@ -1,7 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from backend.app.main import create_app
+from backend.app.main import create_learner_app as create_app
 
 SRT = (
     "1\n00:00:01,000 --> 00:00:03,000\nThe children were running.\n\n"

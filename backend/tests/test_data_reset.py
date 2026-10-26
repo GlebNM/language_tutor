@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 
 from backend.app.ai_connection.settings import AISettings
-from backend.app.main import create_app
+from backend.app.main import create_learner_app as create_app
 
 
 def test_reset_requires_confirmation_clears_words_and_survives_restart(tmp_path):

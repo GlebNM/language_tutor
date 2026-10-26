@@ -1,0 +1,47 @@
+.auth-page {min-height:100vh;display:grid;grid-template-columns:minmax(360px, 48%) 1fr;background:#f7f6f1;}
+.auth-story {padding:48px clamp(32px,6vw,100px);background:#e8ede0;display:flex;flex-direction:column;position:relative;overflow:hidden;}
+.auth-brand {display:flex;gap:14px;align-items:center;color:#254d3f;text-decoration:none;font-size:18px;}
+.auth-brand .brand-mark {background:#254d3f;color:#fff;width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:24px;}
+.auth-story-copy {margin-top:clamp(45px,9vh,110px);}
+.auth-story .eyebrow {color:#5a745e;letter-spacing:2px;font-size:10px;}
+.auth-story h1 {font-size:clamp(42px,4.8vw,68px);line-height:1.12;letter-spacing:-3px;margin:22px 0;color:#254d3f;font-weight:600;}
+.auth-story h1 em {font-style:normal;color:#8b9871;}
+.auth-story-copy > p:last-child {font-size:14px;line-height:1.9;color:#61705f;}
+.auth-example {margin-top:42px;background:#f7f7ee;border:1px solid #d8dfcd;border-radius:16px;padding:24px 28px;max-width:380px;transform:rotate(-2deg);box-shadow:0 12px 32px #3c543b09;}
+.auth-example-label {font-size:9px;letter-spacing:1.6px;color:#7d886e;}
+.auth-example p {font-size:26px;line-height:1.5;margin:16px 0;font-weight:500;color:#314c3e;}
+.auth-example mark {background:#dce8c6;color:inherit;border-radius:5px;padding:0 5px;}
+.auth-example small {font-size:10px;color:#77816e;}
+.auth-local {font-size:10px;line-height:1.8;color:#6d7d67;margin-top:auto;padding-top:45px;max-width:300px;}
+.auth-panel {display:grid;place-items:center;padding:45px 32px;}
+.auth-card {width:100%;max-width:380px;}
+.auth-card .eyebrow {font-size:9px;letter-spacing:1.8px;color:#88907b;margin:0 0 20px;}
+.auth-card h2 {font-size:30px;letter-spacing:-1px;margin:0 0 13px;color:#283e32;font-weight:650;}
+.auth-description {font-size:12px;line-height:1.9;color:#7b8274;margin-bottom:28px;}
+.auth-tabs {display:flex;padding:4px;background:#eaece3;border-radius:9px;margin-bottom:25px;gap:4px;}
+.auth-tabs button {flex:1;border:0;padding:10px;font-size:11px;background:transparent;color:#6b7665;border-radius:6px;}
+.auth-tabs button[aria-pressed=true] {background:#fffef8;box-shadow:0 2px 6px #354d3010;color:#314c3e;}
+.auth-card label,.auth-password-dialog label {display:block;font-size:11px;font-weight:600;color:#41543e;margin:16px 0 8px;}
+.auth-card input:not([type=checkbox]),.auth-password-dialog input {width:100%;padding:13px 14px;border:1px solid #d5ddcd;border-radius:7px;background:#fffef9;font-size:14px;color:#273e31;outline-offset:3px;}
+.auth-card small,.auth-password-dialog small {display:block;font-size:10px;color:#7c8673;line-height:1.7;margin-top:7px;}
+.auth-card .auth-adopt {display:flex;gap:10px;font-weight:400;line-height:1.7;margin-top:18px;}
+.auth-adopt input {align-self:flex-start;accent-color:#285240;margin-top:4px;}
+.auth-submit {display:flex;justify-content:space-between;align-items:center;gap:15px;width:100%;padding:14px 19px;border-radius:7px;border:0;background:#285440;color:#fff;font-size:12px;margin-top:24px;cursor:pointer;}
+.auth-submit:hover {background:#1c4432;}
+.auth-submit:disabled {opacity:.6;cursor:wait;}
+.auth-footnote {text-align:center;font-size:10px;line-height:1.9;color:#8b9182;margin:25px 0 0;}
+.auth-error {font-size:12px;line-height:1.6;padding:12px;background:#fae7dc;color:#974825;border-radius:7px;}
+.auth-loading {min-height:100vh;display:grid;place-content:center;text-align:center;}
+.account-menu {margin-top:auto;}
+.account-menu .profile {margin-top:24px;}
+.account-menu .profile strong {overflow-wrap:anywhere;}
+.account-actions {display:flex;gap:10px;justify-content:space-between;margin-top:15px;}
+.account-actions > button {font-size:10px;}
+.account-actions .auth-submit {margin:0;width:auto;}
+.auth-password-dialog {padding:32px;background:#fffef9;border-radius:14px;width:min(440px,calc(100vw - 32px));box-shadow:0 24px 80px #223b3420;}
+.auth-password-dialog h2 {font-size:23px;margin-top:0;}
+.auth-password-dialog p {font-size:12px;line-height:1.7;}
+@media(max-width:800px) {.auth-page {grid-template-columns:1fr;}.auth-story {padding:24px 28px;}.auth-story-copy,.auth-example,.auth-local {display:none;}.auth-panel {padding:35px 24px;}.auth-card h2 {font-size:28px;}}
+
+.auth-password-dialog {border:0;max-height:90vh;overflow:auto;color:#23312d;}
+.auth-password-dialog::backdrop {background:#172c2580;backdrop-filter:blur(4px);}

@@ -1,7 +1,10 @@
 """One local origin for the standalone web application and material API."""
 
+import asyncio
 import logging
 import os
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Literal
 
@@ -13,6 +16,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from backend.app.local_access import LocalAccessMiddleware
 from backend.app.materials import MaterialError, MaterialLibrary
+from backend.app.youtube import fetch_youtube_track
 
 
 class TrackImport(BaseModel):
@@ -31,7 +35,14 @@ class DataReset(BaseModel):
     confirmation: Literal["Удалить мои данные"]
 
 
-def create_app(
+class YouTubeImport(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    youtube_url: str = Field(max_length=500)
+    title: str = Field(default="", max_length=200)
+    improve_automatic: bool = True
+
+
+def create_learner_app(
     database_path: Path | None = None,
     *,
     seed_demo: bool = True,
@@ -45,7 +56,17 @@ def create_app(
         traces.addHandler(handler)
     traces.setLevel(logging.INFO)
     traces.propagate = False
-    app = FastAPI(title="Language Tutor", version="0.1.0")
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        try:
+            yield
+        finally:
+            await app.state.expression_analysis.close()
+            await app.state.discovery.close()
+            await app.state.caption_improvement.close()
+
+    app = FastAPI(title="Language Tutor", version="0.1.0", lifespan=lifespan)
     origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:8765,http://127.0.0.1:8765").split(",")
     app.add_middleware(
         LocalAccessMiddleware,
@@ -70,9 +91,15 @@ def create_app(
 
     if seed_demo and new_database:
         add_demo()
+    from backend.app.activity import create_activity_router
     from backend.app.knowledge import create_knowledge_router
+    from backend.app.progress import create_progress_router
+    from backend.app.viewing import create_viewing_router
 
     app.include_router(create_knowledge_router(library))
+    app.include_router(create_activity_router(library))
+    app.include_router(create_viewing_router(library))
+    app.include_router(create_progress_router(library))
     connection = None
     if include_ai:
         from backend.app.ai_connection import create_ai_router
@@ -104,6 +131,27 @@ def create_app(
         app.include_router(
             create_learning_router(library=library, connection=connection, mcp_url=mcp_url)
         )
+
+    from backend.app.discovery import DiscoveryService, create_discovery_router
+
+    discovery = DiscoveryService(library, connection)
+    app.state.discovery = discovery
+    app.include_router(create_discovery_router(discovery))
+
+    from backend.app.caption_improvement import (
+        CaptionImprovementService,
+        create_caption_router,
+    )
+
+    captions = CaptionImprovementService(library, connection)
+    app.state.caption_improvement = captions
+    app.include_router(create_caption_router(captions))
+
+    from backend.app.expression_analysis import ExpressionAnalysis, create_expression_router
+
+    expressions = ExpressionAnalysis(library, connection)
+    app.state.expression_analysis = expressions
+    app.include_router(create_expression_router(expressions))
 
     from backend.app.diagnostics import create_diagnostics_router
 
@@ -141,8 +189,36 @@ def create_app(
     def prepared_example() -> dict[str, Any]:
         return add_demo()
 
+    @app.post("/api/materials/youtube", status_code=201)
+    async def import_youtube(request: YouTubeImport) -> dict[str, Any]:
+        from backend.app.materials import youtube_id
+
+        youtube_id(request.youtube_url)  # Validate before any network operation.
+        generation = library.get_profile()["storage_generation"]
+        try:
+            async with asyncio.timeout(45):
+                track = await asyncio.to_thread(fetch_youtube_track, request.youtube_url)
+        except TimeoutError:
+            raise MaterialError(
+                "YouTube не ответил вовремя. Повторите или добавьте SRT/VTT."
+            ) from None
+        result = library.import_track(
+            youtube_url=request.youtube_url,
+            title=request.title.strip() or track.title,
+            content=track.content,
+            format="srt",
+            source=track.source,
+            expected_generation=generation,
+        )
+        if request.improve_automatic and result["source"] == "youtube-automatic":
+            captions.start(result["id"])
+        return result
+
     @app.post("/api/data/reset")
     async def reset_data(confirmation: DataReset) -> dict[str, str]:
+        await discovery.reset()
+        await captions.close()
+        await expressions.close()
         if connection is not None:
             await connection.disconnect()
             connection.store.forget_registration()
@@ -162,7 +238,18 @@ def create_app(
     def selection(material_id: str, cue_id: str, token_id: str) -> dict[str, Any]:
         return library.selection(material_id, cue_id, token_id)
 
-    distribution = frontend_dist or root / "apps/web/dist"
-    if distribution.is_dir():
+    distribution = frontend_dist
+    if distribution is not None and distribution.is_dir():
         app.mount("/", StaticFiles(directory=distribution, html=True), name="web")
     return app
+
+
+def create_app(
+    database_path: Path | None = None, *, seed_demo: bool = True,
+    frontend_dist: Path | None = None, include_ai: bool = True,
+) -> FastAPI:
+    """Public application: every learning route requires an account session."""
+    from backend.app.accounts import create_account_app
+    return create_account_app(
+        database_path, seed_demo=seed_demo, frontend_dist=frontend_dist, include_ai=include_ai,
+    )

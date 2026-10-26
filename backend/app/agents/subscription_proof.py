@@ -14,6 +14,8 @@ from pydantic_ai.mcp import CallToolFunc, MCPToolset, ToolResult
 from pydantic_ai.models import Model
 from pydantic_ai.usage import UsageLimits
 
+from backend.app.tenant_context import mcp_headers
+
 logger = logging.getLogger(__name__)
 
 
@@ -79,7 +81,13 @@ async def run_proof(*, model: Model, mcp_url: str) -> ProofResult:
             )
 
     # The one context tool is needed on every proof run; deferred discovery adds no benefit.
-    tools = MCPToolset(mcp_url, process_tool_call=trace_call, read_timeout=10, init_timeout=5)
+    tools = MCPToolset(
+        mcp_url,
+        headers=mcp_headers(),
+        process_tool_call=trace_call,
+        read_timeout=10,
+        init_timeout=5,
+    )
     agent = Agent(
         model,
         name="subscription_contextual_card_proof",

@@ -1,3 +1,4 @@
+import { sessionFetch } from "./session.ts";
 export type Knowledge = {
   score: number | null;
   ignored: boolean;
@@ -17,6 +18,11 @@ export type Token = {
   language: string;
   part_of_speech: string;
   uncertain: boolean;
+  vocabulary?: {
+    eligible: boolean;
+    automatically_eligible: boolean;
+    reason: "filler" | "stretched" | "proper_name" | null;
+  };
   knowledge?: Knowledge;
 };
 export type Cue = {
@@ -37,6 +43,7 @@ export type MaterialSummary = {
   is_complete: boolean;
   version: number;
   adapter_version: string;
+  previous_version_id?: string | null;
 };
 export type Material = MaterialSummary & { cues: Cue[]; difficulty?: Difficulty };
 export type Difficulty = {
@@ -58,7 +65,7 @@ export type Connection = {
 export async function api<T>(path: string, options?: RequestInit): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(`/api${path}`, {
+    response = await sessionFetch(`/api${path}`, {
       ...options,
       headers: {
         ...(options?.body ? { "Content-Type": "application/json" } : {}),

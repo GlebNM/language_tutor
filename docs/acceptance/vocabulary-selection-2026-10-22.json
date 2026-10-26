@@ -1,0 +1,69 @@
+{
+  "profile_preserved": true,
+  "materials_preserved": true,
+  "manual_dictionary_preserved": true,
+  "learning_setting_preserved": true,
+  "connection_before": "connected",
+  "connection_after": "connected",
+  "material_count": 7,
+  "dictionary_before": 1451,
+  "dictionary_after": 1392,
+  "manual_count": 3,
+  "database_migration": {
+    "from": 12,
+    "to": 13,
+    "backup_created": true,
+    "tables_preserved": {
+      "learning_profile": 1,
+      "materials": 7,
+      "cues": 1540,
+      "lexemes": 1891,
+      "occurrences": 12272,
+      "word_knowledge": 15,
+      "learning_activity": 9,
+      "conversations": 6,
+      "learning_messages": 11,
+      "message_occurrences": 138
+    }
+  },
+  "browser": {
+    "browser": "Codex in-app browser",
+    "separate_local_installation": "http://127.0.0.1:18873",
+    "connected_subscription": false,
+    "transcript": "Hmmm, hello John. Ouch, wow! Um, wooow, book, school.",
+    "initial_visible_video_words": 5,
+    "after_manual_null": 6,
+    "dictionary_after_reload": [
+      {
+        "lemma": "hmmm",
+        "knowledge": {
+          "score": null,
+          "ignored": false,
+          "source": "manual",
+          "provisional": false,
+          "status": "Пока не оценено"
+        }
+      }
+    ],
+    "screenshot": "screenshots/vocabulary-selection-2026-10-22.png"
+  },
+  "checks": {
+    "backend": {
+      "passed": 131,
+      "seconds": 43.91
+    },
+    "web": {
+      "passed": 13
+    },
+    "mypy": {
+      "sources": 30,
+      "errors": 0
+    },
+    "ruff": "passed",
+    "web_build": "passed",
+    "real_mcp": "passed",
+    "live_provider_requests": false
+  },
+  "date": "2026-10-22",
+  "issue": "https://github.com/GlebNM/language_tutor/issues/19"
+}
