@@ -271,7 +271,7 @@ def assess_draft(
     n = counts["counted_tokens"]
     learning = counts["learning_tokens"]
     unfamiliar = counts["explicit_unknown_tokens"] + counts["unassessed_tokens"]
-    metrics = {key: counts[key] for key in (
+    metrics: dict[str, Any] = {key: counts[key] for key in (
         "word_count", "counted_tokens", "known_tokens", "learning_tokens",
         "explicit_unknown_tokens", "unassessed_tokens", "provisional_tokens",
     )}
