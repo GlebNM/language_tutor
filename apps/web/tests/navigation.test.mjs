@@ -13,3 +13,9 @@ test("invalid routes safely return to the library", () => {
     assert.deepEqual(readRoute(hash), {section: "materials"});
   }
 });
+test("text citations reopen the saved paragraph", () => {
+  const route = {section: "materials", materialId: "text-17", blockId: "paragraph-3"};
+  assert.equal(routeHash(route), "#material/text-17?block=paragraph-3");
+  assert.deepEqual(readRoute("#material/text-17?block=paragraph-3"), route);
+  assert.deepEqual(readRoute("#material/text-17?block=../../private"), {section: "materials"});
+});

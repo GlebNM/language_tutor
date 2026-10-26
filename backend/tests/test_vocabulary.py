@@ -12,6 +12,7 @@ from mcp.client.streamable_http import streamable_http_client
 
 from backend.app.main import create_learner_app as create_app
 from backend.app.tenant_context import mcp_headers
+from backend.tests.material_fixtures import restore_timed_material_schema
 from backend.tests.test_diagnostics import diagnostic_mcp as diagnostic_mcp
 from backend.tests.test_learning import forbid_live_models as forbid_live_models
 from backend.tests.test_learning import learning_mcp as learning_mcp
@@ -255,6 +256,7 @@ def test_old_material_and_pending_summary_backfill_preserve_confirmed_entries(tm
             for i, script in enumerate(MIGRATIONS)
             if "CREATE TABLE occurrence_vocabulary" in script
         )
+        restore_timed_material_schema(db)
         db.execute(f"PRAGMA user_version={version}")
     with client_for(path) as client:
         entries = client.get(f"/api/viewings/{viewing}").json()["entries"]

@@ -108,7 +108,7 @@ class PracticeContext:
                 [
                     dict(row)
                     for row in db.execute(
-                        "SELECT id,title,is_complete FROM materials WHERE id IN ("
+                        "SELECT id,title,is_complete,kind FROM materials WHERE id IN ("
                         + ",".join("?" for _ in material_ids)
                         + ")",
                         material_ids,

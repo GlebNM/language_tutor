@@ -98,10 +98,13 @@ class ProgressService:
             ).fetchone()[0]
             if incoming.generation != generation:
                 raise HTTPException(409, "Учебные данные изменились. Откройте материал заново.")
-            if not db.execute(
-                "SELECT 1 FROM materials WHERE id=?", (incoming.material_id,)
-            ).fetchone():
+            material = db.execute(
+                "SELECT kind FROM materials WHERE id=?", (incoming.material_id,)
+            ).fetchone()
+            if material is None:
                 raise HTTPException(404, "Материал не найден.")
+            if material["kind"] != "video":
+                raise HTTPException(422, "Время воспроизведения учитывается только для видео.")
             saved = 0
             for interval in incoming.intervals:
                 start = interval.started_at.astimezone(UTC)

@@ -73,8 +73,13 @@ class ViewingService:
     def resume(self, material_id: str) -> dict[str, Any]:
         with self.library.connect() as db:
             db.execute("BEGIN IMMEDIATE")
-            if db.execute("SELECT id FROM materials WHERE id=?", (material_id,)).fetchone() is None:
+            material = db.execute(
+                "SELECT kind FROM materials WHERE id=?", (material_id,)
+            ).fetchone()
+            if material is None:
                 raise KeyError("Материал не найден.")
+            if material["kind"] != "video":
+                raise HTTPException(422, "Прослушивание доступно только для видео.")
             settings = self.settings(db)
             if not settings["enabled"]:
                 return {"viewing_id": None, **settings}

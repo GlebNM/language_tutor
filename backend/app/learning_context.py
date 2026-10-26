@@ -28,7 +28,7 @@ class LearningContext:
                 "SELECT o.id token_id,o.material_id,o.cue_id,o.surface,o.lexeme_id,"
                 "o.start_offset,o.end_offset,"
                 "l.language,l.lemma,l.part_of_speech,c.text,c.start_ms,c.end_ms,"
-                "m.youtube_video_id,m.transcript_hash,m.version "
+                "m.youtube_video_id,m.transcript_hash,m.version,m.kind "
                 "FROM occurrences o JOIN lexemes l ON l.id=o.lexeme_id "
                 "JOIN cues c ON c.id=o.cue_id JOIN materials m ON m.id=o.material_id "
                 "WHERE o.material_id=? AND o.cue_id=? AND o.id=?",
@@ -37,6 +37,7 @@ class LearningContext:
         if row is None:
             raise KeyError("Реплика и слово должны принадлежать выбранному материалу.")
         result = dict(row)
+        result["block_id"] = result["cue_id"]
         begin = max(0, result["start_offset"] - 350)
         result["text"] = result["text"][begin : begin + 1000]
         return result
@@ -60,6 +61,9 @@ class LearningContext:
         # Split the fixed character budget across cues, preserving identities and times.
         cues = [self.source(dict(row), text_limit=650) for row in rows]
         result = {"material_id": material_id, "selected_cue_id": cue_id, "cues": cues}
+        # The compatibility tool name remains available; entries identify text paragraphs.
+        if cues and cues[0]["kind"] == "text":
+            result["selected_block_id"] = cue_id
         bounded_json(result)
         return result
 
@@ -70,6 +74,9 @@ class LearningContext:
             "citation_id": row["material_id"] + ":" + row["cue_id"],
             "material_id": row["material_id"],
             "cue_id": row["cue_id"],
+            "block_id": row["cue_id"],
+            "kind": "video" if row["youtube_video_id"] else "text",
+            "material_url": "#material/" + row["material_id"] + "?block=" + row["cue_id"],
             "text": text[:text_limit],
             "truncated": len(text) > text_limit,
             "start_ms": row["start_ms"],
@@ -103,7 +110,7 @@ class LearningContext:
             "lemma": lemma,
             "part_of_speech": part_of_speech,
             "occurrences": [self.source(dict(row)) for row in rows],
-            "notice": "Сохранённый материал не доказывает просмотр каждой реплики.",
+            "notice": "Сохранённый материал не доказывает прочтение или прослушивание фрагментов.",
         }
         bounded_json(result)
         return result
@@ -125,13 +132,18 @@ class LearningContext:
                 if any(source.get(key) != value for key, value in trusted.items()):
                     continue
                 video_id = trusted["youtube_video_id"]
-                if not re.fullmatch(r"[A-Za-z0-9_-]{11}", video_id):
-                    continue
-                trusted["youtube_url"] = (
-                    "https://www.youtube.com/watch?v="
-                    + video_id
-                    + "&t="
-                    + str(trusted["start_ms"] // 1000)
-                )
+                if video_id is None:
+                    if trusted["start_ms"] is not None or trusted["end_ms"] is not None:
+                        continue
+                    trusted["youtube_url"] = None
+                else:
+                    if not re.fullmatch(r"[A-Za-z0-9_-]{11}", video_id):
+                        continue
+                    trusted["youtube_url"] = (
+                        "https://www.youtube.com/watch?v="
+                        + video_id
+                        + "&t="
+                        + str(trusted["start_ms"] // 1000)
+                    )
                 verified.append(trusted)
         return verified

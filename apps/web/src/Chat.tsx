@@ -1,10 +1,11 @@
 import { learnerStorageKey } from "./session";
 import { Fragment, useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import { api, time } from "./api";
+import { api } from "./api";
 import type { MaterialSummary } from "./api";
 import { FamiliarityEditor, knowledgeLabel } from "./Study";
 import { streamReply } from "./chatApi";
+import { MaterialCitation } from "./MaterialCitation";
 import type { Conversation, MessageToken, Reply, Turn } from "./chatApi";
 import {
   ExpressionInspector,
@@ -692,13 +693,7 @@ export function Chat({
                     {turn.response.citations?.map((citation, index) => (
                       <blockquote key={index}>
                         {citation.text}
-                        <a
-                          href={citation.youtube_url}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          {citation.title} · {time(citation.start_ms)} ↗
-                        </a>
+                        <MaterialCitation citation={citation} />
                       </blockquote>
                     ))}
                     {turn.response.model && (

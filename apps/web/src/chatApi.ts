@@ -1,5 +1,5 @@
 import { sessionFetch } from "./session.ts";
-import type { Token } from "./api";
+import type { Citation, Token } from "./api";
 
 export type MessageToken = Omit<Token, "material_id" | "cue_id"> & {
   conversation_id: string;
@@ -10,7 +10,7 @@ export type Reply = {
   correction?: string | null;
   educational_example?: string | null;
   suggested_topics?: string[];
-  citations?: Array<{text: string; title: string; start_ms: number; youtube_url: string}>;
+  citations?: Citation[];
   model?: string;
   reasoning_effort?: string | null;
 };

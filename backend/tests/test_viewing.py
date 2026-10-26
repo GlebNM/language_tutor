@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 from backend.app import materials as material_storage
 from backend.app.main import create_learner_app as create_app
+from backend.tests.material_fixtures import restore_timed_material_schema
 
 
 def make_app(path):
@@ -304,6 +305,7 @@ def test_upgrade_preserves_existing_profile_dictionary_activity_and_backup(tmp_p
         ):
             db.execute(f"DROP TABLE {table}")
         db.execute("DELETE FROM storage_metadata WHERE key='playback_tracking_since'")
+        restore_timed_material_schema(db)
         db.execute(f"PRAGMA user_version={version}")
     with TestClient(make_app(path), base_url="http://localhost") as client:
         assert {route: client.get(route).json() for route in expected} == expected

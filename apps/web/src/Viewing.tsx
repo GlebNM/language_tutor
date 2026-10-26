@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { api } from "./api";
+import { api, isTimedCue } from "./api";
 import type { Cue, Material, Selection, Token } from "./api";
 import { createListeningTracker } from "./listening";
 import type { PlaybackSample } from "./listening";
@@ -171,7 +171,7 @@ export function useViewing(
           setSummary(null);
           collection.current = {
             id: value.viewing_id,
-            tracker: createListeningTracker(cues.current),
+            tracker: createListeningTracker(cues.current.filter(isTimedCue)),
             pending: new Set(),
             flight: null,
             clicks: new Map(),
@@ -324,7 +324,7 @@ export function useViewing(
         if (start.viewing_id)
           collection.current = {
             id: start.viewing_id,
-            tracker: createListeningTracker(cues.current),
+            tracker: createListeningTracker(cues.current.filter(isTimedCue)),
             pending: new Set(),
             flight: null,
             clicks: new Map(),

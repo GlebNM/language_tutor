@@ -10,6 +10,7 @@ export type Token = {
   id: string;
   material_id: string;
   cue_id: string;
+  block_id?: string;
   lexeme_id: string;
   surface: string;
   start_offset: number;
@@ -27,8 +28,9 @@ export type Token = {
 };
 export type Cue = {
   id: string;
-  start_ms: number;
-  end_ms: number;
+  kind?: "subtitle" | "paragraph";
+  start_ms: number | null;
+  end_ms: number | null;
   text: string;
   original_text: string;
   tokens: Token[];
@@ -36,8 +38,9 @@ export type Cue = {
 export type MaterialSummary = {
   id: string;
   title: string;
-  youtube_video_id: string;
-  youtube_url: string;
+  kind?: "video" | "text";
+  youtube_video_id: string | null;
+  youtube_url: string | null;
   language: string;
   source: string;
   is_complete: boolean;
@@ -45,7 +48,25 @@ export type MaterialSummary = {
   adapter_version: string;
   previous_version_id?: string | null;
 };
-export type Material = MaterialSummary & { cues: Cue[]; difficulty?: Difficulty };
+export type Material = MaterialSummary & { cues: Cue[]; blocks?: Cue[]; difficulty?: Difficulty };
+export type TimedCue = Cue & { start_ms: number; end_ms: number };
+export function isTimedCue(cue: Cue): cue is TimedCue {
+  return typeof cue.start_ms === "number" && typeof cue.end_ms === "number";
+}
+export function isTextMaterial(material: MaterialSummary): boolean {
+  return material.kind === "text";
+}
+export type Citation = {
+  material_id: string;
+  cue_id?: string;
+  block_id?: string;
+  material_kind?: "video" | "text";
+  kind?: "video" | "text";
+  title?: string;
+  text: string;
+  start_ms: number | null;
+  youtube_url: string | null;
+};
 export type Difficulty = {
   [key: string]: unknown;
 };
@@ -53,7 +74,7 @@ export type Selection = {
   material_id: string;
   cue: Cue;
   token: Token;
-  youtube_url: string;
+  youtube_url: string | null;
 };
 export type Connection = {
   status: string;
