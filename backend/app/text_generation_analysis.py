@@ -74,7 +74,7 @@ class DraftText(BaseModel):
 class CannotGenerate(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     kind: Literal["blocked"] = "blocked"
-    reason_code: str = Field(min_length=1, max_length=100)
+    reason_code: Literal["insufficient_profile", "conflicting_constraints", "cannot_generate"]
     explanation: str = Field(min_length=1, max_length=1500)
     conflicting_constraints: list[str] = Field(default_factory=list, max_length=12)
 
@@ -190,20 +190,31 @@ def build_writing_profile(snapshot: VocabularySnapshot) -> dict[str, Any]:
     counts = Counter(str(value["score"]) for value in snapshot.words.values()
                      if not value["ignored"])
     has_known = bool(counts["2"] + counts["3"])
+    rank_ranges = ((1, 1000), (1001, 3000), (3001, max(frequency_ranks().values())))
     return {
         "snapshot_id": snapshot.snapshot_id, "profile_revision": snapshot.profile_revision,
         "language": snapshot.language,
         "counts_by_score": {"unknown_0": counts["0"], "learning_1": counts["1"],
                             "recognizing_2": counts["2"], "confident_3": counts["3"],
                             "unassessed": counts["None"]},
+        "counts_scope": "saved_entries_only",
         "prior_bands": [{"group": group, "enabled": group in snapshot.prior_groups,
-                         "provisional": True} for group in (1, 2, 3)],
+                         "provisional": True, "default_score": 2,
+                         "min_rank": low, "max_rank": high}
+                        for group, (low, high) in enumerate(rank_ranges, start=1)],
+        "vocabulary_access": {"examples_scope": "sample",
+                              "page_tool": "list_generation_vocabulary",
+                              "word_tool": "get_generation_word_knowledge",
+                              "draft_tool": "check_text_difficulty"},
         "known_examples": vocabulary_page(snapshot, "known", limit=40)["items"],
         "learning_examples": vocabulary_page(snapshot, "learning", limit=40)["items"],
         "expression_examples": expression_page(snapshot)["items"],
         "profile_sufficiency": "provisional" if snapshot.prior_groups else
                                "sufficient" if has_known else "insufficient",
-        "notice": "Предварительные оценки не подтверждают знание каждого слова; CEFR не выводится.",
+        "notice": "Примеры — выборка, а не весь словарь. Активные частотные правила дают "
+                  "предварительный score 2, если нет более приоритетной оценки. Проверка "
+                  "черновика уже учитывает эти правила. Они не подтверждают знание каждого "
+                  "слова; CEFR не выводится.",
     }
 
 
