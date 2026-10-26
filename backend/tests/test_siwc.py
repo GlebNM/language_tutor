@@ -105,7 +105,10 @@ async def test_siwc_validates_nonce_identity_and_permission_before_saving(
     assert "id_token_hint" not in returning
 
 
-async def test_siwc_provider_maps_tools_and_requires_completed_stream(tmp_path: Path) -> None:
+@pytest.mark.parametrize("request_timeout", [None, 30])
+async def test_siwc_provider_maps_tools_and_requires_completed_stream(
+    tmp_path: Path, request_timeout: int | None,
+) -> None:
     import httpx2
     from openai import AsyncOpenAI
     from pydantic_ai import Agent
@@ -131,6 +134,8 @@ async def test_siwc_provider_maps_tools_and_requires_completed_stream(tmp_path: 
     async def remote(request: httpx2.Request) -> httpx2.Response:
         assert request.url == "https://api.openai.com/v1/responses"
         assert request.headers["authorization"] == "Bearer test-access"
+        if request_timeout is not None:
+            assert request.extensions["timeout"]["read"] == request_timeout
         body = json.loads(request.content)
         assert body["store"] is False and body["stream"] is True
         assert "tools" not in body
@@ -190,7 +195,10 @@ async def test_siwc_provider_maps_tools_and_requires_completed_stream(tmp_path: 
     class Answer(BaseModel):
         answer: str
 
-    async with client, Agent(model, output_type=Answer, name="siwc_wire_test") as agent:
+    async with client, Agent(
+        model, output_type=Answer, name="siwc_wire_test",
+        model_settings={"timeout": request_timeout} if request_timeout is not None else None,
+    ) as agent:
         result = await agent.run("Проверка")
     assert result.output.answer == "Проверено"
 

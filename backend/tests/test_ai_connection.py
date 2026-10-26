@@ -217,6 +217,39 @@ async def _return(value):
     return value
 
 
+@pytest.mark.asyncio
+async def test_execution_supports_a_trusted_operation_deadline_without_changing_default(tmp_path):
+    from fastapi import HTTPException
+    from pydantic_ai.models.function import FunctionModel
+
+    from backend.app.ai_connection.service import ConnectionService, ConnectionStatus
+
+    service = ConnectionService(
+        data_dir=tmp_path, callback_host="127.0.0.1", callback_port=0, oauth_timeout=5,
+        flow_factory=SIWCOAuthFlow, mcp_url="http://mcp:8001/mcp", model_name="gpt-6-luna",
+    )
+    service.state = ConnectionStatus(status="connected")
+
+    async def connected_model(settings):
+        return FunctionModel(lambda messages, info: None)
+
+    service.connected_model = connected_model
+
+    async def operation(model):
+        await asyncio.sleep(0.03)
+        return "completed"
+
+    try:
+        with pytest.raises(HTTPException) as expired:
+            await service.execute(operation, timeout_seconds=0.01)
+        assert expired.value.status_code == 504
+        assert "0.01" in str(expired.value.detail)
+        assert await service.execute(operation, timeout_seconds=0.2) == "completed"
+        assert await service.execute(operation) == "completed"
+    finally:
+        await service.close()
+
+
 def test_oauth_listener_is_ready_and_rejects_wrong_state_before_denial(tmp_path: Path) -> None:
     import socket
     from urllib.parse import parse_qs, urlparse

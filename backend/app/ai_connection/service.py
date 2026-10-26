@@ -374,6 +374,7 @@ class ConnectionService:
         operation: Callable[[Model], Awaitable[RunOutput]],
         *,
         settings: AISettings | None = None,
+        timeout_seconds: float = 30.0,
     ) -> RunOutput:
         """Run one subscription operation; timeout and disconnect cover its whole lifetime."""
 
@@ -382,7 +383,7 @@ class ConnectionService:
         snapshot = settings or self.settings_store.read()
 
         async def connected() -> RunOutput:
-            async with asyncio.timeout(30):
+            async with asyncio.timeout(timeout_seconds):
                 model = await self.connected_model(snapshot)
                 return await operation(model)
 
@@ -400,7 +401,9 @@ class ConnectionService:
         except (SubscriptionError, ModelHTTPError) as error:
             raise self.provider_failure(error) from None
         except TimeoutError:
-            raise HTTPException(504, "AI не ответил за 30 секунд. Повторите запрос.") from None
+            raise HTTPException(
+                504, f"AI не ответил за {timeout_seconds:g} секунд. Повторите запрос."
+            ) from None
         except UsageLimitExceeded:
             raise HTTPException(
                 422, "AI достиг ограничения числа раундов. Уточните вопрос и повторите запрос."

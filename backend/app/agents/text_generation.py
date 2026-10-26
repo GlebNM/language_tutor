@@ -341,7 +341,9 @@ async def write_text(
         capabilities=[Caching()],
         toolsets=list(toolsets),
         retries=1,
-        model_settings=OpenAIResponsesModelSettings(openai_reasoning_effort=reasoning_effort),
+        model_settings=OpenAIResponsesModelSettings(
+            openai_reasoning_effort=reasoning_effort, timeout=30,
+        ),
         instructions=(
             "Создай связный английский текст для узнавания лексики в контексте. "
             "Соблюдай тему и стиль, если заданы, длину и верхние пределы L/U. "
