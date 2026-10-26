@@ -210,7 +210,8 @@ def test_pre_text_video_card_reopens_without_ai_and_retains_cache_boundaries(tmp
         assert reopened.json()["selection"]["kind"] == "video"
         assert reopened.json()["selection"]["block_id"] == selected["cue_id"]
         assert client.post("/api/cards", json={**selected, "cue_id": "foreign"}).status_code == 404
-        assert client.post("/api/cards", json={**selected, "force_refresh": True}).status_code == 409
+        assert client.post("/api/cards", json={**selected,
+                                               "force_refresh": True}).status_code == 409
         for settings in (AISettings("gpt-6-luna", "medium"), AISettings("gpt-6-sol", "low")):
             Disconnected.settings_store.write(settings)
             assert client.post("/api/cards", json=selected).status_code == 409

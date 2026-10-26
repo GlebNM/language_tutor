@@ -39,6 +39,7 @@ ACTIVE = {"queued", "preparing", "writing", "checking", "revising", "saving"}
 TOOLS = {
     "get_generation_profile",
     "list_generation_vocabulary",
+    "list_generation_expressions",
     "get_generation_word_knowledge",
     "check_text_difficulty",
     "list_draft_vocabulary_issues",

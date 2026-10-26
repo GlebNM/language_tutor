@@ -16,6 +16,7 @@ from backend.app.text_generation_analysis import (
     GenerationRequest,
     assess_draft,
     build_writing_profile,
+    expression_page,
     vocabulary_page,
 )
 
@@ -81,6 +82,18 @@ def _issue_page(analysis: dict[str, Any], offset: int, limit: int) -> dict[str, 
     return page
 
 
+def _expressions(library: MaterialLibrary, job_id: str, offset: int, limit: int) -> dict[str, Any]:
+    from backend.app.text_generation_jobs import get_job_snapshot
+
+    page = expression_page(get_job_snapshot(library, job_id), offset=offset, limit=limit)
+    while not _fits(page):
+        if len(page["items"]) <= 1:
+            raise ValueError("Значение выражения превышает допустимый размер.")
+        page["items"].pop()
+        page["next_offset"] = offset + len(page["items"])
+    return page
+
+
 def register_generation_tools(
     server: FastMCP, library_factory: Callable[[], MaterialLibrary]
 ) -> None:
@@ -89,7 +102,7 @@ def register_generation_tools(
     @server.tool()
     def get_generation_profile(job_id: str) -> str:
         """Read this job's frozen familiarity profile. Examples are a sample, not a word list.
-        Use list_generation_vocabulary for more known/learning vocabulary.
+        Use list_generation_vocabulary and list_generation_expressions for additional entries.
         """
         return bounded_json(_profile(library_factory(), job_id))
 
@@ -103,6 +116,17 @@ def register_generation_tools(
         """Read a complete paginated category from the job dictionary; follow next_offset."""
         return bounded_json(_vocabulary(library_factory(), job_id, category,
                                         part_of_speech, offset, limit))
+
+    @server.tool()
+    def list_generation_expressions(
+        job_id: str,
+        offset: int = Field(default=0, ge=0, le=100000),
+        limit: int = Field(default=20, ge=1, le=30),
+    ) -> str:
+        """Read saved expression meanings and independent familiarity from the job snapshot.
+        Follow next_offset for all meanings. Source messages, examples and history are private.
+        """
+        return bounded_json(_expressions(library_factory(), job_id, offset, limit))
 
     @server.tool()
     def get_generation_word_knowledge(job_id: str, words: list[dict[str, str]]) -> str:
