@@ -228,8 +228,8 @@ async def write_text(
     reasoning_effort: ReasoningEffort | None = None,
     usage: RunUsage | None = None, usage_limits: UsageLimits | None = None,
 ) -> DraftText | CannotGenerate:
-    agent = Agent(
-        model, name="text_writer", output_type=DraftText | CannotGenerate,
+    agent: Agent[Any, DraftText | CannotGenerate] = Agent(
+        model, name="text_writer", output_type=[DraftText, CannotGenerate],
         capabilities=[Caching()], toolsets=list(toolsets), retries=1,
         model_settings=OpenAIResponsesModelSettings(openai_reasoning_effort=reasoning_effort),
         instructions=(
