@@ -14,6 +14,7 @@ import type {
   ExpressionState,
 } from "./expressionSelection";
 import "./expressions.css";
+import { routeHash } from "./navigation";
 
 const kinds: Record<ExpressionKind, string> = {
   phrasal_verb: "Фразовый глагол",
@@ -355,7 +356,7 @@ export function ExpressionCard({
                 );
               })()
             : context.text}
-          {context.start_ms !== undefined && onSeek && (
+          {typeof context.start_ms === "number" && onSeek && (
             <button
               className="timestamp"
               onClick={() => onSeek(context.start_ms!)}
@@ -663,6 +664,7 @@ export function ExpressionDictionary({
               {example.contexts.map((context) => (
                 <p key={context.cue_id}>
                   {context.text}
+                  {context.material_id && !context.youtube_video_id && <a href={routeHash({section: "materials", materialId: context.material_id, blockId: context.block_id ?? context.cue_id})}>{context.title ?? "Открыть текст"} · к абзацу ↗</a>}
                   {context.youtube_video_id && (
                     <a
                       href={`https://www.youtube.com/watch?v=${context.youtube_video_id}&t=${Math.floor((context.start_ms ?? 0) / 1000)}`}

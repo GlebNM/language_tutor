@@ -3,8 +3,8 @@ import type { Knowledge } from "./api.ts";
 export type ExpressionKind = "phrasal_verb" | "idiom" | "collocation";
 export type ExpressionSource = {material_id: string} | {conversation_id: string; message_id: string};
 export type ExpressionContext = {
-  text: string; cue_id: string; material_id?: string; start_ms?: number; end_ms?: number;
-  youtube_video_id?: string; title?: string;
+  text: string; cue_id: string; block_id?: string; material_id?: string; start_ms?: number | null; end_ms?: number | null;
+  youtube_video_id?: string | null; title?: string;
   anchors?: {start_offset: number; end_offset: number}[];
 };
 export type ExpressionEntry = {

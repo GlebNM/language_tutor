@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { Cue } from "./api";
-import { time } from "./api";
+import { time, isTimedCue } from "./api";
 import { Icon } from "./UI";
 
 export function Transcript({
@@ -82,13 +82,13 @@ export function Transcript({
             className={`cue${cue.id === activeId ? " current" : ""}`}
             key={cue.id}
           >
-            <button
+            {isTimedCue(cue) && <button
               className="timestamp"
               onClick={() => onSeek(cue.start_ms)}
               aria-label={`Перейти к ${time(cue.start_ms)}`}
             >
               {time(cue.start_ms)}
-            </button>
+            </button>}
             <p>{renderWords(cue)}</p>
           </div>
         ))}
