@@ -37,8 +37,13 @@ from backend.app.text_generation_analysis import (
 logger = logging.getLogger(__name__)
 ACTIVE = {"queued", "preparing", "writing", "checking", "revising", "saving"}
 TOOLS = {
-    "get_generation_profile", "list_generation_vocabulary", "get_generation_word_knowledge",
-    "check_text_difficulty", "list_draft_vocabulary_issues", "find_texts_with_word", "get_text",
+    "get_generation_profile",
+    "list_generation_vocabulary",
+    "get_generation_word_knowledge",
+    "check_text_difficulty",
+    "list_draft_vocabulary_issues",
+    "find_texts_with_word",
+    "get_text",
 }
 JOB_TOOLS = TOOLS - {"find_texts_with_word", "get_text"}
 T = TypeVar("T")
@@ -50,9 +55,12 @@ def now() -> str:
 
 def _row(library: MaterialLibrary, job_id: str) -> dict[str, Any]:
     with library.connect() as db:
-        if db.execute(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='text_generation_jobs'"
-        ).fetchone() is None:
+        if (
+            db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='text_generation_jobs'"
+            ).fetchone()
+            is None
+        ):
             raise HTTPException(404, "Задание генерации не найдено.")
         row = db.execute("SELECT * FROM text_generation_jobs WHERE id=?", (job_id,)).fetchone()
         generation = db.execute(
@@ -69,10 +77,21 @@ def get_job_snapshot(library: MaterialLibrary, job_id: str) -> VocabularySnapsho
 
 def get_job(library: MaterialLibrary, job_id: str) -> dict[str, Any]:
     row = _row(library, job_id)
-    result = {key: row[key] for key in (
-        "id", "status", "revision", "model", "reasoning_effort", "error",
-        "result_material_id", "storage_generation", "created_at", "updated_at",
-    )}
+    result = {
+        key: row[key]
+        for key in (
+            "id",
+            "status",
+            "revision",
+            "model",
+            "reasoning_effort",
+            "error",
+            "result_material_id",
+            "storage_generation",
+            "created_at",
+            "updated_at",
+        )
+    }
     for key in ("request", "draft", "analysis", "feedback", "usage"):
         value = row[key + "_json"]
         result[key] = json.loads(value) if value else None
@@ -85,8 +104,12 @@ class JobStopped(Exception):
 
 class TextGenerationService:
     def __init__(
-        self, library: MaterialLibrary, connection: ConnectionService | None,
-        mcp_url: str, *, model_factory: Callable[[], Model] | None = None,
+        self,
+        library: MaterialLibrary,
+        connection: ConnectionService | None,
+        mcp_url: str,
+        *,
+        model_factory: Callable[[], Model] | None = None,
     ) -> None:
         self.library = library
         self.connection = connection
@@ -137,26 +160,34 @@ class TextGenerationService:
     def settings(self) -> dict[str, Any]:
         return {
             "available": self.available,
-            "lengths": {key: {"min_words": low, "max_words": high}
-                        for key, (low, high) in LENGTHS.items()},
+            "lengths": {
+                key: {"min_words": low, "max_words": high} for key, (low, high) in LENGTHS.items()
+            },
             "difficulty_limits": {
-                key: {"learning_ratio_max": learning / 100,
-                      "new_or_unassessed_ratio_max": unfamiliar / 100}
+                key: {
+                    "learning_ratio_max": learning / 100,
+                    "new_or_unassessed_ratio_max": unfamiliar / 100,
+                }
                 for key, (learning, unfamiliar) in LOAD_LIMITS.items()
             },
         }
 
     def list_jobs(self) -> list[dict[str, Any]]:
         with self.library.connect() as db:
-            ids = [row[0] for row in db.execute(
-                "SELECT id FROM text_generation_jobs WHERE storage_generation=? "
-                "ORDER BY created_at DESC LIMIT 30",
-                (self.library.get_profile()["storage_generation"],),
-            )]
+            ids = [
+                row[0]
+                for row in db.execute(
+                    "SELECT id FROM text_generation_jobs WHERE storage_generation=? "
+                    "ORDER BY created_at DESC LIMIT 30",
+                    (self.library.get_profile()["storage_generation"],),
+                )
+            ]
         return [get_job(self.library, identity) for identity in ids]
 
     def start(
-        self, request: GenerationRequest, idempotency_key: str | None = None,
+        self,
+        request: GenerationRequest,
+        idempotency_key: str | None = None,
     ) -> dict[str, Any]:
         snapshot = VocabularySnapshot.capture(self.library)
         encoded = json.dumps(request.model_dump(), ensure_ascii=False, sort_keys=True)
@@ -173,8 +204,13 @@ class TextGenerationService:
                 return get_job(self.library, existing["id"])
         if not self.available:
             raise HTTPException(409, "Для создания текста подключите подписку в настройках.")
-        settings = self.connection.settings_store.read() if self.connection else AISettings(
-            model="gpt-6-luna", reasoning_effort="low",
+        settings = (
+            self.connection.settings_store.read()
+            if self.connection
+            else AISettings(
+                model="gpt-6-luna",
+                reasoning_effort="low",
+            )
         )
         identity = uuid4().hex
         stamp = now()
@@ -192,9 +228,17 @@ class TextGenerationService:
                 "INSERT INTO text_generation_jobs(id,storage_generation,idempotency_key,"
                 "request_json,snapshot_json,status,model,reasoning_effort,created_at,updated_at) "
                 "VALUES(?,?,?,?,?,'queued',?,?,?,?)",
-                (identity, snapshot.storage_generation, idempotency_key, encoded,
-                 json.dumps(snapshot.to_dict(), ensure_ascii=False), settings.model,
-                 settings.reasoning_effort, stamp, stamp),
+                (
+                    identity,
+                    snapshot.storage_generation,
+                    idempotency_key,
+                    encoded,
+                    json.dumps(snapshot.to_dict(), ensure_ascii=False),
+                    settings.model,
+                    settings.reasoning_effort,
+                    stamp,
+                    stamp,
+                ),
             )
         self.tasks[identity] = asyncio.create_task(self._run(identity, settings))
         return get_job(self.library, identity)
@@ -208,18 +252,26 @@ class TextGenerationService:
             db.execute("BEGIN IMMEDIATE")
             current = db.execute(
                 "SELECT j.status,j.storage_generation,m.value FROM text_generation_jobs j "
-                "JOIN storage_metadata m ON m.key='generation' WHERE j.id=?", (identity,),
+                "JOIN storage_metadata m ON m.key='generation' WHERE j.id=?",
+                (identity,),
             ).fetchone()
-            if (current is None or current["status"] not in ACTIVE
-                    or current["storage_generation"] != current["value"]):
+            if (
+                current is None
+                or current["status"] not in ACTIVE
+                or current["storage_generation"] != current["value"]
+            ):
                 raise JobStopped
             db.execute(
-                "UPDATE text_generation_jobs SET " + ",".join(key + "=?" for key in values)
-                + " WHERE id=?", (*values.values(), identity),
+                "UPDATE text_generation_jobs SET "
+                + ",".join(key + "=?" for key in values)
+                + " WHERE id=?",
+                (*values.values(), identity),
             )
 
     async def _operation(
-        self, settings: AISettings, operation: Callable[[Model], Awaitable[T]],
+        self,
+        settings: AISettings,
+        operation: Callable[[Model], Awaitable[T]],
     ) -> T:
         if self.model_factory:
             async with asyncio.timeout(30):
@@ -228,43 +280,107 @@ class TextGenerationService:
             return await self.connection.execute(operation, settings=settings)
         raise HTTPException(409, "Для создания текста подключите подписку.")
 
+    def _fail(self, identity: str, status: str, message: str, usage: RunUsage) -> None:
+        """A committed material wins over interruption of its awaiting task."""
+        with suppress(HTTPException, JobStopped):
+            row = _row(self.library, identity)
+            with self.library.connect() as db:
+                db.execute("BEGIN IMMEDIATE")
+                material = None
+                if "generation_job_id" in {
+                    column["name"] for column in db.execute("PRAGMA table_info(materials)")
+                }:
+                    material = db.execute(
+                        "SELECT id FROM materials WHERE generation_job_id=?", (identity,)
+                    ).fetchone()
+                if material is not None:
+                    db.execute(
+                        "UPDATE text_generation_jobs SET status='completed',"
+                        "result_material_id=?,error=NULL,updated_at=? "
+                        "WHERE id=? AND storage_generation=?",
+                        (material["id"], now(), identity, row["storage_generation"]),
+                    )
+                    return
+                db.execute(
+                    "UPDATE text_generation_jobs SET status=?,error=?,usage_json=?,updated_at=? "
+                    "WHERE id=? AND storage_generation=? AND status IN "
+                    "('queued','preparing','writing','checking','revising','saving')",
+                    (status, message, json.dumps(self._usage(usage)), now(), identity,
+                     row["storage_generation"]),
+                )
+
     def _save_version(
-        self, identity: str, revision: int, draft: DraftText, analysis: dict[str, Any],
-        context: dict[str, Any] | None, requirements: dict[str, Any] | None,
+        self,
+        identity: str,
+        revision: int,
+        draft: DraftText,
+        analysis: dict[str, Any],
+        context: dict[str, Any] | None,
+        requirements: dict[str, Any] | None,
     ) -> None:
-        self._update(identity, revision=revision, draft_json=json.dumps(draft.model_dump()),
-                     analysis_json=json.dumps(analysis, ensure_ascii=False))
+        self._update(
+            identity,
+            revision=revision,
+            draft_json=json.dumps(draft.model_dump()),
+            analysis_json=json.dumps(analysis, ensure_ascii=False),
+        )
         with self.library.connect() as db:
             db.execute(
                 "INSERT INTO text_generation_drafts VALUES(?,?,?,?,?,?,?) "
                 "ON CONFLICT(job_id,revision) DO UPDATE SET draft_json=excluded.draft_json,"
                 "analysis_json=excluded.analysis_json,context_json=excluded.context_json,"
                 "requirements_json=excluded.requirements_json",
-                (identity, revision, json.dumps(draft.model_dump(), ensure_ascii=False),
-                 json.dumps(analysis, ensure_ascii=False),
-                 json.dumps(context, ensure_ascii=False) if context is not None else None,
-                 json.dumps(requirements, ensure_ascii=False) if requirements is not None else None,
-                 now()),
+                (
+                    identity,
+                    revision,
+                    json.dumps(draft.model_dump(), ensure_ascii=False),
+                    json.dumps(analysis, ensure_ascii=False),
+                    json.dumps(context, ensure_ascii=False) if context is not None else None,
+                    json.dumps(requirements, ensure_ascii=False)
+                    if requirements is not None
+                    else None,
+                    now(),
+                ),
             )
 
     async def _checks(
-        self, identity: str, settings: AISettings, request: GenerationRequest,
-        analysis: dict[str, Any], usage: RunUsage, limits: UsageLimits,
+        self,
+        identity: str,
+        settings: AISettings,
+        request: GenerationRequest,
+        analysis: dict[str, Any],
+        usage: RunUsage,
+        limits: UsageLimits,
     ) -> tuple[dict[str, Any] | None, dict[str, Any] | None, list[dict[str, Any]]]:
         self._update(identity, status="checking")
         issues = list(analysis["violations"])
-        if any(issue["criterion_id"] in {"length", "empty_vocabulary", "insufficient_profile"}
-               for issue in issues):
+        if any(
+            issue["criterion_id"] in {"length", "empty_vocabulary", "insufficient_profile"}
+            for issue in issues
+        ):
             return None, None, issues
-        context = await self._operation(settings, lambda model: review_context(
-            model=model, analysis=analysis, reasoning_effort=settings.reasoning_effort,
-            usage=usage, usage_limits=limits,
-        ))
+        context = await self._operation(
+            settings,
+            lambda model: review_context(
+                model=model,
+                analysis=analysis,
+                reasoning_effort=settings.reasoning_effort,
+                usage=usage,
+                usage_limits=limits,
+            ),
+        )
         self._update(identity, status="checking")
-        requirements = await self._operation(settings, lambda model: review_requirements(
-            model=model, analysis=analysis, settings=request,
-            reasoning_effort=settings.reasoning_effort, usage=usage, usage_limits=limits,
-        ))
+        requirements = await self._operation(
+            settings,
+            lambda model: review_requirements(
+                model=model,
+                analysis=analysis,
+                settings=request,
+                reasoning_effort=settings.reasoning_effort,
+                usage=usage,
+                usage_limits=limits,
+            ),
+        )
         context_report, requirements_report = context.as_report(), requirements.as_report()
         issues += context_report["blocking_issues"] + requirements_report["blocking_issues"]
         return context_report, requirements_report, issues
@@ -283,11 +399,17 @@ class TextGenerationService:
                 feedback = None
                 for revision in range(1, self.max_versions + 1):
                     snapshot = VocabularySnapshot.capture(self.library)
-                    self._update(identity, snapshot_json=json.dumps(snapshot.to_dict()),
-                                 status="writing", revision=revision)
+                    self._update(
+                        identity,
+                        snapshot_json=json.dumps(snapshot.to_dict()),
+                        status="writing",
+                        revision=revision,
+                    )
 
                     async def scoped_call(
-                        ctx: RunContext[Any], call_tool: CallToolFunc, name: str,
+                        ctx: RunContext[Any],
+                        call_tool: CallToolFunc,
+                        name: str,
                         args: dict[str, Any],
                     ) -> ToolResult:
                         nonlocal attempts
@@ -301,26 +423,40 @@ class TextGenerationService:
                         if name in JOB_TOOLS:
                             args["job_id"] = identity
                         result = await call_tool(name, args)
-                        encoded = result if isinstance(result, str) else json.dumps(
-                            result, ensure_ascii=False,
+                        encoded = (
+                            result
+                            if isinstance(result, str)
+                            else json.dumps(
+                                result,
+                                ensure_ascii=False,
+                            )
                         )
                         if len(encoded) > MAX_TOOL_CHARACTERS:
                             raise ModelRetry("Уменьши страницу учебного контекста.")
                         return result
 
                     tools = MCPToolset(
-                        self.mcp_url, headers=mcp_headers(), process_tool_call=scoped_call,
-                        read_timeout=10, init_timeout=5,
+                        self.mcp_url,
+                        headers=mcp_headers(),
+                        process_tool_call=scoped_call,
+                        read_timeout=10,
+                        init_timeout=5,
                     )
                     async with tools:
                         attempts += 1
                         if attempts > self.tool_attempt_limit:
                             raise UsageLimitExceeded("Generation tool attempt limit exceeded")
                         raw_profile = await tools.direct_call_tool(
-                            "get_generation_profile", {"job_id": identity},
+                            "get_generation_profile",
+                            {"job_id": identity},
                         )
-                        encoded = raw_profile if isinstance(raw_profile, str) else json.dumps(
-                            raw_profile, ensure_ascii=False,
+                        encoded = (
+                            raw_profile
+                            if isinstance(raw_profile, str)
+                            else json.dumps(
+                                raw_profile,
+                                ensure_ascii=False,
+                            )
                         )
                         if len(encoded) > MAX_TOOL_CHARACTERS:
                             raise ValueError("Generation profile exceeds the MCP limit")
@@ -329,50 +465,86 @@ class TextGenerationService:
                             raise ValueError("Generation profile does not match the dictionary")
                         if profile["profile_sufficiency"] == "insufficient":
                             self._update(
-                                identity, status="needs_changes",
+                                identity,
+                                status="needs_changes",
                                 error="Пройдите диагностику или уточните знакомые слова.",
-                                feedback_json=json.dumps({"blocking_issues": [
-                                    {"criterion_id": "insufficient_profile"},
-                                ]}),
+                                feedback_json=json.dumps(
+                                    {
+                                        "blocking_issues": [
+                                            {"criterion_id": "insufficient_profile"},
+                                        ]
+                                    }
+                                ),
                             )
                             return
-                        output = await self._operation(settings, lambda model: write_text(
-                            model=model, settings=request, profile=profile,
-                            previous_draft=previous_draft, feedback=feedback,
-                            toolsets=[tools.filtered(lambda ctx, tool: tool.name in TOOLS)],
-                            reasoning_effort=settings.reasoning_effort,
-                            usage=usage, usage_limits=limits,
-                        ))
+                        output = await self._operation(
+                            settings,
+                            lambda model: write_text(
+                                model=model,
+                                settings=request,
+                                profile=profile,
+                                previous_draft=previous_draft,
+                                feedback=feedback,
+                                toolsets=[tools.filtered(lambda ctx, tool: tool.name in TOOLS)],
+                                reasoning_effort=settings.reasoning_effort,
+                                usage=usage,
+                                usage_limits=limits,
+                            ),
+                        )
                     if isinstance(output, CannotGenerate):
-                        self._update(identity, status="needs_changes", error=output.explanation,
-                                     feedback_json=json.dumps({"blocking_issues": [
-                                         output.model_dump(),
-                                     ]}, ensure_ascii=False))
+                        self._update(
+                            identity,
+                            status="needs_changes",
+                            error=output.explanation,
+                            feedback_json=json.dumps(
+                                {
+                                    "blocking_issues": [
+                                        output.model_dump(),
+                                    ]
+                                },
+                                ensure_ascii=False,
+                            ),
+                        )
                         return
-                    analysis = assess_draft(snapshot, output, request, revision=revision,
-                                            draft_id=identity)
+                    analysis = assess_draft(
+                        snapshot, output, request, revision=revision, draft_id=identity
+                    )
                     self._save_version(identity, revision, output, analysis, None, None)
                     context, requirements, issues = await self._checks(
-                        identity, settings, request, analysis, usage, limits,
+                        identity,
+                        settings,
+                        request,
+                        analysis,
+                        usage,
+                        limits,
                     )
                     if not issues:
                         current = VocabularySnapshot.capture(self.library)
                         if current.snapshot_id != snapshot.snapshot_id:
                             snapshot = current
                             self._update(identity, snapshot_json=json.dumps(snapshot.to_dict()))
-                            analysis = assess_draft(snapshot, output, request, revision=revision,
-                                                    draft_id=identity)
+                            analysis = assess_draft(
+                                snapshot, output, request, revision=revision, draft_id=identity
+                            )
                             context, requirements, issues = await self._checks(
-                                identity, settings, request, analysis, usage, limits,
+                                identity,
+                                settings,
+                                request,
+                                analysis,
+                                usage,
+                                limits,
                             )
                     self._save_version(identity, revision, output, analysis, context, requirements)
                     feedback = {
-                        "constraints": request.constraints(), "deterministic_report": analysis,
-                        "context_review": context, "requirements_review": requirements,
+                        "constraints": request.constraints(),
+                        "deterministic_report": analysis,
+                        "context_review": context,
+                        "requirements_review": requirements,
                         "blocking_issues": issues,
-                        "remaining_budget": {"draft_versions": self.max_versions - revision,
-                                             "model_requests": self.model_request_limit
-                                             - usage.requests},
+                        "remaining_budget": {
+                            "draft_versions": self.max_versions - revision,
+                            "model_requests": self.model_request_limit - usage.requests,
+                        },
                     }
                     self._update(identity, feedback_json=json.dumps(feedback, ensure_ascii=False))
                     if not issues:
@@ -382,7 +554,8 @@ class TextGenerationService:
                                 self.library.import_text,
                                 title=output.title,
                                 content="\n\n".join(p.text for p in output.paragraphs),
-                                source="generated", expected_generation=snapshot.storage_generation,
+                                source="generated",
+                                expected_generation=snapshot.storage_generation,
                                 expected_profile_revision=snapshot.profile_revision,
                                 generation_job_id=identity,
                             )
@@ -391,54 +564,100 @@ class TextGenerationService:
                                 snapshot.storage_generation
                             ):
                                 raise JobStopped from error
-                            feedback["blocking_issues"] = [{
-                                "criterion_id": "profile_changed",
-                                "explanation": "Словарь изменился. Нужна новая проверка.",
-                            }]
-                            self._update(identity, status="revising",
-                                         feedback_json=json.dumps(feedback, ensure_ascii=False))
+                            feedback["blocking_issues"] = [
+                                {
+                                    "criterion_id": "profile_changed",
+                                    "explanation": "Словарь изменился. Нужна новая проверка.",
+                                }
+                            ]
+                            self._update(
+                                identity,
+                                status="revising",
+                                feedback_json=json.dumps(feedback, ensure_ascii=False),
+                            )
                         else:
-                            self._update(identity, status="completed",
-                                         result_material_id=material["id"], error=None,
-                                         usage_json=json.dumps(self._usage(usage)))
+                            self._update(
+                                identity,
+                                status="completed",
+                                result_material_id=material["id"],
+                                error=None,
+                                usage_json=json.dumps(self._usage(usage)),
+                            )
                             return
                     previous_draft = analysis["versioned_draft"]
-                    self._update(identity, status="revising",
-                                 usage_json=json.dumps(self._usage(usage)))
-                self._update(identity, status="needs_changes",
-                             error="Не удалось выполнить все условия за три версии текста.")
+                    self._update(
+                        identity, status="revising", usage_json=json.dumps(self._usage(usage))
+                    )
+                self._update(
+                    identity,
+                    status="needs_changes",
+                    error="Не удалось выполнить все условия за три версии текста.",
+                )
         except (JobStopped, asyncio.CancelledError):
-            with suppress(HTTPException, JobStopped):
-                self._update(identity, status="interrupted",
-                             error="Генерация остановлена. Можно повторить.")
+            self._fail(identity, "interrupted", "Генерация остановлена. Можно повторить.", usage)
         except TimeoutError:
-            with suppress(HTTPException, JobStopped):
-                self._update(identity, status="needs_changes",
-                             error="Истекло время создания текста. Можно повторить.")
+            self._fail(
+                identity, "needs_changes", "Истекло время создания текста. Можно повторить.", usage
+            )
         except UsageLimitExceeded:
-            with suppress(HTTPException, JobStopped):
-                self._update(identity, status="needs_changes",
-                             error="Достигнут предел запросов AI. Можно повторить.")
+            self._fail(
+                identity, "needs_changes", "Достигнут предел запросов AI. Можно повторить.", usage
+            )
         except Exception as error:
             logger.warning("text_generation_job=%s failed: %s", identity, type(error).__name__)
-            message = str(error.detail) if isinstance(error, HTTPException) else (
-                "AI или учебные инструменты не смогли завершить создание текста. Можно повторить."
+            message = (
+                str(error.detail)
+                if isinstance(error, HTTPException)
+                else (
+                    "AI или учебные инструменты не смогли завершить создание текста. "
+                    "Можно повторить."
+                )
             )
-            with suppress(HTTPException, JobStopped):
-                self._update(identity, status="failed", error=message,
-                             usage_json=json.dumps(self._usage(usage)))
+            self._fail(identity, "failed", message, usage)
         finally:
             self.tasks.pop(identity, None)
 
     @staticmethod
     def _usage(usage: RunUsage) -> dict[str, int]:
-        return {"model_requests": usage.requests, "tool_calls": usage.tool_calls,
-                "input_tokens": usage.input_tokens, "output_tokens": usage.output_tokens}
+        return {
+            "model_requests": usage.requests,
+            "tool_calls": usage.tool_calls,
+            "input_tokens": usage.input_tokens,
+            "output_tokens": usage.output_tokens,
+        }
 
     async def cancel(self, identity: str) -> dict[str, Any]:
         job = get_job(self.library, identity)
         if job["status"] in ACTIVE:
-            self._update(identity, status="cancelled", error="Создание текста остановлено.")
+            with self.library.connect() as db:
+                db.execute("BEGIN IMMEDIATE")
+                current = db.execute(
+                    "SELECT status FROM text_generation_jobs WHERE id=?",
+                    (identity,),
+                ).fetchone()
+                if current is None:
+                    raise HTTPException(404, "Задание больше недоступно.")
+                if current["status"] in ACTIVE:
+                    material = None
+                    if "generation_job_id" in {
+                        row["name"] for row in db.execute("PRAGMA table_info(materials)")
+                    }:
+                        material = db.execute(
+                            "SELECT id FROM materials WHERE generation_job_id=?",
+                            (identity,),
+                        ).fetchone()
+                    if material is not None:
+                        db.execute(
+                            "UPDATE text_generation_jobs SET status='completed',"
+                            "result_material_id=?,error=NULL,updated_at=? WHERE id=?",
+                            (material["id"], now(), identity),
+                        )
+                    else:
+                        db.execute(
+                            "UPDATE text_generation_jobs SET status='cancelled',error=?,"
+                            "updated_at=? WHERE id=?",
+                            ("Создание текста остановлено.", now(), identity),
+                        )
             task = self.tasks.get(identity)
             if task:
                 task.cancel()
@@ -474,8 +693,8 @@ def create_text_generation_router(service: TextGenerationService) -> APIRouter:
         return service.settings()
 
     @router.get("/jobs")
-    def jobs() -> list[dict[str, Any]]:
-        return service.list_jobs()
+    def jobs() -> dict[str, Any]:
+        return {"jobs": service.list_jobs()}
 
     @router.post("/jobs", status_code=202)
     async def start(
