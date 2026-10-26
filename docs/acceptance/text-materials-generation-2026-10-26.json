@@ -101,5 +101,6 @@
     "A79": "incomplete: no successful live end-to-end generation",
     "issue_23": "open",
     "issue_29": "open"
-  }
+  },
+  "superseded_by": "text-materials-generation-2026-10-27.json"
 }

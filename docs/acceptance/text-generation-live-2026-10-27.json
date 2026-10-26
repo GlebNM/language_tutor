@@ -1,0 +1,261 @@
+{
+  "date": "2026-10-27",
+  "timezone": "Europe/Moscow",
+  "source_commit": "cd5cdce2ca8daacdd47f48dc0943a87ebf433c80",
+  "run_source_label": "required-keys-and-retained-feedback",
+  "mode": "real-subscription-real-mcp",
+  "synthetic_profile": {
+    "prior_bands": [
+      1,
+      2,
+      3
+    ],
+    "source": "synthetic enabled frequency-band priors",
+    "ranked_lemmas": 6000,
+    "manual_learning": [
+      "borrow"
+    ],
+    "manual_unknown": [
+      "umbrella"
+    ]
+  },
+  "settings": {
+    "topic": "A rainy walk and a kind neighbour",
+    "style": "A simple, natural conversational story",
+    "length": "short",
+    "difficulty": "rich"
+  },
+  "model": "gpt-6-luna",
+  "reasoning_effort": "medium",
+  "duration_seconds": 49.96,
+  "states": [
+    {
+      "status": "writing",
+      "revision": 1
+    },
+    {
+      "status": "writing",
+      "revision": 2
+    },
+    {
+      "status": "checking",
+      "revision": 2
+    },
+    {
+      "status": "completed",
+      "revision": 2
+    }
+  ],
+  "usage": {
+    "model_requests": 8,
+    "tool_calls": 4,
+    "input_tokens": 41031,
+    "output_tokens": 1422
+  },
+  "draft_reviews": [
+    {
+      "revision": 1,
+      "draft": {
+        "kind": "draft",
+        "title": "A Walk in the Rain",
+        "paragraphs": [
+          {
+            "text": "After lunch, I went for a walk. The sky was gray, and soon rain began to fall. I had no umbrella, so I turned toward home. At the corner, my neighbor, Mr. Lee, stood beside his gate. He held out a spare umbrella. “Here, take this,” he said. “You can bring it back tomorrow.” I thanked him and opened it. The rain tapped softly above me as we walked down the street together. Mr. Lee told me he was going to the small shop, so I went with him. We talked about the garden and the wet leaves along the road. At the shop door, he smiled and said, “Keep the umbrella until the rain stops.” I promised to return it the next day. On the way home, I felt warm, even though my coat was damp. A kind neighbor had made a rainy afternoon feel bright."
+          }
+        ]
+      },
+      "metrics": {
+        "word_count": 152,
+        "counted_tokens": 150,
+        "known_tokens": 142,
+        "learning_tokens": 0,
+        "explicit_unknown_tokens": 3,
+        "unassessed_tokens": 5,
+        "provisional_tokens": 142,
+        "learning_ratio": 0.0,
+        "new_or_unassessed_ratio": 0.05333333333333334,
+        "new_unique": 5
+      },
+      "violations": [
+        {
+          "criterion_id": "new_ratio",
+          "actual": 0.05333333333333334,
+          "maximum": 0.05
+        }
+      ],
+      "context_review": null,
+      "requirements_review": null
+    },
+    {
+      "revision": 2,
+      "draft": {
+        "kind": "draft",
+        "title": "A Walk in the Rain",
+        "paragraphs": [
+          {
+            "text": "After lunch, I went for a walk. The sky was gray, and soon rain began to fall. I had no coat, so I turned toward home. At the corner, my neighbour, Sam, stood by his gate. He held out a large coat. “Here, take this,” he said. “You can bring it back tomorrow.” I thanked him and put it on. The rain fell on the street as we walked together. Sam said he was going to the shop, so I went with him. We talked about the garden and the leaves on the ground. At the shop door, he smiled. “Keep the coat until the rain stops,” he said. I promised to return it the next day. On the way home, I felt warm, even though my shoes were wet. “That was kind of you,” I said. Sam laughed. “It was no trouble. A walk is better with a friend.” I went home glad that I had met my kind neighbour."
+          }
+        ]
+      },
+      "metrics": {
+        "word_count": 166,
+        "counted_tokens": 163,
+        "known_tokens": 161,
+        "learning_tokens": 0,
+        "explicit_unknown_tokens": 0,
+        "unassessed_tokens": 2,
+        "provisional_tokens": 161,
+        "learning_ratio": 0.0,
+        "new_or_unassessed_ratio": 0.012269938650306749,
+        "new_unique": 1
+      },
+      "violations": [],
+      "context_review": {
+        "draft_id": "6056b8d92e8c477abfaadd4e79713cd2",
+        "revision": 2,
+        "draft_hash": "2f89d5abc41d137562269f1e2ee38542a69c091872efc5d66739dc90bad5c4a5",
+        "snapshot_id": "95f2713ca988928560c19cc6415bbb43dc15693d818b3b1f56c2f2c87de22086",
+        "context_checks": [
+          {
+            "block_id": "6056b8d92e8c477abfaadd4e79713cd2:r2:p1",
+            "token_ids": [
+              "6056b8d92e8c477abfaadd4e79713cd2:r2:p1:t30"
+            ],
+            "context_status": "clear",
+            "explanation": "Сосед стоит у своего дома, предлагает пальто и вместе идет в магазин, поэтому роль соседа понятна.",
+            "evidence": [
+              {
+                "block_id": "6056b8d92e8c477abfaadd4e79713cd2:r2:p1",
+                "quote": "my neighbour, Sam, stood by his gate",
+                "token_ids": []
+              }
+            ],
+            "repair_instructions": null
+          },
+          {
+            "block_id": "6056b8d92e8c477abfaadd4e79713cd2:r2:p1",
+            "token_ids": [
+              "6056b8d92e8c477abfaadd4e79713cd2:r2:p1:t160"
+            ],
+            "context_status": "clear",
+            "explanation": "В финале рассказчик называет Сэма своим добрым соседом, закрепляя то же значение слова.",
+            "evidence": [
+              {
+                "block_id": "6056b8d92e8c477abfaadd4e79713cd2:r2:p1",
+                "quote": "my kind neighbour",
+                "token_ids": []
+              }
+            ],
+            "repair_instructions": null
+          }
+        ],
+        "passed": true,
+        "blocking_issues": []
+      },
+      "requirements_review": {
+        "draft_id": "6056b8d92e8c477abfaadd4e79713cd2",
+        "revision": 2,
+        "draft_hash": "2f89d5abc41d137562269f1e2ee38542a69c091872efc5d66739dc90bad5c4a5",
+        "snapshot_id": "95f2713ca988928560c19cc6415bbb43dc15693d818b3b1f56c2f2c87de22086",
+        "checks": [
+          {
+            "criterion_id": "coherence",
+            "status": "pass",
+            "explanation": "Сюжет последовательно связывает дождь, помощь Сэма, их совместную прогулку и благодарность рассказчика.",
+            "evidence": [
+              {
+                "block_id": "6056b8d92e8c477abfaadd4e79713cd2:r2:p1",
+                "quote": "I had no coat, so I turned toward home.",
+                "token_ids": []
+              },
+              {
+                "block_id": "6056b8d92e8c477abfaadd4e79713cd2:r2:p1",
+                "quote": "He held out a large coat.",
+                "token_ids": []
+              },
+              {
+                "block_id": "6056b8d92e8c477abfaadd4e79713cd2:r2:p1",
+                "quote": "Sam said he was going to the shop, so I went with him.",
+                "token_ids": []
+              },
+              {
+                "block_id": "6056b8d92e8c477abfaadd4e79713cd2:r2:p1",
+                "quote": "I went home glad that I had met my kind neighbour.",
+                "token_ids": []
+              }
+            ],
+            "repair_instructions": null
+          },
+          {
+            "criterion_id": "style",
+            "status": "pass",
+            "explanation": "Текст выдержан в простом и естественном разговорном стиле: повествование от первого лица перемежается короткими репликами.",
+            "evidence": [
+              {
+                "block_id": "6056b8d92e8c477abfaadd4e79713cd2:r2:p1",
+                "quote": "“Here, take this,” he said.",
+                "token_ids": []
+              },
+              {
+                "block_id": "6056b8d92e8c477abfaadd4e79713cd2:r2:p1",
+                "quote": "Sam laughed. “It was no trouble.",
+                "token_ids": []
+              }
+            ],
+            "repair_instructions": null
+          },
+          {
+            "criterion_id": "topic",
+            "status": "pass",
+            "explanation": "Текст посвящён прогулке под дождём и доброте соседа, который одалживает рассказчику пальто и составляет ему компанию.",
+            "evidence": [
+              {
+                "block_id": "6056b8d92e8c477abfaadd4e79713cd2:r2:p1",
+                "quote": "The sky was gray, and soon rain began to fall.",
+                "token_ids": []
+              },
+              {
+                "block_id": "6056b8d92e8c477abfaadd4e79713cd2:r2:p1",
+                "quote": "At the corner, my neighbour, Sam, stood by his gate.",
+                "token_ids": []
+              },
+              {
+                "block_id": "6056b8d92e8c477abfaadd4e79713cd2:r2:p1",
+                "quote": "He held out a large coat.",
+                "token_ids": []
+              }
+            ],
+            "repair_instructions": null
+          }
+        ],
+        "passed": true,
+        "blocking_issues": []
+      }
+    }
+  ],
+  "result": {
+    "id": "14a7aa948fc347ffabe9f8e4ac7617f2",
+    "kind": "text",
+    "source": "generated",
+    "title": "A Walk in the Rain",
+    "paragraphs": [
+      "After lunch, I went for a walk. The sky was gray, and soon rain began to fall. I had no coat, so I turned toward home. At the corner, my neighbour, Sam, stood by his gate. He held out a large coat. “Here, take this,” he said. “You can bring it back tomorrow.” I thanked him and put it on. The rain fell on the street as we walked together. Sam said he was going to the shop, so I went with him. We talked about the garden and the leaves on the ground. At the shop door, he smiled. “Keep the coat until the rain stops,” he said. I promised to return it the next day. On the way home, I felt warm, even though my shoes were wet. “That was kind of you,” I said. Sam laughed. “It was no trouble. A walk is better with a friend.” I went home glad that I had met my kind neighbour."
+    ]
+  },
+  "checks": {
+    "text_material": true,
+    "one_material_added": true,
+    "idempotent_result": true
+  },
+  "success": true,
+  "verification_scope": {
+    "real_model": true,
+    "real_mcp": true,
+    "model_or_tool_results_replaced": false,
+    "automatic_library_save": true,
+    "idempotent_publication": true,
+    "temporary_account_and_credentials_removed": true,
+    "normal_learning_profile_modified": false
+  },
+  "manual_assessment": "Связный естественный рассказ, без списков слов и заполнителя. Проверена ситуация помощи под дождём и понятный контекст оставшейся новой лексики; это один образец, а не измерение учебной эффективности."
+}
