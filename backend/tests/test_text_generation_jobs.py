@@ -277,6 +277,111 @@ def test_job_deadline_still_stops_a_writer_with_a_longer_operation_budget(learni
         assert len(client.get("/api/materials").json()) == before
 
 
+@pytest.mark.parametrize(("failure", "expected_status"), [
+    ("timeout", "needs_changes"), ("requests", "needs_changes"), ("provider", "failed"),
+])
+def test_subscription_budget_failure_keeps_a_retriable_draft(
+    learning_mcp, monkeypatch, failure, expected_status,
+):
+    import asyncio
+
+    import httpx2
+    from openai import AsyncOpenAI
+    from pydantic_ai import models
+    from pydantic_ai.providers.openai import OpenAIProvider
+
+    from backend.app.ai_connection.service import ConnectionStatus
+    from backend.app.ai_connection.siwc import TokenManager
+    from backend.app.ai_connection.siwc_credentials import SIWCCredentials
+    from backend.app.ai_connection.siwc_model import SIWCTransport
+
+    mcp_url, database = learning_mcp
+    app = create_learner_app(database, seed_demo=False, include_ai=True)
+    service = app.state.text_generation
+    service.mcp_url = mcp_url
+    if failure == "requests":
+        service.model_request_limit = 1
+    connection = app.state.connection
+    asyncio.run(connection.store.save(SIWCCredentials(
+        access_token="test-access", refresh_token="test-refresh", id_token="test-id",
+        client_id="oaiapp_test", subject="learner", scopes=["chatgpt.tokens.use.direct"],
+        expires_at=time.time() + 3600,
+    )))
+    connection.state = ConnectionStatus(status="connected")
+    original_timeout = asyncio.timeout
+
+    def shortened_operation_timeout(delay):
+        return original_timeout(0.2 if delay == 30 else delay)
+
+    monkeypatch.setattr(asyncio, "timeout", shortened_operation_timeout)
+
+    async def remote(request):
+        if request.url.path == "/v1/models":
+            return httpx2.Response(200, json={"models": [{
+                "slug": "gpt-6-luna", "visibility": "list",
+                "supported_reasoning_levels": [{"effort": "low"}],
+            }]})
+        body = json.loads(request.content)
+        tools = body["input"][0]["tools"]
+        writer = next((tool for tool in tools
+                       if {"kind", "paragraphs"} <= set(
+                           tool["parameters"].get("properties", {}))), None)
+        if writer is None:
+            if failure == "provider":
+                return httpx2.Response(422, json={"error": {
+                    "message": "Synthetic provider validation error",
+                    "type": "invalid_request_error", "code": "invalid_payload",
+                }})
+            await asyncio.sleep(0.5)
+            raise AssertionError("The subscription operation should have timed out")
+        item = {"id": "fc_draft", "type": "function_call", "call_id": "call_draft",
+                "name": writer["name"], "status": "completed", "arguments": json.dumps({
+                    "kind": "draft", "title": "Books",
+                    "paragraphs": [{"text": "We read books. " * 49 + "We borrow books."}],
+                })}
+        response = {"id": "resp_draft", "object": "response", "created_at": time.time(),
+                    "model": "gpt-6-luna", "status": "completed", "output": [item]}
+        events = [
+            {"type": "response.output_item.added", "item": {**item, "arguments": ""},
+             "output_index": 0, "sequence_number": 0},
+            {"type": "response.output_item.done", "item": item,
+             "output_index": 0, "sequence_number": 1},
+            {"type": "response.completed", "response": response, "sequence_number": 2},
+        ]
+        return httpx2.Response(
+            200, headers={"content-type": "text/event-stream"},
+            content="".join(f"data: {json.dumps(e)}\n\n" for e in events).encode(),
+        )
+
+    sdk_client = httpx2.AsyncClient(transport=SIWCTransport(
+        TokenManager(connection.store), transport=httpx2.MockTransport(remote),
+    ))
+    connection.http_client = sdk_client
+    connection.provider = OpenAIProvider(openai_client=AsyncOpenAI(
+        api_key="subscription-oauth", http_client=sdk_client, max_retries=0,
+    ))
+    with (
+        TestClient(app, base_url="http://localhost") as client,
+        models.override_allow_model_requests(True),
+    ):
+        prepare_known_words(client)
+        before = len(client.get("/api/materials").json())
+        started = client.post("/api/text-generation/jobs", json={"length": "short"})
+        assert started.status_code == 202
+        result = wait_job(client, started.json()["id"])
+        assert result["status"] == expected_status, {
+            "status": result["status"], "error": result["error"], "usage": result["usage"],
+        }
+        assert result["draft"]["title"] == "Books"
+        assert result["analysis"]["metrics"]["word_count"] == 151
+        assert result["result_material_id"] is None
+        if failure == "timeout":
+            assert "не ответил" in result["error"]
+        elif failure == "requests":
+            assert "ограничения числа раундов" in result["error"]
+        assert len(client.get("/api/materials").json()) == before
+
+
 def test_writer_reads_all_expression_meanings_from_its_snapshot_through_real_mcp(learning_mcp):
     import asyncio
     from threading import Event
