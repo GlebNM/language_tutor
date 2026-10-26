@@ -7,7 +7,7 @@ from pydantic_ai.messages import ModelResponse, ToolCallPart, UserPromptPart
 from pydantic_ai.models.function import FunctionModel
 
 from backend.app.agents.text_generation import review_context
-from backend.tests.generation_fixtures import context_output
+from backend.tests.generation_fixtures import context_output, evidence_keys, requirements_output
 from backend.tests.test_text_generation_analysis import client_for, mark_vocabulary
 
 
@@ -175,12 +175,7 @@ async def test_requirements_review_preserves_requested_criteria_and_numeric_fail
             parts=[
                 ToolCallPart(
                     info.output_tools[0].name,
-                    {
-                        **{
-                            key: draft[key]
-                            for key in ("draft_id", "revision", "draft_hash", "snapshot_id")
-                        },
-                        "checks": [
+                    requirements_output(payload, [
                             {
                                 "criterion_id": "coherence",
                                 "status": "pass",
@@ -192,8 +187,7 @@ async def test_requirements_review_preserves_requested_criteria_and_numeric_fail
                                     }
                                 ],
                             }
-                        ],
-                    },
+                    ]),
                 )
             ]
         )
@@ -303,7 +297,7 @@ async def test_context_report_binds_required_short_keys_to_every_canonical_occur
             key: {
                 'context_status': 'clear',
                 'explanation': 'Обещание вернуть книгу раскрывает значение.',
-                'evidence': ['We return books.'],
+                'evidence': evidence_keys(payload, [{'quote': 'We return books.'}]),
                 'repair_instructions': None,
             }
             for key in payload['review_keys']
@@ -336,7 +330,7 @@ async def test_omitted_repeated_occurrence_is_retried_without_copying_source_ids
             'context_checks': {key: {
                 'context_status': 'clear',
                 'explanation': 'Возврат книги раскрывает временное пользование.',
-                'evidence': ['We return books.'],
+                'evidence': evidence_keys(payload, [{'quote': 'We return books.'}]),
                 'repair_instructions': None,
             } for key in keys},
         })])
@@ -347,3 +341,32 @@ async def test_omitted_repeated_occurrence_is_retried_without_copying_source_ids
     assert report.passed
     assert report.context_checks[0].block_id == report.context_checks[1].block_id
     assert report.context_checks[0].token_ids != report.context_checks[1].token_ids
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('evidence_count', [1, 6])
+async def test_requirements_bind_quote_to_source_without_model_ids(tmp_path, evidence_count):
+    from backend.app.agents.text_generation import review_requirements
+    from backend.app.text_generation_analysis import GenerationRequest
+
+    analysis = draft_analysis(tmp_path)
+    def respond(messages, info):
+        payload = payload_from(messages)
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {
+            'checks': {name: {
+                'status': 'pass', 'explanation': 'Текст соответствует требованию.',
+                'evidence': (evidence_keys(payload, [{'quote': 'We return books.'}])
+                             if evidence_count == 1 else [key for key, source in
+                             payload['evidence_sources'].items()
+                             if source['block_id'].endswith(':p2')][:evidence_count]),
+                'repair_instructions': None,
+            } for name in payload['required_criteria']},
+        })])
+    report = await review_requirements(
+        model=FunctionModel(respond), analysis=analysis,
+        settings=GenerationRequest(topic='Books', style='Simple narrative'),
+    )
+    assert report.passed
+    assert all(len(check.evidence) == evidence_count for check in report.checks)
+    assert report.draft_hash == analysis['draft_hash']
+    assert {check.criterion_id for check in report.checks} == {'topic', 'style', 'coherence'}
+    assert all(check.evidence[0].block_id.endswith(':p2') for check in report.checks)

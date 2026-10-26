@@ -9,7 +9,7 @@ from pydantic_ai.messages import ModelResponse, ToolCallPart, ToolReturnPart, Us
 from pydantic_ai.models.function import FunctionModel
 
 from backend.app.main import create_learner_app
-from backend.tests.generation_fixtures import context_output
+from backend.tests.generation_fixtures import context_output, evidence_keys, requirements_output
 from backend.tests.test_learning import learning_mcp as learning_mcp
 from backend.tests.test_text_generation_analysis import mark_vocabulary
 
@@ -29,7 +29,7 @@ def test_generation_settings_are_available_without_connecting_ai(tmp_path):
         assert settings["difficulty_limits"]["rich"]["new_or_unassessed_ratio_max"] == 0.06
         response = client.post("/api/text-generation/jobs", json={})
         assert response.status_code == 409
-        assert client.get("/api/text-generation/jobs").json() == {"jobs": []}
+        assert client.get("/api/text-generation/jobs").json()["jobs"] == []
 
 
 def job_client(database, mcp_url, model):
@@ -43,15 +43,15 @@ def job_client(database, mcp_url, model):
 def wait_job(client, identity):
     for _ in range(500):
         response = client.get(f"/api/text-generation/jobs/{identity}")
+        if response.status_code == 404:
+            event = client.get("/api/text-generation/jobs").json().get("error_event")
+            assert event and event["id"] == identity, event
+            return {"id": identity, "status": event["status"], "revision": event["revision"],
+                    "error": event["message"], "result_material_id": None}
         assert response.status_code == 200, response.text
         result = response.json()
         if result["status"] not in {
-            "queued",
-            "preparing",
-            "writing",
-            "checking",
-            "revising",
-            "saving",
+            "queued", "preparing", "writing", "checking", "revising", "saving",
         }:
             return result
         time.sleep(0.02)
@@ -108,9 +108,6 @@ def controlled_writer(*, weak_once=False, weak_always=False, lookup=False, too_m
                 ]
             )
         draft = payload["draft"]
-        identity = {
-            key: draft[key] for key in ("draft_id", "revision", "draft_hash", "snapshot_id")
-        }
         if "insufficient_vocabulary" in payload:
             context_runs.append(payload)
             weak = weak_always or weak_once and len(context_runs) == 1
@@ -145,9 +142,7 @@ def controlled_writer(*, weak_once=False, weak_always=False, lookup=False, too_m
             parts=[
                 ToolCallPart(
                     info.output_tools[0].name,
-                    {
-                        **identity,
-                        "checks": [
+                    requirements_output(payload, [
                             {
                                 "criterion_id": criterion,
                                 "status": "pass",
@@ -160,8 +155,7 @@ def controlled_writer(*, weak_once=False, weak_always=False, lookup=False, too_m
                                 ],
                             }
                             for criterion in payload["required_criteria"]
-                        ],
-                    },
+                    ]),
                 )
             ]
         )
@@ -279,7 +273,7 @@ def test_dictionary_search_leaves_budget_for_context_revision_and_publication(le
         assert started.status_code == 202
         result = wait_job(client, started.json()["id"])
         assert result["status"] == "completed", {
-            "status": result["status"], "error": result["error"], "usage": result["usage"],
+            "status": result["status"], "error": result["error"],
         }
         assert result["revision"] == 2
         assert writer_inputs[1]["feedback"]["blocking_issues"]
@@ -320,7 +314,7 @@ def test_job_deadline_still_stops_a_writer_with_a_longer_operation_budget(learni
 @pytest.mark.parametrize(("failure", "expected_status"), [
     ("timeout", "needs_changes"), ("requests", "needs_changes"), ("provider", "failed"),
 ])
-def test_subscription_budget_failure_keeps_a_retriable_draft(
+def test_subscription_budget_failure_discards_job_and_draft(
     learning_mcp, monkeypatch, failure, expected_status,
 ):
     import asyncio
@@ -410,13 +404,13 @@ def test_subscription_budget_failure_keeps_a_retriable_draft(
         assert started.status_code == 202
         result = wait_job(client, started.json()["id"])
         assert result["status"] == expected_status, {
-            "status": result["status"], "error": result["error"], "usage": result["usage"],
+            "status": result["status"], "error": result["error"],
         }
-        assert result["draft"]["title"] == "Books"
-        assert result["analysis"]["metrics"]["word_count"] == 151
+        assert client.get(f"/api/text-generation/jobs/{result['id']}").status_code == 404
+        assert client.get("/api/text-generation/jobs").json()["jobs"] == []
         assert result["result_material_id"] is None
         if failure == "timeout":
-            assert "не ответил" in result["error"]
+            assert "время" in result["error"] or "не ответил" in result["error"]
         elif failure == "requests":
             assert "ограничения числа раундов" in result["error"]
         assert len(client.get("/api/materials").json()) == before
@@ -572,11 +566,11 @@ def test_numeric_failure_cannot_be_overridden_by_successful_reviewers(learning_m
         assert job["revision"] == 5
         assert "5 попыток" in job["error"]
         assert job["result_material_id"] is None
-        assert job["feedback"]["blocking_issues"][0]["criterion_id"] == "new_ratio"
+        assert client.get(f"/api/text-generation/jobs/{job['id']}").status_code == 404
         assert len(client.get("/api/materials").json()) == before
 
 
-def test_cancelled_writer_cannot_publish_a_late_text_and_job_survives_restart(learning_mcp):
+def test_cancelled_writer_cannot_publish_and_leaves_no_job_after_restart(learning_mcp):
     import asyncio
     from threading import Event
 
@@ -609,13 +603,12 @@ def test_cancelled_writer_cannot_publish_a_late_text_and_job_survives_restart(le
         stopped = client.delete(f"/api/text-generation/jobs/{identity}")
         assert stopped.json()["status"] == "cancelled"
         time.sleep(0.03)
-        assert client.get(f"/api/text-generation/jobs/{identity}").json()["status"] == "cancelled"
+        assert client.get(f"/api/text-generation/jobs/{identity}").status_code == 404
         assert len(client.get("/api/materials").json()) == before
     model, _, _ = controlled_writer()
     with job_client(database, mcp_url, model) as restarted:
-        restored = restarted.get(f"/api/text-generation/jobs/{identity}").json()
-        assert restored["status"] == "cancelled"
-        retry = restarted.post(f"/api/text-generation/jobs/{identity}/retry", json={})
+        assert restarted.get(f"/api/text-generation/jobs/{identity}").status_code == 404
+        retry = restarted.post("/api/text-generation/jobs", json={"length": "short"})
         assert retry.status_code == 202
         assert retry.json()["id"] != identity
         result = wait_job(restarted, retry.json()["id"])
@@ -661,8 +654,8 @@ def test_profile_change_is_rechecked_before_a_text_can_be_saved(learning_mcp):
         job = wait_job(client, started["id"])
         assert job["status"] == "needs_changes", job
         assert job["result_material_id"] is None
-        assert job["analysis"]["profile_revision"] == revision
-        assert job["analysis"]["metrics"]["explicit_unknown_tokens"] == 4
+        assert client.get("/api/profile").json()["revision"] == revision
+        assert client.get(f"/api/text-generation/jobs/{job['id']}").status_code == 404
         assert not any(
             item["source"] == "generated" for item in client.get("/api/materials").json()
         )
@@ -720,7 +713,7 @@ def test_writer_can_complete_on_fifth_version_after_four_context_revisions(learn
             for check in args['context_checks'].values():
                 check['context_status'] = 'clear'
                 check['explanation'] = 'Возврат книги раскрывает временное пользование.'
-                check['evidence'] = ['We return books.']
+                check['evidence'] = evidence_keys(payload, [{'quote': 'We return books.'}])
                 check['repair_instructions'] = None
             return ModelResponse(parts=[ToolCallPart(response.parts[0].tool_name, args)])
         return response
@@ -735,3 +728,82 @@ def test_writer_can_complete_on_fifth_version_after_four_context_revisions(learn
         assert job['revision'] == 5
         assert len(inputs) == 5
         assert len(client.get('/api/materials').json()) == before + 1
+
+
+@pytest.mark.parametrize("always_invalid", [False, True])
+def test_invalid_response_retries_once_inside_same_job_without_failure_history(
+    learning_mcp, always_invalid,
+):
+    from pydantic_ai.exceptions import UnexpectedModelBehavior
+
+    mcp_url, database = learning_mcp
+    model, writer_inputs, _ = controlled_writer()
+    respond = model.function
+    calls = 0
+
+    def invalid_first(messages, info):
+        nonlocal calls
+        calls += 1
+        if always_invalid or calls == 1:
+            raise UnexpectedModelBehavior("Invalid structured response")
+        return respond(messages, info)
+
+    with job_client(database, mcp_url, FunctionModel(invalid_first)) as client:
+        prepare_known_words(client)
+        started = client.post("/api/text-generation/jobs", json={"length": "short"}).json()
+        result = wait_job(client, started["id"])
+        assert result["status"] == ("failed" if always_invalid else "completed"), result
+        if always_invalid:
+            assert calls == 2
+            assert client.get(f"/api/text-generation/jobs/{started['id']}").status_code == 404
+            # wait_job already consumed the only transient error notification.
+            listing = client.get("/api/text-generation/jobs")
+            assert listing.json() == {"jobs": [], "error_event": None}
+            assert listing.headers["cache-control"] == "no-store"
+        else:
+            assert len(writer_inputs) == 1
+            assert result["revision"] == 1
+            assert client.get("/api/text-generation/jobs").json()["jobs"][0]["id"] == started["id"]
+        with client.app.state.materials.connect() as db:
+            rows = db.execute("SELECT id,status FROM text_generation_jobs").fetchall()
+            assert [(r["id"], r["status"]) for r in rows] == (
+                [] if always_invalid else [(started["id"], "completed")]
+            )
+            if always_invalid:
+                assert db.execute("SELECT count(*) FROM text_generation_drafts").fetchone()[0] == 0
+        assert len([m for m in client.get("/api/materials").json()
+                    if m["source"] == "generated"]) == (0 if always_invalid else 1)
+
+
+def test_restart_removes_legacy_failures_and_drafts_preserving_completed_material(learning_mcp):
+    mcp_url, database = learning_mcp
+    model, _, _ = controlled_writer()
+    with job_client(database, mcp_url, model) as client:
+        prepare_known_words(client)
+        completed = client.post("/api/text-generation/jobs", json={"length": "short"}).json()
+        completed = wait_job(client, completed["id"])
+        assert completed["status"] == "completed", completed
+        library = client.app.state.materials
+        with library.connect() as db:
+            original = dict(db.execute("SELECT * FROM text_generation_jobs WHERE id=?",
+                                       (completed["id"],)).fetchone())
+            for status in ("failed", "needs_changes", "cancelled", "interrupted", "writing"):
+                legacy = {**original, "id": "legacy-" + status, "status": status,
+                          "result_material_id": None}
+                db.execute("INSERT INTO text_generation_jobs (" + ",".join(legacy)
+                           + ") VALUES (" + ",".join("?" for _ in legacy) + ")",
+                           tuple(legacy.values()))
+                db.execute("INSERT INTO text_generation_drafts "
+                           "SELECT ?,revision,draft_json,analysis_json,context_json,"
+                           "requirements_json,created_at FROM text_generation_drafts "
+                           "WHERE job_id=?",
+                           (legacy["id"], completed["id"]))
+    with job_client(database, mcp_url, model) as restarted:
+        assert restarted.get("/api/text-generation/jobs").json() == {
+            "jobs": [], "error_event": None,
+        }
+        assert restarted.get(f"/api/materials/{completed['result_material_id']}").status_code == 200
+        with restarted.app.state.materials.connect() as db:
+            assert db.execute("SELECT count(*) FROM text_generation_jobs").fetchone()[0] == 1
+            assert db.execute("SELECT count(*) FROM text_generation_drafts "
+                              "WHERE job_id<>?", (completed["id"],)).fetchone()[0] == 0

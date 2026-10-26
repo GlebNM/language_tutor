@@ -7,19 +7,20 @@ import json
 import logging
 from collections.abc import Awaitable, Callable
 from contextlib import suppress
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, TypeVar
 from uuid import uuid4
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Response
 from pydantic_ai import ModelRetry, RunContext
-from pydantic_ai.exceptions import UsageLimitExceeded
+from pydantic_ai.exceptions import UnexpectedModelBehavior, UsageLimitExceeded
 from pydantic_ai.mcp import CallToolFunc, MCPToolset, ToolResult
 from pydantic_ai.models import Model
 from pydantic_ai.usage import RunUsage, UsageLimits
 
 from backend.app.agents.text_generation import review_context, review_requirements, write_text
-from backend.app.ai_connection.service import AIBudgetExceeded, ConnectionService
+from backend.app.ai_connection.service import AIBudgetExceeded, AIResponseError, ConnectionService
 from backend.app.ai_connection.settings import AISettings
 from backend.app.learning_context import MAX_TOOL_CHARACTERS
 from backend.app.materials import MaterialError, MaterialLibrary
@@ -99,6 +100,11 @@ def get_job(library: MaterialLibrary, job_id: str) -> dict[str, Any]:
     return result
 
 
+@dataclass
+class ResponseRetryBudget:
+    used: bool = False
+
+
 class JobStopped(Exception):
     """A cancelled, deleted, or otherwise inactive job cannot write a late result."""
 
@@ -117,11 +123,14 @@ class TextGenerationService:
         self.mcp_url = mcp_url
         self.model_factory = model_factory
         self.tasks: dict[str, asyncio.Task[None]] = {}
+        self._notifications: dict[str, dict[str, Any]] = {}
+        self._last_completed_id: str | None = None
         self.max_versions = 5
         self.timeout_seconds = 300.0
         self.model_request_limit = 30
         self.tool_attempt_limit = 50
         with library.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
             db.execute("""CREATE TABLE IF NOT EXISTS text_generation_jobs(
                 id TEXT PRIMARY KEY, storage_generation TEXT NOT NULL,
                 idempotency_key TEXT, request_json TEXT NOT NULL, snapshot_json TEXT NOT NULL,
@@ -146,11 +155,7 @@ class TextGenerationService:
                     "SELECT 1 FROM materials WHERE generation_job_id=text_generation_jobs.id)",
                     (now(),),
                 )
-            db.execute(
-                "UPDATE text_generation_jobs SET status='interrupted',error=?,updated_at=? "
-                "WHERE status IN ('queued','preparing','writing','checking','revising','saving')",
-                ("Генерация прервалась при перезапуске. Можно повторить.", now()),
-            )
+            db.execute("DELETE FROM text_generation_jobs WHERE status<>'completed'")
 
     @property
     def available(self) -> bool:
@@ -193,15 +198,21 @@ class TextGenerationService:
 
     def list_jobs(self) -> list[dict[str, Any]]:
         with self.library.connect() as db:
-            ids = [
-                row[0]
-                for row in db.execute(
-                    "SELECT id FROM text_generation_jobs WHERE storage_generation=? "
-                    "ORDER BY created_at DESC LIMIT 30",
-                    (self.library.get_profile()["storage_generation"],),
-                )
-            ]
-        return [get_job(self.library, identity) for identity in ids]
+            row = db.execute(
+                "SELECT id FROM text_generation_jobs WHERE storage_generation=? "
+                "AND status IN ('queued','preparing','writing','checking','revising','saving') "
+                "ORDER BY created_at DESC LIMIT 1",
+                (self.library.get_profile()["storage_generation"],),
+            ).fetchone()
+        if row:
+            return [get_job(self.library, row["id"])]
+        if self._last_completed_id:
+            with suppress(HTTPException):
+                return [get_job(self.library, self._last_completed_id)]
+        return []
+
+    def take_error(self) -> dict[str, Any] | None:
+        return self._notifications.pop("error", None)
 
     def start(
         self,
@@ -259,6 +270,8 @@ class TextGenerationService:
                     stamp,
                 ),
             )
+        self._notifications.clear()
+        self._last_completed_id = None
         self.tasks[identity] = asyncio.create_task(self._run(identity, settings))
         return get_job(self.library, identity)
 
@@ -293,15 +306,25 @@ class TextGenerationService:
         operation: Callable[[Model], Awaitable[T]],
         *,
         timeout_seconds: float = 30.0,
+        retry_budget: ResponseRetryBudget | None = None,
     ) -> T:
-        if self.model_factory:
-            async with asyncio.timeout(timeout_seconds):
-                return await operation(self.model_factory())
-        if self.connection:
-            return await self.connection.execute(
-                operation, settings=settings, timeout_seconds=timeout_seconds
-            )
-        raise HTTPException(409, "Для создания текста подключите подписку.")
+        async with asyncio.timeout(timeout_seconds):
+            while True:
+                try:
+                    if self.model_factory:
+                        return await operation(self.model_factory())
+                    if self.connection:
+                        return await self.connection.execute(
+                            operation,
+                            settings=settings,
+                            timeout_seconds=timeout_seconds,
+                        )
+                    raise HTTPException(409, "Для создания текста подключите подписку.")
+                except (AIResponseError, UnexpectedModelBehavior):
+                    if retry_budget is None or retry_budget.used:
+                        raise
+                    retry_budget.used = True
+                    logger.warning("text_generation_retry response_validation")
 
     def _fail(self, identity: str, status: str, message: str, usage: RunUsage) -> None:
         """A committed material wins over interruption of its awaiting task."""
@@ -317,6 +340,7 @@ class TextGenerationService:
                         "SELECT id FROM materials WHERE generation_job_id=?", (identity,)
                     ).fetchone()
                 if material is not None:
+                    self._last_completed_id = identity
                     db.execute(
                         "UPDATE text_generation_jobs SET status='completed',"
                         "result_material_id=?,error=NULL,updated_at=? "
@@ -380,6 +404,7 @@ class TextGenerationService:
         analysis: dict[str, Any],
         usage: RunUsage,
         limits: UsageLimits,
+        retry_budget: ResponseRetryBudget | None = None,
     ) -> tuple[dict[str, Any] | None, dict[str, Any] | None, list[dict[str, Any]]]:
         self._update(identity, status="checking")
         issues = list(analysis["violations"])
@@ -395,6 +420,7 @@ class TextGenerationService:
                 usage_limits=limits,
             ),
             timeout_seconds=60,
+            retry_budget=retry_budget,
         )
         self._update(identity, status="checking")
         requirements = await self._operation(
@@ -408,6 +434,7 @@ class TextGenerationService:
                 usage_limits=limits,
             ),
             timeout_seconds=60,
+            retry_budget=retry_budget,
         )
         context_report, requirements_report = context.as_report(), requirements.as_report()
         issues += context_report["blocking_issues"] + requirements_report["blocking_issues"]
@@ -419,6 +446,7 @@ class TextGenerationService:
             request_limit=self.model_request_limit, tool_calls_limit=self.tool_attempt_limit
         )
         attempts = 0
+        retry_budget = ResponseRetryBudget()
         try:
             async with asyncio.timeout(self.timeout_seconds):
                 self._update(identity, status="preparing")
@@ -521,6 +549,7 @@ class TextGenerationService:
                                 usage_limits=limits,
                             ),
                             timeout_seconds=90,
+                            retry_budget=retry_budget,
                         )
                     if isinstance(output, CannotGenerate):
                         self._update(
@@ -548,6 +577,7 @@ class TextGenerationService:
                         analysis,
                         usage,
                         limits,
+                        retry_budget,
                     )
                     if not issues:
                         current = VocabularySnapshot.capture(self.library)
@@ -564,6 +594,7 @@ class TextGenerationService:
                                 analysis,
                                 usage,
                                 limits,
+                                retry_budget,
                             )
                     self._save_version(identity, revision, output, analysis, context, requirements)
                     earlier_semantic_issues: list[dict[str, Any]] = []
@@ -636,6 +667,7 @@ class TextGenerationService:
                                 error=None,
                                 usage_json=json.dumps(self._usage(usage)),
                             )
+                            self._last_completed_id = identity
                             return
                     previous_draft = analysis["versioned_draft"]
                     self._update(
@@ -671,6 +703,23 @@ class TextGenerationService:
             self._fail(identity, "failed", message, usage)
         finally:
             self.tasks.pop(identity, None)
+            self._remove_unsuccessful(identity)
+
+    def _remove_unsuccessful(self, identity: str) -> None:
+        with self.library.connect() as db:
+            row = db.execute(
+                "SELECT status,error,revision FROM text_generation_jobs WHERE id=?",
+                (identity,),
+            ).fetchone()
+            if row and row["status"] not in ACTIVE and row["status"] != "completed":
+                if row["status"] != "cancelled":
+                    self._notifications["error"] = {
+                        "id": identity,
+                        "status": row["status"],
+                        "revision": row["revision"],
+                        "message": row["error"] or "Не удалось создать текст.",
+                    }
+                db.execute("DELETE FROM text_generation_jobs WHERE id=?", (identity,))
 
     @staticmethod
     def _usage(usage: RunUsage) -> dict[str, int]:
@@ -713,18 +762,17 @@ class TextGenerationService:
                             "updated_at=? WHERE id=?",
                             ("Создание текста остановлено.", now(), identity),
                         )
+            response = get_job(self.library, identity)
             task = self.tasks.get(identity)
             if task:
                 task.cancel()
                 with suppress(asyncio.CancelledError):
                     await task
-        return get_job(self.library, identity)
-
-    def retry(self, identity: str) -> dict[str, Any]:
-        job = get_job(self.library, identity)
-        if job["status"] in ACTIVE or job["status"] == "completed":
-            raise HTTPException(409, "Это задание уже выполняется или завершено.")
-        return self.start(GenerationRequest.model_validate(job["request"]))
+            self._remove_unsuccessful(identity)
+            if response["status"] == "completed":
+                self._last_completed_id = identity
+            return response
+        return job
 
     async def close(self) -> None:
         tasks = list(self.tasks.values())
@@ -735,6 +783,8 @@ class TextGenerationService:
 
     async def reset(self) -> None:
         await self.close()
+        self._notifications.clear()
+        self._last_completed_id = None
         with self.library.connect() as db:
             db.execute("DELETE FROM text_generation_drafts")
             db.execute("DELETE FROM text_generation_jobs")
@@ -748,8 +798,9 @@ def create_text_generation_router(service: TextGenerationService) -> APIRouter:
         return service.settings()
 
     @router.get("/jobs")
-    def jobs() -> dict[str, Any]:
-        return {"jobs": service.list_jobs()}
+    def jobs(response: Response) -> dict[str, Any]:
+        response.headers["Cache-Control"] = "no-store"
+        return {"jobs": service.list_jobs(), "error_event": service.take_error()}
 
     @router.post("/jobs", status_code=202)
     async def start(
@@ -765,9 +816,5 @@ def create_text_generation_router(service: TextGenerationService) -> APIRouter:
     @router.delete("/jobs/{job_id}")
     async def cancel(job_id: str) -> dict[str, Any]:
         return await service.cancel(job_id)
-
-    @router.post("/jobs/{job_id}/retry", status_code=202)
-    async def retry(job_id: str) -> dict[str, Any]:
-        return service.retry(job_id)
 
     return router

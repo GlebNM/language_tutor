@@ -594,7 +594,7 @@ def test_oauth_failure_reports_only_a_bounded_safe_category(
     [
         ("timeout", 504, "ожидания ответа модели"),
         ("connection", 503, "соединиться с AI"),
-        ("response", 502, "ответ, который не удалось обработать"),
+        ("response", 502, "полный ответ модели"),
     ],
 )
 async def test_execution_reports_model_failure_category_without_leaking_payload(

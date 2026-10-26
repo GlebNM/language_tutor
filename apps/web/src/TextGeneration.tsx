@@ -10,12 +10,6 @@ type GenerationRequest = {
   length: "short" | "medium" | "long";
   difficulty: "gentle" | "normal" | "rich";
 };
-type GenerationIssue = {
-  criterion_id?: string;
-  explanation?: string;
-  message?: string;
-  repair_instructions?: string;
-};
 type GenerationJob = {
   id: string;
   status: string;
@@ -23,7 +17,6 @@ type GenerationJob = {
   revision: number;
   error?: string | null;
   draft?: { title: string; paragraphs: Array<{ text: string }> } | null;
-  feedback?: { blocking_issues?: GenerationIssue[] } | null;
   result_material_id?: string | null;
 };
 const stages: Record<string, string> = {
@@ -34,10 +27,6 @@ const stages: Record<string, string> = {
   revising: "Дорабатываем текст",
   saving: "Сохраняем текст",
   completed: "Текст готов",
-  needs_changes: "Текст требует доработки",
-  failed: "Не удалось создать текст",
-  cancelled: "Генерация остановлена",
-  interrupted: "Генерация прервалась",
 };
 const activeStages = new Set([
   "queued",
@@ -87,14 +76,15 @@ export function TextGeneration({
           api<{ available: boolean; difficulty_limits: DifficultyLimits }>("/text-generation/settings", {
             signal: controller.signal,
           }),
-          api<{ jobs: GenerationJob[] }>("/text-generation/jobs", {
+          api<{ jobs: GenerationJob[]; error_event?: { message: string } | null }>("/text-generation/jobs", {
             signal: controller.signal,
           }),
         ]);
         if (controller.signal.aborted) return;
         setAvailable(settings.available);
         setDifficultyLimits(settings.difficulty_limits);
-        setJobs(response.jobs);
+        setJobs(response.jobs.filter((job) => activeStages.has(job.status) || job.status === "completed"));
+        if (response.error_event) setError(response.error_event.message);
         for (const job of response.jobs) {
           if (job.status === "completed" && !reported.current.has(job.id)) {
             reported.current.add(job.id);
@@ -114,10 +104,11 @@ export function TextGeneration({
     };
   }, [attempt, open]);
   function update(job: GenerationJob) {
-    setJobs((current) => [
-      job,
-      ...current.filter((value) => value.id !== job.id),
-    ]);
+    setJobs(activeStages.has(job.status) || job.status === "completed" ? [job] : []);
+    if (job.status === "completed" && !reported.current.has(job.id)) {
+      reported.current.add(job.id);
+      completion.current();
+    }
     setAttempt((value) => value + 1);
   }
   async function submit(event: FormEvent) {
@@ -151,7 +142,7 @@ export function TextGeneration({
       setBusy(false);
     }
   }
-  async function jobAction(job: GenerationJob, retry: boolean) {
+  async function stopJob(job: GenerationJob) {
     if (action.current) return;
     action.current = true;
     setBusy(true);
@@ -159,11 +150,8 @@ export function TextGeneration({
     try {
       update(
         await api<GenerationJob>(
-          `/text-generation/jobs/${job.id}${retry ? "/retry" : ""}`,
-          {
-            method: retry ? "POST" : "DELETE",
-            ...(retry ? { body: "{}" } : {}),
-          },
+          `/text-generation/jobs/${job.id}`,
+          { method: "DELETE" },
         ),
       );
     } catch (e) {
@@ -190,27 +178,14 @@ export function TextGeneration({
       {!open && error && (
         <p className="warning" role="alert">
           {error}{" "}
-          <button
-            className="quiet"
-            onClick={() => {
-              setError("");
-              setAttempt((value) => value + 1);
-            }}
-          >
-            Повторить
-          </button>
+          <button className="quiet" aria-label="Закрыть сообщение об ошибке"
+            onClick={() => setError("")}>×</button>{" "}
         </p>
       )}
       {!!jobs.length && (
         <div className="generation-jobs">
           {jobs.slice(0, 3).map((job) => {
             const active = activeStages.has(job.status);
-            const unsuccessful = [
-              "needs_changes",
-              "failed",
-              "interrupted",
-              "cancelled",
-            ].includes(job.status);
             return (
               <article
                 className="generation-job"
@@ -230,44 +205,14 @@ export function TextGeneration({
                 </div>
                 {active && <progress aria-label="Генерация текста" />}
                 {job.error && <p className="warning">{job.error}</p>}
-                {job.feedback?.blocking_issues?.length ? (
-                  <ul className="generation-issues">
-                    {job.feedback.blocking_issues.map((issue, index) => (
-                      <li key={index}>
-                        {issue.repair_instructions ||
-                          issue.explanation ||
-                          issue.message ||
-                          issue.criterion_id ||
-                          "Нужно доработать текст"}
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-                {unsuccessful && job.draft && (
-                  <details className="generation-draft">
-                    <summary>Посмотреть черновик</summary>
-                    {job.draft.paragraphs.map((paragraph, index) => (
-                      <p key={index}>{paragraph.text}</p>
-                    ))}
-                  </details>
-                )}
                 <div className="actions">
                   {active && (
                     <button
                       className="quiet"
                       disabled={busy}
-                      onClick={() => void jobAction(job, false)}
+                      onClick={() => void stopJob(job)}
                     >
                       Остановить
-                    </button>
-                  )}
-                  {unsuccessful && (
-                    <button
-                      className="secondary"
-                      disabled={busy || running || !available}
-                      onClick={() => void jobAction(job, true)}
-                    >
-                      Попробовать снова
                     </button>
                   )}
                   {job.status === "completed" && job.result_material_id && (

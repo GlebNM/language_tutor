@@ -1,0 +1,64 @@
+{
+  "date": "2026-10-27",
+  "issue": 32,
+  "tests": {
+    "backend": {
+      "passed": 267,
+      "seconds": 116.56
+    },
+    "web": {
+      "passed": 42
+    },
+    "ruff": "passed",
+    "mypy_sources": 49,
+    "production_build": "passed"
+  },
+  "live": {
+    "model": "gpt-6-luna",
+    "reasoning_effort": "medium",
+    "request": {
+      "topic": null,
+      "style": null,
+      "length": "medium",
+      "difficulty": "rich"
+    },
+    "status": "completed",
+    "revision": 5,
+    "seconds": 205.3,
+    "word_count": 379,
+    "counted_tokens": 370,
+    "learning_tokens": 1,
+    "unassessed_tokens": 3,
+    "context_passed": true,
+    "requirements_passed": true,
+    "material_count_for_job": 1,
+    "library_count_before": 7,
+    "library_count_after": 8,
+    "unsuccessful_jobs": 0,
+    "orphan_drafts": 0,
+    "private_content": "omitted",
+    "prompt_version_during_full_generation": "personal-text-6",
+    "final_prompt_version": "personal-text-6"
+  },
+  "retention": {
+    "failed_jobs": "deleted with all drafts",
+    "legacy_failures": "purged at initialization",
+    "automatic_response_retries_per_job": 1,
+    "separate_retry_records": false,
+    "failure_cards": false,
+    "final_error": "one transient notification"
+  },
+  "unshipped_prompt_experiment": {
+    "version": "personal-text-7",
+    "full_generation": "exhausted_versions",
+    "failed_jobs_retained": 0,
+    "drafts_retained": 0,
+    "shipped": false
+  },
+  "deployment": {
+    "health": "ok",
+    "app_image_config": "sha256:ce4e746642137161eb00ede8a0a323fd52aff5121f9985a8a739dc8c5b7f6e4d",
+    "matches_successful_full_run_image": true,
+    "prompt_version": "personal-text-6"
+  }
+}

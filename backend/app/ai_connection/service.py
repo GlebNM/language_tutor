@@ -42,6 +42,10 @@ class AIBudgetExceeded(HTTPException):
     """An application time or request budget ended a subscription operation."""
 
 
+class AIResponseError(HTTPException):
+    """A structured model response could not be accepted after its repair attempts."""
+
+
 class CatalogModel(TypedDict):
     id: str
     name: str
@@ -420,8 +424,8 @@ class ConnectionService:
             ) from None
         except UnexpectedModelBehavior as error:
             logger.warning("AI operation failed: %s", type(error).__name__)
-            raise HTTPException(
-                502, "AI вернул ответ, который не удалось обработать. Повторите запрос."
+            raise AIResponseError(
+                502, "Не удалось получить полный ответ модели после повторной проверки."
             ) from None
         except TimeoutError:
             raise AIBudgetExceeded(

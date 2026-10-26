@@ -20,7 +20,21 @@ def context_output(payload: dict[str, Any], checks: list[dict[str, Any]]) -> dic
         result[key] = {
             "context_status": check["context_status"],
             "explanation": check["explanation"],
-            "evidence": [item["quote"] for item in check["evidence"]],
+            "evidence": evidence_keys(payload, check["evidence"]),
             "repair_instructions": check.get("repair_instructions"),
         }
     return {"context_checks": result}
+
+
+def evidence_keys(payload: dict[str, Any], evidence: list[dict[str, Any]]) -> list[str]:
+    return [next((key for key, source in payload["evidence_sources"].items()
+                  if item["quote"] in source["quote"]), "unknown-source")
+            for item in evidence]
+
+
+def requirements_output(payload: dict[str, Any], checks: list[dict[str, Any]]) -> dict[str, Any]:
+    return {"checks": {check["criterion_id"]: {
+        "status": check["status"], "explanation": check["explanation"],
+        "evidence": evidence_keys(payload, check["evidence"]),
+        "repair_instructions": check.get("repair_instructions"),
+    } for check in checks}}
