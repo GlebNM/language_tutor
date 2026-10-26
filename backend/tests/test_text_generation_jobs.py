@@ -224,7 +224,7 @@ def test_multiround_writer_outlives_a_single_request_deadline(learning_mcp, monk
     original_timeout = asyncio.timeout
 
     def shortened_request_timeout(delay):
-        return original_timeout(0.3 if delay == 30 else delay)
+        return original_timeout(0.3 if delay in (30, 60) else delay)
 
     monkeypatch.setattr(asyncio, "timeout", shortened_request_timeout)
 
@@ -348,7 +348,7 @@ def test_subscription_budget_failure_keeps_a_retriable_draft(
     original_timeout = asyncio.timeout
 
     def shortened_operation_timeout(delay):
-        return original_timeout(0.2 if delay == 30 else delay)
+        return original_timeout(0.2 if delay in (30, 60) else delay)
 
     monkeypatch.setattr(asyncio, "timeout", shortened_operation_timeout)
 
@@ -552,6 +552,14 @@ def test_context_feedback_rewrites_without_fixed_vocabulary(learning_mcp):
 def test_numeric_failure_cannot_be_overridden_by_successful_reviewers(learning_mcp):
     mcp_url, database = learning_mcp
     model, _, _ = controlled_writer(too_many_unknown=True)
+    respond = model.function
+    assert respond is not None
+    def numeric_first(messages, info):
+        for tool in info.output_tools:
+            properties = tool.parameters_json_schema.get("properties", {})
+            assert "context_checks" not in properties and "checks" not in properties
+        return respond(messages, info)
+    model = FunctionModel(numeric_first)
     with job_client(database, mcp_url, model) as client:
         prepare_known_words(client, borrow_score=0)
         before = len(client.get("/api/materials").json())

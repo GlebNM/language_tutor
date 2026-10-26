@@ -124,9 +124,7 @@ async def test_model_catalog_returns_safe_network_error_when_token_refresh_canno
 
     monkeypatch.setattr(siwc.httpx, "AsyncClient", controlled_async_client)
     app = FastAPI()
-    app.include_router(
-        create_ai_router(data_dir=tmp_path, mcp_url="http://mcp:8001/mcp")
-    )
+    app.include_router(create_ai_router(data_dir=tmp_path, mcp_url="http://mcp:8001/mcp"))
     with TestClient(app, raise_server_exceptions=False) as client:
         response = client.get("/api/ai/models")
         assert response.status_code == 503
@@ -225,8 +223,13 @@ async def test_execution_supports_a_trusted_operation_deadline_without_changing_
     from backend.app.ai_connection.service import ConnectionService, ConnectionStatus
 
     service = ConnectionService(
-        data_dir=tmp_path, callback_host="127.0.0.1", callback_port=0, oauth_timeout=5,
-        flow_factory=SIWCOAuthFlow, mcp_url="http://mcp:8001/mcp", model_name="gpt-6-luna",
+        data_dir=tmp_path,
+        callback_host="127.0.0.1",
+        callback_port=0,
+        oauth_timeout=5,
+        flow_factory=SIWCOAuthFlow,
+        mcp_url="http://mcp:8001/mcp",
+        model_name="gpt-6-luna",
     )
     service.state = ConnectionStatus(status="connected")
 
@@ -583,3 +586,62 @@ def test_oauth_failure_reports_only_a_bounded_safe_category(
         assert status["error"] == "oauth_exchange_failed"
         assert status["error_category"] == category
         assert "test-secret" not in str(status) + failed.text + caplog.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "kind,status,fragment",
+    [
+        ("timeout", 504, "ожидания ответа модели"),
+        ("connection", 503, "соединиться с AI"),
+        ("response", 502, "ответ, который не удалось обработать"),
+    ],
+)
+async def test_execution_reports_model_failure_category_without_leaking_payload(
+    tmp_path, caplog, kind, status, fragment
+):
+    import httpx2
+    from fastapi import HTTPException
+    from openai import APIConnectionError, APITimeoutError
+    from pydantic_ai.exceptions import UnexpectedModelBehavior
+
+    from backend.app.ai_connection.service import ConnectionService, ConnectionStatus
+
+    service = ConnectionService(
+        data_dir=tmp_path,
+        callback_host="127.0.0.1",
+        callback_port=0,
+        oauth_timeout=5,
+        flow_factory=SIWCOAuthFlow,
+        mcp_url="http://mcp:8001/mcp",
+        model_name="gpt-6-luna",
+    )
+    service.state = ConnectionStatus(status="connected")
+
+    async def connected_model(settings):
+        return None
+
+    service.connected_model = connected_model
+    errors = {
+        "timeout": APITimeoutError(
+            request=httpx2.Request("POST", "https://api.openai.com/v1/responses")
+        ),
+        "connection": APIConnectionError(
+            message="secret-test-payload",
+            request=httpx2.Request("POST", "https://api.openai.com/v1/responses"),
+        ),
+        "response": UnexpectedModelBehavior("secret-test-payload"),
+    }
+
+    async def operation(model):
+        raise errors[kind]
+
+    try:
+        with pytest.raises(HTTPException) as failure:
+            await service.execute(operation)
+        assert failure.value.status_code == status
+        assert fragment in failure.value.detail
+        assert "secret-test-payload" not in str(failure.value.detail) + caplog.text
+        assert type(errors[kind]).__name__ in caplog.text
+    finally:
+        await service.close()

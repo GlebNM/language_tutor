@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import secrets
 import socket
 from collections.abc import Awaitable, Callable
@@ -14,10 +15,10 @@ import jwt
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
-from openai import AsyncOpenAI
+from openai import APIConnectionError, APITimeoutError, AsyncOpenAI
 from openai.types.shared.reasoning_effort import ReasoningEffort
 from pydantic import BaseModel
-from pydantic_ai.exceptions import ModelHTTPError, UsageLimitExceeded
+from pydantic_ai.exceptions import ModelHTTPError, UnexpectedModelBehavior, UsageLimitExceeded
 from pydantic_ai.models import Model
 from pydantic_ai.providers.openai import OpenAIProvider
 
@@ -27,6 +28,8 @@ from .settings import AISettings, AISettingsStore
 from .siwc import DIRECT_SCOPE, SIWCOAuthFlow, SubscriptionError, TokenManager
 from .siwc_model import SIWCTransport, siwc_model
 from .storage import CredentialStore
+
+logger = logging.getLogger(__name__)
 
 RunOutput = TypeVar("RunOutput")
 _SDK_REASONING_LITERAL = next(
@@ -81,6 +84,7 @@ def normalize_model_catalog(raw_models: object) -> list[CatalogModel]:
             }
         )
     return result
+
 
 OAuthFailureCategory = Literal[
     "provider",
@@ -404,6 +408,21 @@ class ConnectionService:
             return result
         except (SubscriptionError, ModelHTTPError) as error:
             raise self.provider_failure(error) from None
+        except APITimeoutError as error:
+            logger.warning("AI operation failed: %s", type(error).__name__)
+            raise AIBudgetExceeded(
+                504, "Истекло время ожидания ответа модели. Повторите запрос."
+            ) from None
+        except APIConnectionError as error:
+            logger.warning("AI operation failed: %s", type(error).__name__)
+            raise HTTPException(
+                503, "Не удалось соединиться с AI. Проверьте подключение и повторите запрос."
+            ) from None
+        except UnexpectedModelBehavior as error:
+            logger.warning("AI operation failed: %s", type(error).__name__)
+            raise HTTPException(
+                502, "AI вернул ответ, который не удалось обработать. Повторите запрос."
+            ) from None
         except TimeoutError:
             raise AIBudgetExceeded(
                 504, f"AI не ответил за {timeout_seconds:g} секунд. Повторите запрос."

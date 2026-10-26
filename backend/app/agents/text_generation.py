@@ -209,7 +209,9 @@ async def review_context(
         output_type=ContextReview,
         capabilities=[Caching()],
         retries=1,
-        model_settings=OpenAIResponsesModelSettings(openai_reasoning_effort=reasoning_effort),
+        model_settings=OpenAIResponsesModelSettings(
+            openai_reasoning_effort=reasoning_effort, timeout=60
+        ),
         instructions=(
             "Оцени, помогает ли полный английский текст русскоязычному учащемуся узнать значение "
             "каждого переданного вхождения со знакомостью 0, 1 или null. "
@@ -269,7 +271,9 @@ async def review_requirements(
         output_type=RequirementsReview,
         capabilities=[Caching()],
         retries=1,
-        model_settings=OpenAIResponsesModelSettings(openai_reasoning_effort=reasoning_effort),
+        model_settings=OpenAIResponsesModelSettings(
+            openai_reasoning_effort=reasoning_effort, timeout=60
+        ),
         instructions=(
             "Проверь английский текст по required_criteria: связность coherence обязательна; "
             "topic и style проверяются только если заданы пользователем. "
@@ -342,7 +346,8 @@ async def write_text(
         toolsets=[toolset.filtered(lambda ctx, tool: ctx.run_step <= 3) for toolset in toolsets],
         retries=1,
         model_settings=OpenAIResponsesModelSettings(
-            openai_reasoning_effort=reasoning_effort, timeout=30,
+            openai_reasoning_effort=reasoning_effort,
+            timeout=60,
         ),
         instructions=(
             "Создай связный английский текст для узнавания лексики в контексте. "
@@ -375,11 +380,13 @@ async def write_text(
 
     @agent.output_validator
     def validate_profile_refusal(
-        ctx: RunContext[Any], output: DraftText | CannotGenerate,
+        ctx: RunContext[Any],
+        output: DraftText | CannotGenerate,
     ) -> DraftText | CannotGenerate:
         assessed = bool(feedback and feedback.get("deterministic_report")) or any(
             isinstance(part, ToolReturnPart) and part.tool_name == "check_text_difficulty"
-            for message in ctx.messages for part in message.parts
+            for message in ctx.messages
+            for part in message.parts
         )
         if (
             isinstance(output, CannotGenerate)

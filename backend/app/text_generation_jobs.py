@@ -359,10 +359,7 @@ class TextGenerationService:
     ) -> tuple[dict[str, Any] | None, dict[str, Any] | None, list[dict[str, Any]]]:
         self._update(identity, status="checking")
         issues = list(analysis["violations"])
-        if any(
-            issue["criterion_id"] in {"length", "empty_vocabulary", "insufficient_profile"}
-            for issue in issues
-        ):
+        if issues:
             return None, None, issues
         context = await self._operation(
             settings,
@@ -373,6 +370,7 @@ class TextGenerationService:
                 usage=usage,
                 usage_limits=limits,
             ),
+            timeout_seconds=60,
         )
         self._update(identity, status="checking")
         requirements = await self._operation(
@@ -385,6 +383,7 @@ class TextGenerationService:
                 usage=usage,
                 usage_limits=limits,
             ),
+            timeout_seconds=60,
         )
         context_report, requirements_report = context.as_report(), requirements.as_report()
         issues += context_report["blocking_issues"] + requirements_report["blocking_issues"]
