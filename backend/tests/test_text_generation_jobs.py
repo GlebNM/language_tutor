@@ -23,7 +23,7 @@ def test_generation_settings_are_available_without_connecting_ai(tmp_path):
         assert settings["difficulty_limits"]["rich"]["new_or_unassessed_ratio_max"] == 0.05
         response = client.post("/api/text-generation/jobs", json={})
         assert response.status_code == 409
-        assert client.get("/api/text-generation/jobs").json() == []
+        assert client.get("/api/text-generation/jobs").json() == {"jobs": []}
 
 
 def job_client(database, mcp_url, model):
@@ -200,6 +200,7 @@ def test_real_mcp_job_saves_once_and_writer_reads_existing_texts(learning_mcp):
         assert started.status_code == 202, started.text
         job = wait_job(client, started.json()["id"])
         assert job["status"] == "completed", job
+        assert client.get("/api/text-generation/jobs").json()["jobs"][0]["id"] == job["id"]
         material = client.get(f"/api/materials/{job['result_material_id']}").json()
         assert material["kind"] == "text" and material["source"] == "generated"
         assert material["youtube_video_id"] is None

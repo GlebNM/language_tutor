@@ -693,8 +693,8 @@ def create_text_generation_router(service: TextGenerationService) -> APIRouter:
         return service.settings()
 
     @router.get("/jobs")
-    def jobs() -> list[dict[str, Any]]:
-        return service.list_jobs()
+    def jobs() -> dict[str, Any]:
+        return {"jobs": service.list_jobs()}
 
     @router.post("/jobs", status_code=202)
     async def start(
