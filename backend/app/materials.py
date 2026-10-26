@@ -482,6 +482,10 @@ MIGRATIONS = [
         cue_id TEXT NOT NULL REFERENCES cues(id) ON DELETE CASCADE,
         offset INTEGER NOT NULL DEFAULT 0,updated_at TEXT NOT NULL);
     """,
+    """
+    ALTER TABLE materials ADD COLUMN generation_job_id TEXT;
+    CREATE UNIQUE INDEX materials_generation_job ON materials(generation_job_id);
+    """,
 ]
 
 
@@ -740,10 +744,15 @@ class MaterialLibrary:
         replaces: str | None = None,
         expected_generation: str | None = None,
         expected_profile_revision: int | None = None,
+        generation_job_id: str | None = None,
     ) -> dict[str, Any]:
         """Save paragraph text as an immutable material without inventing video metadata."""
         if language != "en" or source not in {"manual_text", "text_file", "generated"}:
             raise MaterialError("Проверьте язык и источник текста.")
+        if generation_job_id is not None and (
+            source != "generated" or not generation_job_id.strip() or len(generation_job_id) > 100
+        ):
+            raise MaterialError("Проверьте задание генерации текста.")
         if not title.strip() or len(title) > 200:
             raise MaterialError("Укажите название текста до 200 символов.")
         try:
@@ -773,8 +782,28 @@ class MaterialLibrary:
             ).fetchone()[0]
             if expected_generation is not None and expected_generation != generation:
                 raise MaterialError("Данные были удалены. Создайте текст заново.")
+            if generation_job_id is not None:
+                existing = db.execute(
+                    "SELECT id FROM materials WHERE generation_job_id=?", (generation_job_id,),
+                ).fetchone()
+                if existing:
+                    db.commit()
+                    return self.get_material(existing["id"])
             if expected_profile_revision is not None and expected_profile_revision != profile[0]:
                 raise MaterialError("Словарь изменился. Проверьте сложность текста заново.")
+            if generation_job_id is not None:
+                jobs_exist = db.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='text_generation_jobs'"
+                ).fetchone()
+                job = db.execute(
+                    "SELECT status,storage_generation FROM text_generation_jobs WHERE id=?",
+                    (generation_job_id,),
+                ).fetchone() if jobs_exist else None
+                if (
+                    job is None or job["status"] != "saving"
+                    or job["storage_generation"] != generation
+                ):
+                    raise MaterialError("Задание генерации уже завершено или остановлено.")
             previous = None
             if replaces:
                 previous = db.execute("SELECT * FROM materials WHERE id=?", (replaces,)).fetchone()
@@ -797,8 +826,8 @@ class MaterialLibrary:
             db.execute(
                 "INSERT INTO materials "
                 "(id,youtube_video_id,title,language,source,is_complete,transcript_hash,version,"
-                "previous_version_id,adapter_version,created_at,kind) "
-                "VALUES(?,NULL,?,?,?,1,?,?,?,?,?,'text')",
+                "previous_version_id,adapter_version,created_at,kind,generation_job_id) "
+                "VALUES(?,NULL,?,?,?,1,?,?,?,?,?,'text',?)",
                 (
                     material_id,
                     title.strip(),
@@ -809,6 +838,7 @@ class MaterialLibrary:
                     replaces,
                     adapter.version,
                     datetime.now(UTC).isoformat(),
+                    generation_job_id,
                 ),
             )
             self._insert_blocks(
