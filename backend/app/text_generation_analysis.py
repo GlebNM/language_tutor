@@ -170,7 +170,7 @@ def vocabulary_page(
         for (lemma, pos), value in snapshot.words.items()
         if not value["ignored"] and value["score"] in wanted
         and (part_of_speech is None or pos == part_of_speech)
-        and sound_reason(lemma) is None
+        and vocabulary_value(sound_reason(lemma), value)["eligible"]
     ]
     if category == "known" and snapshot.prior_groups and part_of_speech is None:
         explicit_lemmas = {key[0] for key in snapshot.words}

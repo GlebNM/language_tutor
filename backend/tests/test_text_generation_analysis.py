@@ -56,6 +56,22 @@ def test_assessment_uses_current_familiarity_without_registering_draft_words(tmp
         assert client.get("/api/dictionary").json() == before
 
 
+def test_writer_profile_keeps_manually_saved_fillers_consistent_with_assessment(tmp_path):
+    with client_for(tmp_path / "learning.sqlite3") as client:
+        mark_vocabulary(client, "Hmm, we read books.", {
+            "hmm": 3, "we": 3, "read": 2, "book": 2,
+        })
+        profile = client.get("/api/text-generation/profile").json()
+        assert any(word["lemma"] == "hmm" and word["source"] == "manual"
+                   for word in profile["known_examples"])
+        assessment = client.post("/api/text-generation/assess", json={
+            "settings": {"length": "short"},
+            "draft": {"title": "Books", "paragraphs": [{"text": "Hmm, we read books. " * 40}]},
+        }).json()
+        assert assessment["metrics"]["known_tokens"] == 161
+        assert assessment["metrics"]["counted_tokens"] == 161
+
+
 def measured_text(unfamiliar_count, different=False):
     nouns = ["stories", "letters", "novels", "poems", "papers", "notes"]
     sentences = [
