@@ -27,7 +27,7 @@ class TextRetrieval:
         word = word.strip().casefold()
         if not word or len(word) > 100:
             raise ValueError("Укажите одно слово до 100 символов.")
-        tokens = english_adapter().lemmatize(word)
+        tokens = english_adapter().lemmatize(word, part_of_speech)
         if len(tokens) != 1 or tokens[0]["surface"].casefold() != word:
             raise ValueError("Укажите одно слово до 100 символов.")
         if not 1 <= limit <= 5:

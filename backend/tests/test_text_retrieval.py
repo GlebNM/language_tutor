@@ -67,6 +67,7 @@ async def test_search_uses_real_lemma_pos_matches_and_only_own_texts(text_mcp):
         title="Books", content="We borrowed books.\n\nI borrow a book, then return it."
     )
     homonym = library.import_text(title="Bookings", content="We book a table.")
+    leaf = library.import_text(title="A leaf", content="A leaf fell from the tree.")
     other.import_text(title="Private", content="She borrows a private book.")
     async with Client(url, auth=token) as client:
         result = await call_json(client, "find_texts_with_word", {"word": "borrowed"})
@@ -91,6 +92,10 @@ async def test_search_uses_real_lemma_pos_matches_and_only_own_texts(text_mcp):
             "word": "book", "part_of_speech": "VERB",
         })
         assert [text["material_id"] for text in verbs["texts"]] == [homonym["id"]]
+        leaves = await call_json(client, "find_texts_with_word", {
+            "word": "leaves", "part_of_speech": "NOUN",
+        })
+        assert [text["material_id"] for text in leaves["texts"]] == [leaf["id"]]
         assert result["complete"] is True
         assert result["next_cursor"] is None
 
