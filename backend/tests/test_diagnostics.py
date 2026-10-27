@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import os
 import socket
 import subprocess
@@ -95,7 +96,8 @@ QUESTIONS = [
 
 
 def adaptive_connection(
-    settings_dir, *, reject_once=False, reject_all=False, failure=None, stop=True, capture=None
+    settings_dir, *, reject_once=False, reject_all=False, failure=None, stop=True, capture=None,
+    revision_capture=None, revision_failure=None,
 ):
     reviews = 0
 
@@ -113,7 +115,8 @@ def adaptive_connection(
                     ToolCallPart(
                         info.output_tools[0].name,
                         {
-                            "acceptable": not (reject_all or (reject_once and reviews == 1)),
+                            "usage_valid": True,
+                            "meaning_revealed": reject_all or (reject_once and reviews == 1),
                             "reason": "Контекст раскрывает значение."
                             if reviews == 1
                             else "Контекст нейтрален.",
@@ -121,6 +124,19 @@ def adaptive_connection(
                     )
                 ]
             )
+        if "question_to_revise" in payload:
+            if revision_capture is not None:
+                revision_capture.append(payload)
+            question = payload["question_to_revise"]
+            question = {
+                **question,
+                "prompt": f"They spoke about the {question['lemma']} again today.",
+            }
+            if revision_failure == "new_lemma":
+                question.update(lemma="house", surface="house")
+            elif revision_failure == "wrong_pos":
+                question["part_of_speech"] = "VERB"
+            return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, question)])
         if capture is not None:
             capture.append(payload)
         if payload["can_finish"] and stop:
@@ -325,15 +341,35 @@ def test_unverified_questions_never_reach_user_or_change_profile(tmp_path, diagn
         assert client.get("/api/profile").json() == before
 
 
-def test_context_reviewer_rejects_and_regenerates_question(tmp_path, diagnostic_mcp):
+def test_rejected_context_is_revised_with_the_same_verified_word(tmp_path, diagnostic_mcp):
+    revisions = []
     with diagnostic_client(
-        tmp_path / "api.sqlite3",
-        service=adaptive_connection(tmp_path, reject_once=True),
+        tmp_path / "api.sqlite3", service=adaptive_connection(
+            tmp_path, reject_once=True, revision_capture=revisions
+        ),
         mcp_url=diagnostic_mcp,
     ) as client:
         session = next_question(client, client.post("/api/diagnostics", json={}).json())
-        assert session["items"][0]["surface"] == "house"
+        assert session["items"][0]["surface"] == "water"
+        assert session["items"][0]["prompt"] == "They spoke about the water again today."
         assert len(session["items"]) == 1
+        assert len(revisions) == 1
+        assert revisions[0]["question_to_revise"]["prompt"] == QUESTIONS[0][2]
+        assert revisions[0]["review_feedback"] == "Контекст раскрывает значение."
+
+
+@pytest.mark.parametrize("failure", ["new_lemma", "wrong_pos"])
+def test_revision_cannot_replace_the_verified_target(tmp_path, diagnostic_mcp, failure):
+    with diagnostic_client(
+        tmp_path / "api.sqlite3", service=adaptive_connection(
+            tmp_path, reject_once=True, revision_failure=failure
+        ), mcp_url=diagnostic_mcp,
+    ) as client:
+        session = client.post("/api/diagnostics", json={}).json()
+        response = client.post(f"/api/diagnostics/{session['id']}/next", json={})
+        assert response.status_code == 503
+        assert client.get("/api/diagnostics").json()["session"]["items"] == []
+        assert client.get("/api/profile").json()["diagnostic_version"] == 0
 
 
 def test_ollama_question_regeneration_keeps_schema_within_round_budget(
@@ -389,8 +425,15 @@ def test_ollama_question_regeneration_keeps_schema_within_round_budget(
             assert payload["response_format"] == {"type": "json_object"}
             if "masked_prompt" in messages[-1]["content"]:
                 reviews += 1
-                output = {"acceptable": reviews > 1, "reason": "Проверка контекста."}
+                output = {
+                    "usage_valid": True, "meaning_revealed": reviews == 1,
+                    "reason": "Проверка контекста.",
+                }
                 message = {"role": "assistant", "content": json.dumps(output)}
+            elif "question_to_revise" in messages[-1]["content"]:
+                revised = question(0)["question"]
+                revised["prompt"] = "They spoke about the water again today."
+                message = {"role": "assistant", "content": json.dumps(revised)}
             elif messages[-1]["role"] == "tool":
                 message = {"role": "assistant", "content": json.dumps(question(reviews))}
             else:
@@ -438,11 +481,11 @@ def test_ollama_question_regeneration_keeps_schema_within_round_budget(
         tmp_path / "api.sqlite3", service=service, mcp_url=diagnostic_mcp
     ) as client:
         session = next_question(client, client.post("/api/diagnostics", json={}).json())
-        assert session["items"][0]["surface"] == "house"
+        assert session["items"][0]["surface"] == "water"
         assert len(session["items"]) == 1
         assert client.get("/api/profile").json()["diagnostic_version"] == 0
     assert reviews == 2
-    assert len(requests) == 6
+    assert len(requests) == 5
 
 
 def test_hard_cap_and_skips_never_enable_group_priors(tmp_path, diagnostic_mcp):
@@ -585,13 +628,24 @@ def test_failed_next_keeps_saved_answer_and_can_be_retried(tmp_path, diagnostic_
         assert len(next_question(client, restored)["items"]) == 2
 
 
-def test_two_rejected_contexts_leave_session_ready_for_retry(tmp_path, diagnostic_mcp):
-    with diagnostic_client(
-        tmp_path / "api.sqlite3",
-        service=adaptive_connection(tmp_path, reject_all=True),
-        mcp_url=diagnostic_mcp,
-    ) as client:
-        session = client.post("/api/diagnostics", json={}).json()
-        assert client.post(f"/api/diagnostics/{session['id']}/next", json={}).status_code == 503
-        assert client.get("/api/diagnostics").json()["session"]["items"] == []
-        assert client.get("/api/profile").json()["diagnostic_version"] == 0
+def test_two_rejected_contexts_leave_session_ready_for_retry(tmp_path, diagnostic_mcp, caplog):
+    logger = logging.getLogger("backend.app.agents.diagnostics")
+    logger.addHandler(caplog.handler)
+    try:
+        with diagnostic_client(
+            tmp_path / "api.sqlite3",
+            service=adaptive_connection(tmp_path, reject_all=True),
+            mcp_url=diagnostic_mcp,
+        ) as client:
+            session = client.post("/api/diagnostics", json={}).json()
+            response = client.post(f"/api/diagnostics/{session['id']}/next", json={})
+            assert response.status_code == 503
+            assert "AI не смог подготовить вопрос без подсказки" in response.json()["detail"]
+            assert "Ответы сохранены" in response.json()["detail"]
+            assert client.get("/api/diagnostics").json()["session"]["items"] == []
+            assert client.get("/api/profile").json()["diagnostic_version"] == 0
+    finally:
+        logger.removeHandler(caplog.handler)
+    assert "phase=quality outcome=failed error_type=QuestionQualityError" in caplog.text
+    assert QUESTIONS[0][2] not in caplog.text
+    assert "Контекст раскрывает значение" not in caplog.text

@@ -8,7 +8,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 from openai import AsyncOpenAI
 from pydantic_ai import Agent
-from pydantic_ai.exceptions import ModelHTTPError
+from pydantic_ai.exceptions import ModelHTTPError, UnexpectedModelBehavior
 
 from backend.app.ai_connection import create_ai_router, ollama
 from backend.app.ai_connection.service import ConnectionService
@@ -115,6 +115,24 @@ async def test_temporary_execution_without_subscription_keeps_snapshot(
     with pytest.raises(HTTPException) as error:
         await service.execute(operation)
     assert error.value.status_code == 409
+    await service.close()
+
+
+async def test_unexpected_model_failure_logs_type_without_private_details(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture,
+) -> None:
+    monkeypatch.setenv("OLLAMA_API_KEY", "synthetic-ollama-secret")
+    service = connection(tmp_path)
+    service.settings_store.write(AISettings("gpt-6-luna", "low", True))
+
+    async def failing(model):
+        raise UnexpectedModelBehavior("synthetic-private-prompt")
+
+    with pytest.raises(HTTPException) as error:
+        await service.execute(failing)
+    assert error.value.status_code == 503
+    assert "error_type=UnexpectedModelBehavior" in caplog.text
+    assert "synthetic-" not in caplog.text + error.value.detail
     await service.close()
 
 

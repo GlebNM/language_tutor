@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import secrets
 import socket
 from collections.abc import Awaitable, Callable
@@ -31,6 +32,7 @@ from .siwc_model import SIWCTransport, siwc_model
 from .storage import CredentialStore
 
 RunOutput = TypeVar("RunOutput")
+logger = logging.getLogger(__name__)
 _SDK_REASONING_LITERAL = next(
     value for value in get_args(ReasoningEffort) if get_origin(value) is Literal
 )
@@ -452,6 +454,9 @@ class ConnectionService:
                 self.state = ConnectionStatus(status="connected", live_verified=True)
             return result
         except (SubscriptionError, ModelHTTPError) as error:
+            logger.warning(
+                "ai_operation_failed model=%s error_type=%s", snapshot.model, type(error).__name__
+            )
             if snapshot.temporary_model:
                 status = error.status if isinstance(error, SubscriptionError) else error.status_code
                 if status in (401, 403):
@@ -467,8 +472,12 @@ class ConnectionService:
                 ) from None
             raise self.provider_failure(error) from None
         except TimeoutError:
+            logger.warning("ai_operation_failed model=%s error_type=TimeoutError", snapshot.model)
             raise HTTPException(504, "AI не ответил за 30 секунд. Повторите запрос.") from None
         except UsageLimitExceeded:
+            logger.warning(
+                "ai_operation_failed model=%s error_type=UsageLimitExceeded", snapshot.model
+            )
             raise HTTPException(
                 422, "AI достиг ограничения числа раундов. Уточните вопрос и повторите запрос."
             ) from None
@@ -479,7 +488,10 @@ class ConnectionService:
             raise HTTPException(409, "Запрос AI отменён.") from None
         except HTTPException:
             raise
-        except Exception:
+        except Exception as error:
+            logger.warning(
+                "ai_operation_failed model=%s error_type=%s", snapshot.model, type(error).__name__
+            )
             raise HTTPException(
                 503, "Не удалось завершить запрос AI и MCP. Повторите запрос."
             ) from None

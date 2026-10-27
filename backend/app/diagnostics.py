@@ -159,7 +159,14 @@ class DiagnosticsService:
     async def next_question(
         self, session_id: str, connection: ConnectionService | None, mcp_url: str
     ) -> dict[str, Any]:
-        from backend.app.agents.diagnostics import question_offsets, run_diagnostic_step
+        from pydantic_ai.models import Model
+
+        from backend.app.agents.diagnostics import (
+            DiagnosticStep,
+            QuestionQualityError,
+            question_offsets,
+            run_diagnostic_step,
+        )
 
         with self.library.connect() as db:
             snapshot = dict(self.row(db, session_id))
@@ -198,17 +205,23 @@ class DiagnosticsService:
             )
         )[:98]
         settings = connection.settings_store.read().effective()
-        step = await connection.execute(
-            lambda model: run_diagnostic_step(
-                model=model,
-                mcp_url=mcp_url,
-                items=items,
-                answers=answers,
-                excluded=excluded,
-                reasoning_effort=settings.reasoning_effort,
-            ),
-            settings=settings,
-        )
+        async def generate(model: Model) -> DiagnosticStep:
+            try:
+                return await run_diagnostic_step(
+                    model=model,
+                    mcp_url=mcp_url,
+                    items=items,
+                    answers=answers,
+                    excluded=excluded,
+                    reasoning_effort=settings.reasoning_effort,
+                )
+            except QuestionQualityError:
+                raise HTTPException(
+                    503, "AI не смог подготовить вопрос без подсказки. "
+                    "Ответы сохранены. Повторите подготовку."
+                ) from None
+
+        step = await connection.execute(generate, settings=settings)
         provenance = {"model": settings.model, "reasoning_effort": settings.reasoning_effort}
         if step.finish:
             return self.save_step(
