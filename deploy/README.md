@@ -1,6 +1,6 @@
 # VPS
 
-На VPS запускаются приложение, внутренний MCP и Caddy. Нужны Docker Engine, Compose 2.24.4+ и свободные входящие TCP-порты 80/443. Caddy получает доверенный сертификат для публичного IPv4 через профиль Let's Encrypt `shortlived`, продлевает его автоматически и перенаправляет HTTP на HTTPS. [Описание сертификатов IP](https://letsencrypt.org/2026/01/15/6day-and-ip-general-availability), [настройка ACME в Caddy](https://caddyserver.com/docs/caddyfile/directives/tls).
+На VPS запускаются приложение, внутренний MCP и Caddy. Нужны Docker Engine, Compose 2.24.4+ и свободные входящие TCP-порты 80/443. Caddy получает доверенный сертификат для публичного IPv4 через профиль Let's Encrypt `shortlived`, продлевает его автоматически и перенаправляет HTTP на HTTPS. Проверка владения IP проходит через HTTP на порту 80; этот порт должен оставаться доступным для продления. `default_sni` позволяет выбрать сертификат IP для браузеров без SNI. [Описание сертификатов IP](https://letsencrypt.org/2026/01/15/6day-and-ip-general-availability), [настройка ACME в Caddy](https://caddyserver.com/docs/caddyfile/directives/tls), [default_sni](https://caddyserver.com/docs/caddyfile/options#default-sni).
 
 Скопируйте исходники в `/opt/language-tutor`, исключив `ssh_creds`, `.env`, credentials, базы, локальные данные, `.git`, `.venv` и `node_modules`. В этом каталоге:
 

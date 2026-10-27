@@ -1,11 +1,13 @@
 {
 	admin off
+	default_sni {$PUBLIC_HOST}
 }
 
 {$PUBLIC_HOST} {
 	tls {
 		issuer acme {
 			profile shortlived
+			disable_tlsalpn_challenge
 		}
 	}
 	encode zstd gzip
