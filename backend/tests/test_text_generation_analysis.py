@@ -88,6 +88,51 @@ def test_writer_profile_explains_prior_coverage_and_sample_access(tmp_path):
         }
 
 
+@pytest.mark.parametrize("category", ["known", "learning"])
+@pytest.mark.parametrize("word_count", [8, 120])
+def test_job_vocabulary_samples_full_pool_with_stable_complete_pages(category, word_count):
+    from backend.app.diagnostic_data import frequency_ranks
+    from backend.app.knowledge import knowledge_value
+    from backend.app.text_generation_analysis import (
+        VocabularySnapshot,
+        build_writing_profile,
+        vocabulary_page,
+    )
+
+    words = {
+        (lemma, "NOUN"): knowledge_value(
+            (2 if category == "known" else 0) + index % 2, source="manual"
+        )
+        for index, lemma in enumerate(list(frequency_ranks())[:word_count])
+    }
+    words[("excluded", "NOUN")] = knowledge_value(0, ignored=True, source="manual")
+    snapshot = VocabularySnapshot("same-dictionary", 1, "storage", "en", words, frozenset())
+    profiles = [build_writing_profile(snapshot, sample_seed=seed)
+                for seed in ("job-a", "job-b")]
+    key = f"{category}_examples"
+    assert len(profiles[0][key]) == min(word_count, 40)
+    assert profiles[0][key] != profiles[1][key]
+    if word_count > 40:
+        assert {word["lemma"] for word in profiles[0][key]} != {
+            word["lemma"] for word in profiles[1][key]
+        }
+    assert profiles[0] == build_writing_profile(snapshot, sample_seed="job-a")
+
+    items = []
+    offset = 0
+    while offset is not None:
+        page = vocabulary_page(snapshot, category, offset=offset, limit=17,
+                               sample_seed="job-a")
+        items.extend(page["items"])
+        offset = page["next_offset"]
+    assert items[:40] == profiles[0][key]
+    assert len(items) == word_count
+    assert len({(word["lemma"], word["part_of_speech"]) for word in items}) == word_count
+    assert {word["lemma"] for word in items} == set(list(frequency_ranks())[:word_count])
+    assert all(word["score"] == snapshot.knowledge(word["lemma"], "NOUN")["score"]
+               for word in items)
+
+
 def measured_text(unfamiliar_count, different=False):
     nouns = ["stories", "letters", "novels", "poems", "papers", "notes"]
     sentences = [

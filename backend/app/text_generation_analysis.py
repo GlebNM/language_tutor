@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import random
 from collections import Counter
 from dataclasses import dataclass
 from typing import Any, Literal
@@ -169,6 +170,7 @@ class VocabularySnapshot:
 def vocabulary_page(
     snapshot: VocabularySnapshot, category: Literal["known", "learning"], *,
     part_of_speech: str | None = None, offset: int = 0, limit: int = 30,
+    sample_seed: str | None = None,
 ) -> dict[str, Any]:
     if not 0 <= offset <= 100000 or not 1 <= limit <= 80:
         raise ValueError("Некорректная страница словаря.")
@@ -189,12 +191,17 @@ def vocabulary_page(
     ranks = frequency_ranks()
     entries.sort(key=lambda item: (ranks.get(item["lemma"], 100000), item["lemma"],
                                    item["part_of_speech"] or ""))
+    if sample_seed is not None:
+        # Shuffle the full pool before slicing; a job seed keeps pagination repeatable.
+        random.Random(f"{sample_seed}:{category}").shuffle(entries)
     page = entries[offset:offset + limit]
     return {"snapshot_id": snapshot.snapshot_id, "items": page,
             "next_offset": offset + limit if offset + limit < len(entries) else None}
 
 
-def build_writing_profile(snapshot: VocabularySnapshot) -> dict[str, Any]:
+def build_writing_profile(
+    snapshot: VocabularySnapshot, *, sample_seed: str | None = None,
+) -> dict[str, Any]:
     counts = Counter(str(value["score"]) for value in snapshot.words.values()
                      if not value["ignored"])
     has_known = bool(counts["2"] + counts["3"])
@@ -214,8 +221,12 @@ def build_writing_profile(snapshot: VocabularySnapshot) -> dict[str, Any]:
                               "page_tool": "list_generation_vocabulary",
                               "word_tool": "get_generation_word_knowledge",
                               "draft_tool": "check_text_difficulty"},
-        "known_examples": vocabulary_page(snapshot, "known", limit=40)["items"],
-        "learning_examples": vocabulary_page(snapshot, "learning", limit=40)["items"],
+        "known_examples": vocabulary_page(
+            snapshot, "known", limit=40, sample_seed=sample_seed,
+        )["items"],
+        "learning_examples": vocabulary_page(
+            snapshot, "learning", limit=40, sample_seed=sample_seed,
+        )["items"],
         "expression_examples": expression_page(snapshot)["items"],
         "profile_sufficiency": "provisional" if snapshot.prior_groups else
                                "sufficient" if has_known else "insufficient",

@@ -286,6 +286,8 @@ def test_dictionary_search_leaves_budget_for_context_revision_and_publication(le
         assert result["revision"] == 2
         assert writer_inputs[1]["feedback"]["blocking_issues"]
         assert dictionary_pages and dictionary_pages[0]["items"]
+        assert dictionary_pages[0]["items"] == writer_inputs[0]["profile"]["known_examples"][:2]
+        assert writer_inputs[0]["profile"] == writer_inputs[1]["profile"]
         assert result["usage"]["model_requests"] <= 18
         assert client.get(f"/api/materials/{result['result_material_id']}").json()["kind"] == "text"
 

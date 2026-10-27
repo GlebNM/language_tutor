@@ -28,7 +28,7 @@ def _fits(value: dict[str, Any]) -> bool:
 def _profile(library: MaterialLibrary, job_id: str) -> dict[str, Any]:
     from backend.app.text_generation_jobs import get_job_snapshot
 
-    profile = build_writing_profile(get_job_snapshot(library, job_id))
+    profile = build_writing_profile(get_job_snapshot(library, job_id), sample_seed=job_id)
     names = ("known_examples", "learning_examples", "expression_examples")
     profile["examples_truncated"] = False
     while not _fits(profile):
@@ -47,7 +47,8 @@ def _vocabulary(
     from backend.app.text_generation_jobs import get_job_snapshot
 
     page = vocabulary_page(get_job_snapshot(library, job_id), category,
-                           part_of_speech=part_of_speech, offset=offset, limit=limit)
+                           part_of_speech=part_of_speech, offset=offset, limit=limit,
+                           sample_seed=job_id)
     trimmed = False
     while not _fits(page):
         if len(page["items"]) <= 1:
