@@ -1,0 +1,416 @@
+{
+  "application_revision": "0d3100bb8842d6cdad84e514899f99f743d20394",
+  "model": "gemma4:31b",
+  "pydantic_ai": "2.57.0",
+  "transport": "HTTP API and real Streamable HTTP MCP",
+  "manual_retries_in_fresh_sessions": 0,
+  "sessions": [
+    {
+      "mode": "resume_after_missing_mcp",
+      "initial_answers": 8,
+      "questions": [
+        {
+          "surface": "transfer",
+          "prompt": "The company decided to transfer the employee to another department last month.",
+          "group": 2,
+          "answer": "skip",
+          "duration_seconds": 4.66
+        },
+        {
+          "surface": "domestic",
+          "prompt": "The company decided to focus on the domestic market this year.",
+          "group": 2,
+          "answer": "skip",
+          "duration_seconds": 2.94
+        },
+        {
+          "surface": "attorney",
+          "prompt": "The attorney sat in the hallway for twenty minutes.",
+          "group": 2,
+          "answer": "skip",
+          "duration_seconds": 10.63
+        },
+        {
+          "surface": "commerce",
+          "prompt": "The lecture focused on the history of commerce in this region.",
+          "group": 3,
+          "answer": "skip",
+          "duration_seconds": 2.3
+        },
+        {
+          "surface": "firm",
+          "prompt": "They decided to contact the firm yesterday morning.",
+          "group": 2,
+          "answer": "skip",
+          "duration_seconds": 2.36
+        },
+        {
+          "surface": "assessment",
+          "prompt": "The committee will review the assessment later this week.",
+          "group": 3,
+          "answer": "skip",
+          "duration_seconds": 7.29
+        },
+        {
+          "surface": "spin",
+          "prompt": "The children like to spin around in the living room.",
+          "group": 3,
+          "answer": "skip",
+          "duration_seconds": 2.48
+        },
+        {
+          "surface": "wheel",
+          "prompt": "He checked the wheel before starting the long journey.",
+          "group": 3,
+          "answer": "skip",
+          "duration_seconds": 2.93
+        },
+        {
+          "surface": "clear",
+          "prompt": "The technician mentioned that the signal remained clear throughout the entire test.",
+          "group": 1,
+          "answer": "skip",
+          "duration_seconds": 2.58
+        },
+        {
+          "surface": "form",
+          "prompt": "The clerk asked him to fill out the form before entering.",
+          "group": 1,
+          "answer": "skip",
+          "duration_seconds": 2.64
+        }
+      ],
+      "errors": [],
+      "completed": true,
+      "answers": 18,
+      "profile_version": 4,
+      "duration_seconds": 43.55
+    },
+    {
+      "mode": "mixed",
+      "initial_answers": 0,
+      "questions": [
+        {
+          "surface": "energy",
+          "prompt": "The workers discussed the amount of energy in the room.",
+          "group": 1,
+          "answer": "known",
+          "duration_seconds": 3.97
+        },
+        {
+          "surface": "entire",
+          "prompt": "The team spent the entire morning in the conference room.",
+          "group": 1,
+          "answer": "unsure",
+          "duration_seconds": 4.35
+        },
+        {
+          "surface": "title",
+          "prompt": "They discussed the title of the document during the meeting.",
+          "group": 1,
+          "answer": "unknown",
+          "duration_seconds": 2.54
+        },
+        {
+          "surface": "aircraft",
+          "prompt": "They observed the aircraft from the balcony of the hotel.",
+          "group": 2,
+          "answer": "known",
+          "duration_seconds": 2.71
+        },
+        {
+          "surface": "act",
+          "prompt": "He remembered the first act of the play quite well.",
+          "group": 1,
+          "answer": "skip",
+          "duration_seconds": 2.28
+        },
+        {
+          "surface": "conference",
+          "prompt": "They mentioned the conference during their morning meeting today.",
+          "group": 2,
+          "answer": "known",
+          "duration_seconds": 4.26
+        },
+        {
+          "surface": "floor",
+          "prompt": "They said the floor was clean yesterday.",
+          "group": 2,
+          "answer": "unsure",
+          "duration_seconds": 4.79
+        },
+        {
+          "surface": "cabin",
+          "prompt": "The group stayed in a small cabin for the weekend.",
+          "group": 3,
+          "answer": "unknown",
+          "duration_seconds": 3.43
+        },
+        {
+          "surface": "brand",
+          "prompt": "They mentioned the brand during the meeting.",
+          "group": 2,
+          "answer": "known",
+          "duration_seconds": 2.69
+        },
+        {
+          "surface": "recipe",
+          "prompt": "She left the recipe on the kitchen table before leaving.",
+          "group": 3,
+          "answer": "skip",
+          "duration_seconds": 2.26
+        },
+        {
+          "surface": "server",
+          "prompt": "They noticed the server was acting differently this morning.",
+          "group": 3,
+          "answer": "known",
+          "duration_seconds": 2.61
+        },
+        {
+          "surface": "account",
+          "prompt": "They mentioned the account during the meeting today.",
+          "group": 1,
+          "answer": "unsure",
+          "duration_seconds": 3.69
+        },
+        {
+          "surface": "fiscal",
+          "prompt": "The team discussed the fiscal year during their weekly meeting.",
+          "group": 3,
+          "answer": "unknown",
+          "duration_seconds": 2.72
+        },
+        {
+          "surface": "process",
+          "prompt": "They discussed the process during the meeting yesterday.",
+          "group": 1,
+          "answer": "known",
+          "duration_seconds": 3.29
+        },
+        {
+          "surface": "style",
+          "prompt": "They discussed the style of the document in the morning.",
+          "group": 1,
+          "answer": "skip",
+          "duration_seconds": 2.85
+        },
+        {
+          "surface": "community",
+          "prompt": "They discussed the community for over an hour during the meeting.",
+          "group": 1,
+          "answer": "known",
+          "duration_seconds": 3.67
+        },
+        {
+          "surface": "banner",
+          "prompt": "They placed a large banner outside the building yesterday.",
+          "group": 3,
+          "answer": "unsure",
+          "duration_seconds": 2.41
+        },
+        {
+          "surface": "pipe",
+          "prompt": "They decided to replace the old pipe in the basement yesterday.",
+          "group": 3,
+          "answer": "unknown",
+          "duration_seconds": 2.47
+        }
+      ],
+      "errors": [],
+      "completed": true,
+      "answers": 18,
+      "profile_version": 5,
+      "duration_seconds": 61.48
+    },
+    {
+      "mode": "skip",
+      "initial_answers": 0,
+      "questions": [
+        {
+          "surface": "season",
+          "prompt": "They discussed the current season during their meeting yesterday.",
+          "group": 1,
+          "answer": "skip",
+          "duration_seconds": 2.3
+        },
+        {
+          "surface": "light",
+          "prompt": "They checked the light in the room before leaving.",
+          "group": 1,
+          "answer": "skip",
+          "duration_seconds": 4.53
+        },
+        {
+          "surface": "office",
+          "prompt": "They spent the whole afternoon at the office today.",
+          "group": 1,
+          "answer": "skip",
+          "duration_seconds": 3.72
+        },
+        {
+          "surface": "row",
+          "prompt": "The guests sat in the front row during the ceremony.",
+          "group": 2,
+          "answer": "skip",
+          "duration_seconds": 3.33
+        },
+        {
+          "surface": "budget",
+          "prompt": "The committee discussed the budget during their last weekly session.",
+          "group": 2,
+          "answer": "skip",
+          "duration_seconds": 2.8
+        },
+        {
+          "surface": "selection",
+          "prompt": "The committee discussed the final selection for several hours yesterday.",
+          "group": 2,
+          "answer": "skip",
+          "duration_seconds": 5.42
+        },
+        {
+          "surface": "resource",
+          "prompt": "They mentioned a specific resource during the meeting yesterday.",
+          "group": 3,
+          "answer": "skip",
+          "duration_seconds": 11.04
+        },
+        {
+          "surface": "transition",
+          "prompt": "The manager discussed the transition during the morning meeting.",
+          "group": 3,
+          "answer": "skip",
+          "duration_seconds": 2.44
+        },
+        {
+          "surface": "occasion",
+          "prompt": "He mentioned that it was a special occasion during the dinner.",
+          "group": 3,
+          "answer": "skip",
+          "duration_seconds": 2.61
+        },
+        {
+          "surface": "air",
+          "prompt": "The technician checked the air inside the container.",
+          "group": 1,
+          "answer": "skip",
+          "duration_seconds": 2.5
+        },
+        {
+          "surface": "mark",
+          "prompt": "He noticed a small mark on the wooden table.",
+          "group": 1,
+          "answer": "skip",
+          "duration_seconds": 3.59
+        },
+        {
+          "surface": "support",
+          "prompt": "They mentioned the support during the brief meeting yesterday.",
+          "group": 1,
+          "answer": "skip",
+          "duration_seconds": 2.69
+        },
+        {
+          "surface": "deal",
+          "prompt": "They discussed the deal for several hours yesterday.",
+          "group": 1,
+          "answer": "skip",
+          "duration_seconds": 2.52
+        },
+        {
+          "surface": "industry",
+          "prompt": "The report mentioned the state of the local industry last month.",
+          "group": 1,
+          "answer": "skip",
+          "duration_seconds": 6.08
+        },
+        {
+          "surface": "round",
+          "prompt": "The fighter finished the first round of the match.",
+          "group": 1,
+          "answer": "skip",
+          "duration_seconds": 2.42
+        },
+        {
+          "surface": "tea",
+          "prompt": "They spoke about the tea during the afternoon break.",
+          "group": 2,
+          "answer": "skip",
+          "duration_seconds": 2.51
+        },
+        {
+          "surface": "protein",
+          "prompt": "The report mentioned the amount of protein in the sample.",
+          "group": 2,
+          "answer": "skip",
+          "duration_seconds": 2.86
+        },
+        {
+          "surface": "issue",
+          "prompt": "He mentioned a specific issue during the meeting yesterday.",
+          "group": 1,
+          "answer": "skip",
+          "duration_seconds": 2.39
+        }
+      ],
+      "errors": [],
+      "completed": true,
+      "answers": 18,
+      "profile_version": 6,
+      "duration_seconds": 70.31
+    }
+  ],
+  "verification": {
+    "backend_tests_passed": 257,
+    "ruff": "passed",
+    "mypy_sources": 47,
+    "source_sha256": {
+      "backend/app/agents/diagnostics.py": "a1f06211953a8661914a593a10023e9f9db0b003ab644f0c564b82b20a76f651",
+      "backend/app/diagnostics.py": "505cf53f3c696b9a1785114446d8195a550bed2b75fc1138decfa0c24d3aa21d",
+      "backend/app/ai_connection/service.py": "5ae34724ebc5635327ed2bc146c093136a54da78ebe872e5430d99eb9ed99e98"
+    },
+    "generated_questions": 46,
+    "successful_mcp_samples": 46,
+    "maximum_successful_samples_per_question": 1,
+    "revised_questions": 0,
+    "maximum_model_requests_per_question": 5,
+    "median_generation_seconds": 2.76,
+    "maximum_generation_seconds": 11.04,
+    "learner": "synthetic isolated test account"
+  },
+  "rubric_cases": [
+    {
+      "lemma": "rapid",
+      "expected": true,
+      "acceptable": true,
+      "usage_valid": true,
+      "meaning_revealed": false,
+      "reason": "The sentence is natural and simple. The blank could be filled by 'rapid', 'slow', 'steady', or 'unexpected', meaning the specific meaning of 'rapid' is not revealed by the context."
+    },
+    {
+      "lemma": "enormous",
+      "expected": false,
+      "acceptable": false,
+      "usage_valid": true,
+      "meaning_revealed": true,
+      "reason": "The phrase 'with many rooms' directly implies a large size, making the meaning of 'enormous' obvious through a clear consequence/description."
+    },
+    {
+      "lemma": "repeat",
+      "expected": false,
+      "acceptable": false,
+      "usage_valid": true,
+      "meaning_revealed": true,
+      "reason": "The phrase 'one more time' is a direct paraphrase of 'repeat', making the meaning obvious."
+    },
+    {
+      "lemma": "water",
+      "expected": true,
+      "acceptable": true,
+      "usage_valid": true,
+      "meaning_revealed": false,
+      "reason": "The sentence is natural and simple. The blank is vague enough that many different nouns (water, report, problem, budget) could fit, meaning the Russian meaning is not revealed by the context."
+    }
+  ]
+}
