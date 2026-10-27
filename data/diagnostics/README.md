@@ -1,6 +1,8 @@
-# Diagnostic data v1
+# Diagnostic frequency data and legacy pool
 
-The 12 English words and two original sentences in `items-en-v1.json` have stable IDs and permitted Russian meanings. The implementation checks that four words belong to each declared frequency group. The meanings include ordinary synonyms; the agent may accept equivalent free text. Sentences refine the description only. The small sample is a heuristic, not a CEFR certification. Content review and source metadata are stored with the pool; later editorial changes require a new pool version.
+The current placement uses the full frequency list through the authenticated MCP tool `get_frequency_words`, with agent-selected rank ranges or groups, fresh sampling, and exclusions. Sentences are generated and independently reviewed at runtime. Session format v2 records self-report (known/unsure/unknown/skip), with a 12–18 question bound; this is not verified correctness or CEFR. Four known responses and at least 80% known in a group enable its provisional prior. Manual decisions take precedence.
+
+The legacy 12 English words and two original sentences in `items-en-v1.json` have stable IDs and permitted Russian meanings. The implementation checks that four words belong to each declared frequency group. The meanings include ordinary synonyms; the agent may accept equivalent free text. Sentences refine the description only. The small sample is a heuristic, not a CEFR certification. Content review and source metadata are stored with the pool; later editorial changes require a new pool version.
 
 `frequency-en-v1.tsv` is derived from Robyn Speer's **wordfreq 3.1.1** English large list (`top_n_list('en', 20000)`), generated on 19 October 2026. In source order, casefold, normalize curly apostrophes to ASCII, retain strings matching `[a-z]+(?:'[a-z]+)?`, remove duplicates, then take 6000 entries and assign ranks 1 through 6000. Ranks describe this normalized list; they are not CEFR labels or probabilities. Lemmas absent from the list receive no prior. No runtime download or wordfreq dependency is required.
 

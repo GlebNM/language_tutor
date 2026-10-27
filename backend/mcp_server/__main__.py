@@ -221,6 +221,35 @@ def get_material_context(material_id: str, query: str = "", limit: int = 5) -> s
 
 
 @server.tool()
+def get_frequency_words(
+    language: str = "en",
+    group: int | None = Field(default=None, ge=1, le=3),
+    min_rank: int = Field(default=1, ge=1, le=6000),
+    max_rank: int = Field(default=6000, ge=1, le=6000),
+    limit: int = Field(default=12, ge=1, le=20),
+    exclude: list[str] = Field(default_factory=list, max_length=100),
+) -> str:
+    """Sample English words with real frequency ranks. Choose a group (1: 1–1000,
+    2: 1001–3000, 3: 3001–6000) or rank range. Exclude already asked words.
+    Each call samples afresh; ranks are not CEFR levels or evidence of knowledge.
+    Select an ordinary base form suitable for a clear noun, verb, adjective or adverb use.
+    """
+    from backend.app.diagnostic_data import frequency_words
+
+    learning_context()
+    return bounded_json(
+        frequency_words(
+            language=language,
+            group=group,
+            min_rank=min_rank,
+            max_rank=max_rank,
+            limit=limit,
+            exclude=exclude,
+        )
+    )
+
+
+@server.tool()
 def get_diagnostic_items(
     language: str = "en",
     kind: str = "word",
@@ -242,5 +271,8 @@ if __name__ == "__main__":
 
     uvicorn.run(
         MCPAccess(server.streamable_http_app(), Path(os.getenv("DATA_DIR", "data/local"))),
-        host=server.settings.host, port=server.settings.port, log_level="warning", access_log=False,
+        host=server.settings.host,
+        port=server.settings.port,
+        log_level="warning",
+        access_log=False,
     )

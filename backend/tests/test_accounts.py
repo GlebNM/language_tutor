@@ -216,9 +216,8 @@ def test_learning_data_settings_reset_and_stale_tab_are_private(tmp_path):
             bob.post(
                 f"/api/diagnostics/{diagnostic['id']}/answers",
                 json={
-                    "item_id": diagnostic["items"][0]["id"],
-                    "answer": "book",
-                    "action": "answer",
+                    "item_id": "another-users-question",
+                    "action": "known",
                 },
             ).status_code
             == 404

@@ -11,6 +11,7 @@
 credentials/
 credentials.json
 auth.json
+ssh_creds
 *.pem
 *.key
 

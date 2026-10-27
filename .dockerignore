@@ -19,5 +19,6 @@ data/uploads
 data/credentials
 credentials
 .secrets
+ssh_creds
 logs
 **/*.log

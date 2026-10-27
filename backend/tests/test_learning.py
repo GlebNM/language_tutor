@@ -357,6 +357,7 @@ async def test_mcp_exact_language_pos_matching_bounds_and_neighbor_validation(
             "get_subtitle_context",
             "find_word_occurrences",
             "get_diagnostic_items",
+            "get_frequency_words",
         } <= names
         args = {"language": "en", "lemma": "give", "part_of_speech": "VERB", "limit": 5}
         result = await client.call_tool("find_word_occurrences", args)

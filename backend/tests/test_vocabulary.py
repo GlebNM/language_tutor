@@ -189,13 +189,12 @@ def test_excluded_click_does_not_change_allowed_use_of_same_lexeme(tmp_path):
 
 
 def test_diagnostic_priors_cannot_restore_excluded_words(tmp_path, diagnostic_mcp):
-    from backend.app.diagnostic_data import pool
-    from backend.tests.test_diagnostics import answer_all, diagnostic_client, graded_connection
+    from backend.tests.test_diagnostics import adaptive_connection, answer_all, diagnostic_client
 
     path = tmp_path / "api.sqlite3"
     with diagnostic_client(
         path,
-        service=graded_connection({item["id"] for item in pool()}, settings_dir=tmp_path),
+        service=adaptive_connection(tmp_path),
         mcp_url=diagnostic_mcp,
     ) as client:
         material = import_text(client)

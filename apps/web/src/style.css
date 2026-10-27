@@ -1732,6 +1732,16 @@ main {
   font-size: 30px;
   margin: 24px 0;
 }
+.diagnostic-prompt mark {
+  color: inherit;
+  background: #e9d9ac;
+  border-radius: 0.2em;
+  padding: 0.05em 0.12em;
+  box-decoration-break: clone;
+}
+.diagnostic-choices {
+  margin-bottom: 1.5rem;
+}
 progress {
   width: 100%;
   height: 5px;
