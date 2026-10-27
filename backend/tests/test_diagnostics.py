@@ -336,6 +336,115 @@ def test_context_reviewer_rejects_and_regenerates_question(tmp_path, diagnostic_
         assert len(session["items"]) == 1
 
 
+def test_ollama_question_regeneration_keeps_schema_within_round_budget(
+    tmp_path, diagnostic_mcp, monkeypatch
+):
+    """Replay the format-repair loop seen before the first placement question."""
+    import httpx2
+    from openai import AsyncOpenAI
+
+    from backend.app.ai_connection import ollama
+    from backend.app.ai_connection.service import ConnectionService
+    from backend.app.ai_connection.settings import AISettings
+    from backend.app.ai_connection.siwc import SIWCOAuthFlow
+
+    monkeypatch.setattr(models, "ALLOW_MODEL_REQUESTS", True)
+    monkeypatch.setenv("OLLAMA_API_KEY", "synthetic-ollama-secret")
+    requests = []
+    reviews = 0
+
+    def question(index):
+        lemma, pos, prompt = QUESTIONS[index]
+        return {
+            "question": {
+                "lemma": lemma, "part_of_speech": pos, "surface": lemma,
+                "prompt": prompt, "meaning": "вода" if index == 0 else "дом",
+            },
+            "finish": False, "description": "Уточняем знакомость слова.",
+        }
+
+    def call(name, arguments):
+        return {
+            "role": "assistant", "content": None,
+            "tool_calls": [{
+                "id": f"call_{len(requests)}", "type": "function",
+                "function": {"name": name, "arguments": json.dumps(arguments)},
+            }],
+        }
+
+    def dictionary(index):
+        rank = frequency_ranks()[QUESTIONS[index][0]]
+        return call("get_frequency_words", {"min_rank": rank, "max_rank": rank, "limit": 1})
+
+    async def respond(request):
+        nonlocal reviews
+        payload = json.loads(request.content)
+        requests.append(payload)
+        messages = payload["messages"]
+        instructions = " ".join(
+            m["content"] for m in messages if m["role"] in ("system", "developer")
+        )
+        if '"properties"' in instructions:
+            # A prompted schema lets the model use the exact field names immediately.
+            assert payload["response_format"] == {"type": "json_object"}
+            if "masked_prompt" in messages[-1]["content"]:
+                reviews += 1
+                output = {"acceptable": reviews > 1, "reason": "Проверка контекста."}
+                message = {"role": "assistant", "content": json.dumps(output)}
+            elif messages[-1]["role"] == "tool":
+                message = {"role": "assistant", "content": json.dumps(question(reviews))}
+            else:
+                message = dictionary(reviews)
+        else:
+            # Captured pattern: dictionary, three format repairs, rejected context,
+            # dictionary again, then a fresh format error consumes the shared budget.
+            broken = {**question(0), "question": QUESTIONS[0][2]}
+            wrong_fields = question(0)
+            wrong_fields["question"]["pos"] = "noun"
+            wrong_fields["question"]["sentence"] = wrong_fields["question"].pop("prompt")
+            del wrong_fields["question"]["part_of_speech"]
+            wrong_pos = question(0)
+            wrong_pos["question"]["part_of_speech"] = "noun"
+            replay = [
+                lambda: dictionary(0),
+                lambda: {"role": "assistant", "content": json.dumps(broken)},
+                lambda: call("final_result", wrong_fields),
+                lambda: call("final_result", wrong_pos),
+                lambda: call("final_result", question(0)),
+                lambda: call("final_result", {"acceptable": False, "reason": "Подсказка."}),
+                lambda: dictionary(1),
+                lambda: {"role": "assistant", "content": json.dumps(broken)},
+            ]
+            message = replay[len(requests) - 1]()
+        return httpx2.Response(200, json={
+            "id": "placement-test", "object": "chat.completion", "created": 1,
+            "model": "gemma4:31b",
+            "choices": [{"index": 0, "message": message, "finish_reason": "stop"}],
+        })
+
+    def controlled_client(**kwargs):
+        return AsyncOpenAI(
+            **kwargs, http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(respond))
+        )
+
+    monkeypatch.setattr(ollama, "AsyncOpenAI", controlled_client)
+    service = ConnectionService(
+        data_dir=tmp_path, callback_host="127.0.0.1", callback_port=0,
+        oauth_timeout=5, flow_factory=SIWCOAuthFlow,
+        mcp_url=diagnostic_mcp, model_name="gpt-6-luna",
+    )
+    service.settings_store.write(AISettings("gpt-6-luna", "low", True))
+    with diagnostic_client(
+        tmp_path / "api.sqlite3", service=service, mcp_url=diagnostic_mcp
+    ) as client:
+        session = next_question(client, client.post("/api/diagnostics", json={}).json())
+        assert session["items"][0]["surface"] == "house"
+        assert len(session["items"]) == 1
+        assert client.get("/api/profile").json()["diagnostic_version"] == 0
+    assert reviews == 2
+    assert len(requests) == 6
+
+
 def test_hard_cap_and_skips_never_enable_group_priors(tmp_path, diagnostic_mcp):
     with diagnostic_client(
         tmp_path / "api.sqlite3",
