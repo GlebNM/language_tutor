@@ -1,0 +1,52 @@
+# PUBLIC_HOST is a public IPv4 address; PUBLIC_ORIGIN is https://<PUBLIC_HOST>.
+# Compose 2.24.4+ supports !reset for removing the local app port mapping.
+services:
+  app:
+    ports: !reset []
+    command:
+      - .venv/bin/uvicorn
+      - backend.app.main:create_app
+      - --factory
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8765"
+      - --no-access-log
+      - --proxy-headers
+      - --forwarded-allow-ips=*
+    environment:
+      ALLOWED_ORIGINS: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN to https://PUBLIC_HOST}
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+  mcp:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+  proxy:
+    image: caddy:2.10.2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST:?Set PUBLIC_HOST to the public IPv4 address}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+volumes:
+  caddy-data:
+  caddy-config:

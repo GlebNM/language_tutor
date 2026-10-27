@@ -1,0 +1,17 @@
+{
+	admin off
+}
+
+{$PUBLIC_HOST} {
+	tls {
+		issuer acme {
+			profile shortlived
+		}
+	}
+	encode zstd gzip
+	reverse_proxy app:8765 {
+		# FastAPI trusts the internal host; browser Origin is checked separately.
+		header_up Host localhost
+		flush_interval -1
+	}
+}
