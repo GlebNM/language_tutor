@@ -17,7 +17,7 @@ from backend.app.language import english_adapter
 from backend.app.materials import MaterialLibrary
 from backend.app.vocabulary import CALENDAR_NAMES, NAME_ENTITIES, sound_reason, vocabulary_value
 
-POLICY_VERSION = "generation-lexical-v2"
+POLICY_VERSION = "generation-lexical-v3"
 LENGTHS = {"short": (150, 200), "medium": (250, 350), "long": (450, 550)}
 LOAD_LIMITS = {"gentle": (4, 1), "normal": (7, 3), "rich": (10, 5)}
 WORD_TOLERANCE = 50
@@ -50,6 +50,8 @@ class GenerationRequest(BaseModel):
             "word_tolerance": WORD_TOLERANCE,
             "lexical_tolerance_points": LEXICAL_TOLERANCE_POINTS,
             "learning_ratio_max": (learning + LEXICAL_TOLERANCE_POINTS) / 100,
+            "new_or_unassessed_ratio_target": unfamiliar / 100,
+            "new_or_unassessed_ratio_min": max(0, unfamiliar - LEXICAL_TOLERANCE_POINTS) / 100,
             "new_or_unassessed_ratio_max": (unfamiliar + LEXICAL_TOLERANCE_POINTS) / 100,
             "policy_version": POLICY_VERSION,
             "required_criteria": ["coherence"]
@@ -317,19 +319,44 @@ def assess_draft(
     low, high = constraints["min_words"], constraints["max_words"]
     nominal_learning, nominal_unfamiliar = LOAD_LIMITS[settings.difficulty]
     l_max = nominal_learning + LEXICAL_TOLERANCE_POINTS
+    u_min = max(0, nominal_unfamiliar - LEXICAL_TOLERANCE_POINTS)
     u_max = nominal_unfamiliar + LEXICAL_TOLERANCE_POINTS
     violations: list[dict[str, Any]] = []
     if not low <= counts["word_count"] <= high:
-        violations.append({"criterion_id": "length", "actual": counts["word_count"],
-                           "minimum": low, "maximum": high})
+        violations.append({
+            "criterion_id": "length", "actual": counts["word_count"],
+            "minimum": low, "maximum": high,
+            "repair_instructions": (
+                f"Длина {counts['word_count']} слов. Приведи текст к предпочтительным "
+                f"{constraints['preferred_min_words']}–{constraints['preferred_max_words']} словам "
+                "точечным сокращением или расширением, сохрани канву и подсказки к словам."
+            ),
+        })
     if not n:
         violations.append({"criterion_id": "empty_vocabulary", "actual": 0})
     if n and learning * 100 > n * l_max:
         violations.append({"criterion_id": "learning_ratio", "actual": learning / n,
                            "maximum": l_max / 100})
-    if n and unfamiliar * 100 > n * u_max:
-        violations.append({"criterion_id": "new_ratio", "actual": unfamiliar / n,
-                           "maximum": u_max / 100})
+    if n and not n * u_min <= unfamiliar * 100 <= n * u_max:
+        violations.append({
+            "criterion_id": "new_ratio", "actual": unfamiliar / n,
+            "minimum": u_min / 100, "maximum": u_max / 100,
+            "target": nominal_unfamiliar / 100,
+            "actual_occurrences": unfamiliar,
+            "minimum_occurrences": (n * u_min + 99) // 100,
+            "maximum_occurrences": n * u_max // 100,
+            "target_occurrences": (n * nominal_unfamiliar + 50) // 100,
+            "occurrence_delta": (n * nominal_unfamiliar + 50) // 100 - unfamiliar,
+            "repair_instructions": (
+                f"Доля U должна быть от {u_min}% до {u_max}% с целью {nominal_unfamiliar}%. "
+                + ("Найди места, где можно заменить простую фразу более сложным словом "
+                   "с понятной подсказкой; не меняй канву текста. "
+                   if unfamiliar * 100 < n * u_min else
+                   "Замени сложные слова знакомыми простыми синонимами или опиши их "
+                   "несколькими знакомыми словами; не меняй канву текста. ")
+                + "Учитывай все вхождения, включая повторы; знакомость не меняй."
+            ),
+        })
     profile = build_writing_profile(snapshot)
     if profile["profile_sufficiency"] == "insufficient":
         violations.append({"criterion_id": "insufficient_profile",

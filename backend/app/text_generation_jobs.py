@@ -16,6 +16,7 @@ from fastapi import APIRouter, Header, HTTPException, Response
 from pydantic_ai import ModelRetry, RunContext
 from pydantic_ai.exceptions import UnexpectedModelBehavior, UsageLimitExceeded
 from pydantic_ai.mcp import CallToolFunc, MCPToolset, ToolResult
+from pydantic_ai.messages import ModelMessage
 from pydantic_ai.models import Model
 from pydantic_ai.usage import RunUsage, UsageLimits
 
@@ -125,10 +126,10 @@ class TextGenerationService:
         self.tasks: dict[str, asyncio.Task[None]] = {}
         self._notifications: dict[str, dict[str, Any]] = {}
         self._last_completed_id: str | None = None
-        self.max_versions = 5
-        self.timeout_seconds = 300.0
-        self.model_request_limit = 30
-        self.tool_attempt_limit = 50
+        self.max_versions = 10
+        self.timeout_seconds = 600.0
+        self.model_request_limit = 60
+        self.tool_attempt_limit = 100
         with library.connect() as db:
             db.execute("BEGIN IMMEDIATE")
             db.execute("""CREATE TABLE IF NOT EXISTS text_generation_jobs(
@@ -190,7 +191,10 @@ class TextGenerationService:
                     for name, value in GenerationRequest.model_validate({"difficulty": key})
                     .constraints()
                     .items()
-                    if name in {"learning_ratio_max", "new_or_unassessed_ratio_max"}
+                    if name in {
+                        "learning_ratio_max", "new_or_unassessed_ratio_target",
+                        "new_or_unassessed_ratio_min", "new_or_unassessed_ratio_max",
+                    }
                 }
                 for key in LOAD_LIMITS
             },
@@ -408,7 +412,13 @@ class TextGenerationService:
     ) -> tuple[dict[str, Any] | None, dict[str, Any] | None, list[dict[str, Any]]]:
         self._update(identity, status="checking")
         issues = list(analysis["violations"])
-        if issues:
+        # Ordinary numeric failures still need semantic feedback in this revision.
+        # Only an unusable or excessive draft skips the expensive model reviews.
+        if (
+            analysis["metrics"]["counted_tokens"] == 0
+            or analysis["metrics"]["word_count"] > request.constraints()["max_words"] * 2
+            or any(issue["criterion_id"] == "insufficient_profile" for issue in issues)
+        ):
             return None, None, issues
         context = await self._operation(
             settings,
@@ -419,7 +429,7 @@ class TextGenerationService:
                 usage=usage,
                 usage_limits=limits,
             ),
-            timeout_seconds=60,
+            timeout_seconds=self.timeout_seconds,
             retry_budget=retry_budget,
         )
         self._update(identity, status="checking")
@@ -433,7 +443,7 @@ class TextGenerationService:
                 usage=usage,
                 usage_limits=limits,
             ),
-            timeout_seconds=60,
+            timeout_seconds=self.timeout_seconds,
             retry_budget=retry_budget,
         )
         context_report, requirements_report = context.as_report(), requirements.as_report()
@@ -447,6 +457,7 @@ class TextGenerationService:
         )
         attempts = 0
         retry_budget = ResponseRetryBudget()
+        writer_history: list[ModelMessage] = []
         try:
             async with asyncio.timeout(self.timeout_seconds):
                 self._update(identity, status="preparing")
@@ -542,13 +553,14 @@ class TextGenerationService:
                                 settings=request,
                                 profile=profile,
                                 previous_draft=previous_draft,
+                                message_history=writer_history,
                                 feedback=feedback,
                                 toolsets=[tools.filtered(lambda ctx, tool: tool.name in TOOLS)],
                                 reasoning_effort=settings.reasoning_effort,
                                 usage=usage,
                                 usage_limits=limits,
                             ),
-                            timeout_seconds=90,
+                            timeout_seconds=self.timeout_seconds,
                             retry_budget=retry_budget,
                         )
                     if isinstance(output, CannotGenerate):

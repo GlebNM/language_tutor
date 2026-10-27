@@ -110,12 +110,18 @@ def test_presets_compare_actual_occurrences_without_rounding(
     tmp_path, difficulty, score, count, passes,
 ):
     with client_for(tmp_path / "learning.sqlite3") as client:
-        mark_vocabulary(client, "We read books. We read puzzles.", {
-            "we": 3, "read": 2, "book": 2, "puzzle": score,
+        mark_vocabulary(client, "We read books. We read puzzles. We read novels.", {
+            "we": 3, "read": 2, "book": 2, "puzzle": score, "novel": 0,
         })
+        draft = measured_text(count)
+        if score == 1:
+            extra_u = {"gentle": 0, "normal": 6, "rich": 10}[difficulty]
+            draft["paragraphs"][0]["text"] = draft["paragraphs"][0]["text"].replace(
+                "We read books.", "We read novels.", extra_u,
+            )
         result = client.post("/api/text-generation/assess", json={
             "settings": {"length": "short", "difficulty": difficulty},
-            "draft": measured_text(count),
+            "draft": draft,
         })
         assert result.status_code == 200, result.text
         report = result.json()
@@ -176,3 +182,58 @@ def test_length_presets_accept_fifty_word_margin_but_reject_beyond_it(tmp_path):
                 }).json()
                 assert report['metrics']['word_count'] == count
                 assert (report['status'] == 'pass') is passes, (length, count, report)
+
+
+@pytest.mark.parametrize(("difficulty", "count", "passes"), [
+    ("gentle", 0, True), ("gentle", 4, True), ("gentle", 5, False),
+    ("normal", 0, False), ("normal", 3, False), ("normal", 4, True),
+    ("normal", 6, True), ("normal", 8, True), ("normal", 9, False),
+    ("rich", 7, False), ("rich", 8, True), ("rich", 10, True),
+    ("rich", 12, True), ("rich", 13, False),
+])
+@pytest.mark.parametrize("score", [0, None])
+def test_unfamiliar_share_must_reach_the_preset_target_with_one_point_tolerance(
+    tmp_path, difficulty, count, passes, score,
+):
+    with client_for(tmp_path / "learning.sqlite3") as client:
+        mark_vocabulary(client, "We read books. We read puzzles.", {
+            "we": 3, "read": 2, "book": 2, "puzzle": score,
+        })
+        report = client.post("/api/text-generation/assess", json={
+            "settings": {"length": "short", "difficulty": difficulty},
+            "draft": measured_text(count),
+        }).json()
+        assert report["metrics"]["counted_tokens"] == 200
+        assert (report["status"] == "pass") is passes, report["violations"]
+        if not passes:
+            violation = next(v for v in report["violations"] if v["criterion_id"] == "new_ratio")
+            target = {"gentle": 1, "normal": 3, "rich": 5}[difficulty]
+            assert violation["actual"] == count / 200
+            assert violation["minimum"] == max(0, target - 1) / 100
+            assert violation["maximum"] == (target + 1) / 100
+            assert violation["repair_instructions"]
+
+
+def test_lower_bound_uses_exact_counts_and_learning_words_do_not_fill_u(tmp_path):
+    with client_for(tmp_path / "learning.sqlite3") as client:
+        mark_vocabulary(client, "We read books. We read puzzles.", {
+            "we": 3, "read": 2, "book": 2, "puzzle": 0,
+        })
+        draft = measured_text(4)
+        draft["paragraphs"][0]["text"] += " books."
+        report = client.post("/api/text-generation/assess", json={
+            "settings": {"length": "short", "difficulty": "normal"}, "draft": draft,
+        }).json()
+        assert report["metrics"]["counted_tokens"] == 201
+        assert round(report["metrics"]["new_or_unassessed_ratio"] * 100, 1) == 2.0
+        issue = next(v for v in report["violations"] if v["criterion_id"] == "new_ratio")
+        assert issue["minimum_occurrences"] == 5
+        assert issue["target_occurrences"] == 6
+        mark_vocabulary(client, "We read puzzles.", {"puzzle": 1})
+        report = client.post("/api/text-generation/assess", json={
+            "settings": {"length": "short", "difficulty": "normal"},
+            "draft": measured_text(6),
+        }).json()
+        assert report["metrics"]["learning_tokens"] == 6
+        assert report["metrics"]["new_or_unassessed_ratio"] == 0
+        assert any(v["criterion_id"] == "new_ratio" for v in report["violations"])

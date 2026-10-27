@@ -9,7 +9,12 @@ from pydantic_ai.messages import ModelResponse, ToolCallPart, ToolReturnPart, Us
 from pydantic_ai.models.function import FunctionModel
 
 from backend.app.main import create_learner_app
-from backend.tests.generation_fixtures import context_output, evidence_keys, requirements_output
+from backend.tests.generation_fixtures import (
+    context_output,
+    evidence_keys,
+    prompt_payload,
+    requirements_output,
+)
 from backend.tests.test_learning import learning_mcp as learning_mcp
 from backend.tests.test_text_generation_analysis import mark_vocabulary
 
@@ -19,13 +24,16 @@ def test_generation_settings_are_available_without_connecting_ai(tmp_path):
     with TestClient(app, base_url="http://localhost") as client:
         settings = client.get("/api/text-generation/settings").json()
         assert settings["available"] is False
-        assert settings["max_versions"] == 5
+        assert settings["max_versions"] == 10
         assert settings["lengths"]["short"] == {
             "min_words": 100, "max_words": 250,
             "preferred_min_words": 150, "preferred_max_words": 200, "word_tolerance": 50,
         }
         assert settings["difficulty_limits"]["gentle"]["new_or_unassessed_ratio_max"] == 0.02
         assert settings["difficulty_limits"]["normal"]["new_or_unassessed_ratio_max"] == 0.04
+        assert settings["difficulty_limits"]["normal"]["new_or_unassessed_ratio_target"] == 0.03
+        assert settings["difficulty_limits"]["normal"]["new_or_unassessed_ratio_min"] == 0.02
+        assert settings["difficulty_limits"]["rich"]["new_or_unassessed_ratio_min"] == 0.04
         assert settings["difficulty_limits"]["rich"]["new_or_unassessed_ratio_max"] == 0.06
         response = client.post("/api/text-generation/jobs", json={})
         assert response.status_code == 409
@@ -64,7 +72,7 @@ def controlled_writer(*, weak_once=False, weak_always=False, lookup=False, too_m
     context_runs = []
 
     def respond(messages, info):
-        payload = json.loads(
+        payload = prompt_payload(
             next(
                 part.content
                 for message in reversed(messages)
@@ -221,12 +229,12 @@ def test_multiround_writer_outlives_a_single_request_deadline(learning_mcp, monk
     original_timeout = asyncio.timeout
 
     def shortened_request_timeout(delay):
-        return original_timeout(0.3 if delay in (30, 60) else delay)
+        return original_timeout(0.3 if delay in (30, 60, 90, 120) else delay)
 
     monkeypatch.setattr(asyncio, "timeout", shortened_request_timeout)
 
     async def respond(messages, info):
-        payload = json.loads(next(part.content for message in reversed(messages)
+        payload = prompt_payload(next(part.content for message in reversed(messages)
                                   for part in message.parts if isinstance(part, UserPromptPart)))
         if "profile" in payload:
             await asyncio.sleep(0.18)
@@ -252,7 +260,7 @@ def test_dictionary_search_leaves_budget_for_context_revision_and_publication(le
     dictionary_pages = []
 
     def respond(messages, info):
-        payload = json.loads(next(part.content for message in reversed(messages)
+        payload = prompt_payload(next(part.content for message in reversed(messages)
                                   for part in message.parts if isinstance(part, UserPromptPart)))
         if "profile" in payload:
             dictionary_pages.extend(
@@ -345,7 +353,7 @@ def test_subscription_budget_failure_discards_job_and_draft(
     original_timeout = asyncio.timeout
 
     def shortened_operation_timeout(delay):
-        return original_timeout(0.2 if delay in (30, 60) else delay)
+        return original_timeout(0.2 if failure == "timeout" and delay == 600 else delay)
 
     monkeypatch.setattr(asyncio, "timeout", shortened_operation_timeout)
 
@@ -429,7 +437,7 @@ def test_writer_reads_all_expression_meanings_from_its_snapshot_through_real_mcp
     assert base_model.function is not None
 
     async def respond(messages, info):
-        payload = json.loads(next(part.content for message in reversed(messages)
+        payload = prompt_payload(next(part.content for message in reversed(messages)
                                   for part in message.parts if isinstance(part, UserPromptPart)))
         if "profile" in payload:
             if not entered.is_set():
@@ -453,7 +461,7 @@ def test_writer_reads_all_expression_meanings_from_its_snapshot_through_real_mcp
         return base_model.function(messages, info)
 
     def extract(messages, info):
-        payload = json.loads(next(part.content for message in reversed(messages)
+        payload = prompt_payload(next(part.content for message in reversed(messages)
                                   for part in message.parts if isinstance(part, UserPromptPart)))
         return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {"expressions": [
             {"canonical": " ".join(token["text"].lower() for token in cue["tokens"][1:]),
@@ -549,22 +557,14 @@ def test_context_feedback_rewrites_without_fixed_vocabulary(learning_mcp):
 def test_numeric_failure_cannot_be_overridden_by_successful_reviewers(learning_mcp):
     mcp_url, database = learning_mcp
     model, _, _ = controlled_writer(too_many_unknown=True)
-    respond = model.function
-    assert respond is not None
-    def numeric_first(messages, info):
-        for tool in info.output_tools:
-            properties = tool.parameters_json_schema.get("properties", {})
-            assert "context_checks" not in properties and "checks" not in properties
-        return respond(messages, info)
-    model = FunctionModel(numeric_first)
     with job_client(database, mcp_url, model) as client:
         prepare_known_words(client, borrow_score=0)
         before = len(client.get("/api/materials").json())
         started = client.post("/api/text-generation/jobs", json={"length": "short"}).json()
         job = wait_job(client, started["id"])
         assert job["status"] == "needs_changes", job
-        assert job["revision"] == 5
-        assert "5 попыток" in job["error"]
+        assert job["revision"] == 10
+        assert "10 попыток" in job["error"]
         assert job["result_material_id"] is None
         assert client.get(f"/api/text-generation/jobs/{job['id']}").status_code == 404
         assert len(client.get("/api/materials").json()) == before
@@ -626,7 +626,7 @@ def test_profile_change_is_rechecked_before_a_text_can_be_saved(learning_mcp):
     assert respond is not None
 
     async def paused(messages, info):
-        payload = json.loads(
+        payload = prompt_payload(
             next(
                 part.content
                 for message in reversed(messages)
@@ -667,13 +667,13 @@ def test_numeric_revision_retains_unresolved_context_advice_without_reusing_appr
     assert base.function is not None
 
     def respond(messages, info):
-        payload = json.loads(next(part.content for message in reversed(messages)
+        payload = prompt_payload(next(part.content for message in reversed(messages)
                                   for part in message.parts if isinstance(part, UserPromptPart)))
         result = base.function(messages, info)
         if 'profile' in payload and len(inputs) == 2:
             return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {
                 'kind': 'draft', 'title': 'Books',
-                'paragraphs': [{'text': 'We read books. ' * 90 + 'We borrow books.'}],
+                'paragraphs': [{'text': 'We read books. ' * 180 + 'We borrow books.'}],
             })])
         if 'profile' in payload and len(inputs) == 3:
             advice = payload['feedback']['earlier_semantic_issues']
@@ -693,22 +693,30 @@ def test_numeric_revision_retains_unresolved_context_advice_without_reusing_appr
         assert job['feedback']['earlier_semantic_issues'] == []
 
 
-def test_writer_can_complete_on_fifth_version_after_four_context_revisions(learning_mcp):
+@pytest.mark.parametrize("completion_version", [5, 10])
+def test_writer_can_complete_on_later_version_with_full_dialogue(
+    learning_mcp, completion_version,
+):
     mcp_url, database = learning_mcp
     base, inputs, _ = controlled_writer(weak_always=True)
     assert base.function is not None
 
     def respond(messages, info):
-        payload = json.loads(next(part.content for message in reversed(messages)
+        payload = prompt_payload(next(part.content for message in reversed(messages)
                                   for part in message.parts if isinstance(part, UserPromptPart)))
+        if 'profile' in payload:
+            earlier_drafts = [p for m in messages for p in m.parts
+                              if isinstance(p, ToolCallPart)
+                              and p.args_as_dict().get('kind') == 'draft']
+            assert len(earlier_drafts) == len(inputs)
         response = base.function(messages, info)
-        if 'profile' in payload and len(inputs) == 5:
+        if 'profile' in payload and len(inputs) == completion_version:
             return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {
                 'kind': 'draft', 'title': 'Books', 'paragraphs': [{
                     'text': 'We read books. ' * 49 + 'We borrow books. We return books.',
                 }],
             })])
-        if 'review_keys' in payload and len(inputs) == 5:
+        if 'review_keys' in payload and len(inputs) == completion_version:
             args = response.parts[0].args_as_dict()
             for check in args['context_checks'].values():
                 check['context_status'] = 'clear'
@@ -725,8 +733,8 @@ def test_writer_can_complete_on_fifth_version_after_four_context_revisions(learn
         started = client.post('/api/text-generation/jobs', json={'length': 'short'}).json()
         job = wait_job(client, started['id'])
         assert job['status'] == 'completed', job
-        assert job['revision'] == 5
-        assert len(inputs) == 5
+        assert job['revision'] == completion_version
+        assert len(inputs) == completion_version
         assert len(client.get('/api/materials').json()) == before + 1
 
 
@@ -807,3 +815,82 @@ def test_restart_removes_legacy_failures_and_drafts_preserving_completed_materia
             assert db.execute("SELECT count(*) FROM text_generation_jobs").fetchone()[0] == 1
             assert db.execute("SELECT count(*) FROM text_generation_drafts "
                               "WHERE job_id<>?", (completed["id"],)).fetchone()[0] == 0
+
+
+def test_too_easy_text_is_revised_in_one_dialogue_before_publication(learning_mcp):
+    mcp_url, database = learning_mcp
+    model, writer_inputs, _ = controlled_writer()
+    respond = model.function
+    history_seen = []
+
+    def revise(messages, info):
+        payload = prompt_payload(next(
+            p.content for m in reversed(messages) for p in m.parts
+            if isinstance(p, UserPromptPart)
+        ))
+        if "profile" in payload:
+            previous_drafts = [
+                p.args_as_dict() for m in messages for p in m.parts
+                if isinstance(p, ToolCallPart) and p.args_as_dict().get("kind") == "draft"
+            ]
+            history_seen.append(previous_drafts)
+            result = respond(messages, info)
+            if payload["feedback"]:
+                issue = next(i for i in payload["feedback"]["blocking_issues"]
+                             if i["criterion_id"] == "new_ratio")
+                assert issue["actual"] < issue["minimum"]
+                assert "канву" in issue["repair_instructions"]
+                return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {
+                    "kind": "draft", "title": "Books",
+                    "paragraphs": [{"text": "We read books. " * 45 + "We borrow books. " * 5}],
+                })])
+            return result
+        return respond(messages, info)
+
+    with job_client(database, mcp_url, FunctionModel(revise)) as client:
+        prepare_known_words(client, borrow_score=0)
+        started = client.post("/api/text-generation/jobs", json={
+            "length": "short", "difficulty": "normal",
+        }).json()
+        job = wait_job(client, started["id"])
+        assert job["status"] == "completed", job
+        assert job["revision"] == 2
+        assert history_seen[0] == []
+        assert len(history_seen[1]) == 1
+        assert history_seen[1][0]["paragraphs"][0]["text"] == (
+            "We read books. " * 49 + "We borrow books."
+        )
+        assert job["analysis"]["constraints"]["policy_version"] == "generation-lexical-v3"
+        assert 0.02 <= job["analysis"]["metrics"]["new_or_unassessed_ratio"] <= 0.04
+        with client.app.state.materials.connect() as db:
+            assert db.execute("SELECT count(*) FROM materials WHERE generation_job_id=?",
+                              (started["id"],)).fetchone()[0] == 1
+
+
+def test_numeric_and_context_repairs_arrive_together_for_second_version(learning_mcp):
+    mcp_url, database = learning_mcp
+    base, inputs, _ = controlled_writer(weak_once=True)
+    respond = base.function
+
+    def combined(messages, info):
+        payload = prompt_payload(next(p.content for m in reversed(messages) for p in m.parts
+                                      if isinstance(p, UserPromptPart)))
+        result = respond(messages, info)
+        if "profile" in payload and len(inputs) == 2:
+            kinds = {i["criterion_id"] for i in payload["feedback"]["blocking_issues"]}
+            assert {"new_ratio", "context_support"} <= kinds
+            assert payload["feedback"]["earlier_semantic_issues"] == []
+            return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {
+                "kind": "draft", "title": "Books",
+                "paragraphs": [{"text": "We read books. " * 45 + "We borrow books. " * 5}],
+            })])
+        return result
+
+    with job_client(database, mcp_url, FunctionModel(combined)) as client:
+        prepare_known_words(client, borrow_score=0)
+        started = client.post("/api/text-generation/jobs", json={
+            "length": "short", "difficulty": "normal",
+        }).json()
+        result = wait_job(client, started["id"])
+        assert result["status"] == "completed", result
+        assert result["revision"] == 2

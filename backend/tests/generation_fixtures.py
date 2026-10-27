@@ -1,5 +1,6 @@
 """Serialize semantic fixture judgments using the context review wire contract."""
 
+import json
 from typing import Any
 
 
@@ -38,3 +39,7 @@ def requirements_output(payload: dict[str, Any], checks: list[dict[str, Any]]) -
         "evidence": evidence_keys(payload, check["evidence"]),
         "repair_instructions": check.get("repair_instructions"),
     } for check in checks}}
+
+
+def prompt_payload(content: str) -> dict[str, Any]:
+    return json.JSONDecoder().raw_decode(content)[0]

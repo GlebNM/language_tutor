@@ -38,6 +38,8 @@ const activeStages = new Set([
 ]);
 type DifficultyLimits = Record<GenerationRequest["difficulty"], {
   learning_ratio_max: number;
+  new_or_unassessed_ratio_target: number;
+  new_or_unassessed_ratio_min: number;
   new_or_unassessed_ratio_max: number;
 }>;
 
@@ -297,7 +299,8 @@ export function TextGeneration({
             </label>
             <p className="help">
               {limits && <>Изучаемые слова — до {Math.round(limits.learning_ratio_max * 100)}%,
-                незнакомые и непроверенные — до {Math.round(limits.new_or_unassessed_ratio_max * 100)}% текста.
+                новые и непроверенные — {Math.round(limits.new_or_unassessed_ratio_target * 100)}%
+                {" "}(допустимо {Math.round(limits.new_or_unassessed_ratio_min * 100)}–{Math.round(limits.new_or_unassessed_ratio_max * 100)}%) текста.
                 {" "}</>}
               По длине допускается отклонение ±50 слов.
             </p>

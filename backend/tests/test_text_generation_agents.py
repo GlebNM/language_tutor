@@ -1,25 +1,25 @@
 """Typed generation roles against the external model interface and public assessment."""
 
-import json
 
 import pytest
 from pydantic_ai.messages import ModelResponse, ToolCallPart, UserPromptPart
 from pydantic_ai.models.function import FunctionModel
 
 from backend.app.agents.text_generation import review_context
-from backend.tests.generation_fixtures import context_output, evidence_keys, requirements_output
+from backend.tests.generation_fixtures import (
+    context_output,
+    evidence_keys,
+    prompt_payload,
+    requirements_output,
+)
 from backend.tests.test_text_generation_analysis import client_for, mark_vocabulary
 
 
 def payload_from(messages):
-    return json.loads(
-        next(
-            part.content
-            for message in reversed(messages)
-            for part in message.parts
-            if isinstance(part, UserPromptPart)
-        )
-    )
+    return prompt_payload(next(
+        part.content for message in reversed(messages) for part in message.parts
+        if isinstance(part, UserPromptPart)
+    ))
 
 
 def draft_analysis(tmp_path, *, repeats=1):
@@ -91,6 +91,8 @@ async def test_context_review_sees_all_words_and_can_use_another_paragraph(tmp_p
     ]
     assert received[0]["insufficient_vocabulary"] == analysis["insufficient_vocabulary"]
     assert report.context_checks[0].evidence[0].block_id.endswith(":p2")
+    assert "return" in received[0]["familiar_words_in_draft"]
+    assert "borrow" not in received[0]["familiar_words_in_draft"]
 
 
 @pytest.mark.asyncio
