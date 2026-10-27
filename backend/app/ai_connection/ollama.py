@@ -31,5 +31,10 @@ async def ollama_model() -> AsyncIterator[OpenAIChatModel]:
             profile=ModelProfile(
                 default_structured_output_mode="prompted",
                 supports_json_schema_output=False,
+                prompted_output_template=(
+                    "Return one JSON data instance matching this JSON Schema:\n{schema}\n"
+                    "Return actual field values. Do not return the schema itself or wrap "
+                    "the data in schema keywords. Do not include Markdown or commentary."
+                ),
             ),
         )
