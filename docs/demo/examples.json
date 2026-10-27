@@ -1,0 +1,87 @@
+{
+  "captured_on": "2026-10-27",
+  "video": {
+    "title": "Celeste Headlee — 10 ways to have a better conversation",
+    "youtube_id": "R1vskiVDwl4"
+  },
+  "cards": [
+    {
+      "surface": "plumbers",
+      "lemma": "plumber",
+      "text": "heads of state, plumbers.",
+      "start_ms": 166030,
+      "card": {
+        "translation": "сантехники",
+        "explanation": "Plumber — это специалист, который устанавливает и ремонтирует водопроводные трубы и сантехническое оборудование. Здесь слово стоит во множественном числе: в перечислении названы люди самых разных профессий и занятий.",
+        "expression": "plumbers",
+        "example": "The plumbers fixed the leaking pipe."
+      }
+    },
+    {
+      "surface": "devolve",
+      "lemma": "devolve",
+      "text": "has the potential to devolve into an argument,",
+      "start_ms": 53130,
+      "card": {
+        "translation": "перерасти в спор; скатиться к спору",
+        "explanation": "В выражении devolve into означает «постепенно перейти к чему-то худшему, выродиться во что-то». Здесь говорится, что разговор может перерасти в спор. Само devolve бывает многозначным, но именно конструкция с into задаёт этот смысл.",
+        "expression": "has the potential to devolve into an argument",
+        "example": "A calm discussion can devolve into an argument."
+      }
+    }
+  ],
+  "expressions": [
+    {
+      "canonical": "devolve into",
+      "text": "has the potential to devolve into an argument,",
+      "start_ms": 53130,
+      "card": {
+        "translation": "перерастать в; скатываться к",
+        "explanation": "О ситуации или разговоре: постепенно переходить в худшее или менее желательное состояние.",
+        "example": "The discussion began calmly but devolved into a shouting match.",
+        "usage": ""
+      }
+    }
+  ],
+  "generated_text": {
+    "draft": {
+      "kind": "draft",
+      "title": "A Different View of Flying",
+      "paragraphs": [
+        {
+          "text": "I used to think that the best part of a flight was looking down at the clouds. Then my sister gave me a lesson in a small airplane, and I discovered how much happens before the wheels leave the ground."
+        },
+        {
+          "text": "Our pilot met us beside the hangar, a large building where planes are kept. Before we got in, she walked around the airplane with us. She checked the wings and showed us the propeller at the front. Its long blades turn quickly, pushing air back to help pull the plane forward. Nothing was too small for her attention."
+        },
+        {
+          "text": "Inside the cockpit, where the pilot sits and controls the airplane, there were more buttons than I expected. I sat beside her and put on a headset, with a small speaker over each ear, so we could hear each other over the engine. She explained what we would do before touching any of the controls."
+        },
+        {
+          "text": "We moved slowly towards the runway, the long strip of ground used for taking off and landing. At its edge, we stopped to wait for another plane. Then a voice on the radio told us we could go. The engine made more noise, we gathered speed, and suddenly the ground was falling away beneath us."
+        },
+        {
+          "text": "For a while, I could not stop smiling. Roads looked like lines on a map, and cars seemed almost still. Then we met some turbulence: moving air made the plane shake a little. The pilot stayed calm and explained that the movement was normal. Soon the ride was smooth again."
+        },
+        {
+          "text": "When we returned, she brought the plane down until its wheels touched the ground. I had spent only twenty minutes in the air, but my idea of flying had changed. The view was wonderful. Still, what I remembered most was the care that made the journey possible."
+        }
+      ]
+    },
+    "metrics": {
+      "word_count": 310,
+      "counted_tokens": 310,
+      "known_tokens": 301,
+      "learning_tokens": 0,
+      "explicit_unknown_tokens": 0,
+      "unassessed_tokens": 9,
+      "provisional_tokens": 301,
+      "learning_ratio": 0.0,
+      "new_or_unassessed_ratio": 0.02903225806451613,
+      "new_unique": 7
+    },
+    "revision": 1,
+    "model": "gpt-6.1-sol",
+    "reasoning": "medium"
+  }
+}
