@@ -133,6 +133,7 @@ function App({ user }: { user: Account }) {
   const [resetConfirm, setResetConfirm] = useState(false);
   const [connection, setConnection] = useState<Connection | null>(null);
   const [authorizationUrl, setAuthorizationUrl] = useState("");
+  const [callbackUrl, setCallbackUrl] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
   const [proof, setProof] = useState("");
   const [url, setUrl] = useState("");
@@ -401,6 +402,7 @@ function App({ user }: { user: Account }) {
       setResetConfirm(false);
       setConnection(null);
       setAuthorizationUrl("");
+      setCallbackUrl("");
       setProof("");
       await refresh();
       setNotice("Учебные данные удалены. Подписка отключена.");
@@ -513,7 +515,7 @@ function App({ user }: { user: Account }) {
       setImporting(false);
     }
   }
-  async function aiAction(action: "start" | "cancel" | "disconnect" | "proof") {
+  async function aiAction(action: "start" | "complete" | "cancel" | "disconnect" | "proof") {
     aiActionPending.current = true;
     ++connectionRequest.current;
     setAiBusy(true);
@@ -546,10 +548,12 @@ function App({ user }: { user: Account }) {
             : `/ai/connection/${action}`;
         const result = await api<Connection>(path, {
           method: action === "disconnect" ? "DELETE" : "POST",
+          body: action === "complete" ? JSON.stringify({ callback_url: callbackUrl }) : undefined,
         });
         ++connectionRequest.current;
         setConnection(result);
         setAuthorizationUrl(result.authorization_url ?? "");
+        setCallbackUrl("");
       }
     } catch (e) {
       setError((e as Error).message);
@@ -764,7 +768,9 @@ function App({ user }: { user: Account }) {
                     </button>
                   )}
                 </div>
-                {authorizationUrl && connection?.status === "connecting" && (
+                {connection?.status === "connecting" && (
+                  <>
+                  {authorizationUrl && (
                   <a
                     className="auth-link"
                     href={authorizationUrl}
@@ -773,12 +779,42 @@ function App({ user }: { user: Account }) {
                   >
                     Открыть страницу входа ↗
                   </a>
+                  )}
+                  <form onSubmit={(event) => {
+                    event.preventDefault();
+                    void aiAction("complete");
+                  }}>
+                    <p>
+                      Если автоматический возврат не сработал, скопируйте полный
+                      адрес из строки браузера после входа в ChatGPT и вставьте
+                      ниже. Это работает и когда открывшаяся страница недоступна.
+                    </p>
+                    <label>
+                      Адрес после входа в ChatGPT
+                      <input
+                        type="url"
+                        value={callbackUrl}
+                        onChange={(event) => setCallbackUrl(event.target.value)}
+                        placeholder="http://127.0.0.1:1456/auth/callback?…"
+                        autoComplete="off"
+                        spellCheck={false}
+                        maxLength={8192}
+                        disabled={aiBusy}
+                        required
+                      />
+                    </label>
+                    <button type="submit" disabled={aiBusy || !callbackUrl.trim()}>
+                      Завершить подключение
+                    </button>
+                  </form>
+                  </>
                 )}
                 <details>
                   <summary>Помощь с подключением</summary>
                   <p>
-                    Запустите Compose с compose.oauth.yaml. Порт
-                    AI_CALLBACK_PORT (по умолчанию 1456) должен быть свободен.
+                    Откройте страницу входа, подтвердите разрешение и дождитесь
+                    возврата. Если он не произошёл, вставьте адрес из вкладки
+                    ChatGPT в поле выше и нажмите «Завершить подключение».
                   </p>
                 </details>
                 {connection?.status === "connected" && (

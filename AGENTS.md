@@ -4,6 +4,8 @@ Read [SPEC.md](SPEC.md) before changing product behavior. All current work targe
 
 The MVP runs locally through Docker Compose with separate username/password accounts; each learner has a private learning profile and their own Codex/ChatGPT subscription. Keep requirements and acceptance criteria consistent when scope changes.
 
+Before any deployment, commit all project changes, push them to the repository, and verify that the target revision is available on the remote. Deploy only that pushed revision.
+
 Implement agent pipelines with Pydantic AI. For agent, model-provider, structured-output, dependency, history, or MCP work, read the local [building-pydantic-ai-agents skill](.agents/skills/building-pydantic-ai-agents/SKILL.md) and only the references relevant to the task. Check examples against the project's pinned library version.
 
 Write clear, concise paragraphs in plain language. Explain the outcome and the evidence needed to assess it. Avoid unnecessary jargon and canned conclusions.

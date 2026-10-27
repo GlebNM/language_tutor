@@ -26,6 +26,11 @@ class TemporaryModelInput(BaseModel):
     enabled: bool
 
 
+class CallbackInput(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    callback_url: str = Field(min_length=1, max_length=8192)
+
+
 def create_ai_router(
     *,
     data_dir: Path,
@@ -102,6 +107,10 @@ def create_ai_router(
     @router.post("/connection/start")
     async def start() -> dict[str, object]:
         return await service.start()
+
+    @router.post("/connection/complete")
+    async def complete(incoming: CallbackInput) -> ConnectionStatus:
+        return await service.complete_from_url(incoming.callback_url)
 
     @router.post("/connection/cancel")
     async def cancel() -> ConnectionStatus:

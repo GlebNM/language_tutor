@@ -7,6 +7,7 @@ from collections.abc import Awaitable, Callable
 from contextlib import suppress
 from pathlib import Path
 from typing import Any, Literal, TypedDict, TypeVar, get_args, get_origin
+from urllib.parse import parse_qs, urlsplit
 
 import httpx
 import httpx2
@@ -237,19 +238,61 @@ class ConnectionService:
             return {**self.state.model_dump(), "authorization_url": self.flow.authorization_url()}
 
     async def callback(self, request: Request) -> HTMLResponse:
+        return await self._finish_callback(
+            state=request.query_params.get("state", ""),
+            code=request.query_params.get("code"),
+            client_id=request.query_params.get("client_id"),
+            denial=request.query_params.get("error"),
+        )
+
+    async def complete_from_url(self, callback_url: str) -> ConnectionStatus:
+        flow = self.flow
+        if flow is None:
+            raise HTTPException(409, "Сначала начните подключение подписки.")
+        callback_url = callback_url.strip()
+        try:
+            returned = urlsplit(callback_url)
+            expected = urlsplit(flow.redirect_uri)
+            if (
+                any(ord(char) < 32 for char in callback_url)
+                or "#" in callback_url
+                or (returned.scheme, returned.netloc, returned.path)
+                != (expected.scheme, expected.netloc, expected.path)
+            ):
+                raise ValueError("Invalid callback address")
+            params = parse_qs(
+                returned.query, keep_blank_values=True, strict_parsing=True, max_num_fields=20
+            )
+            if any(len(values) != 1 for values in params.values()):
+                raise ValueError("Repeated callback parameter")
+        except ValueError:
+            raise HTTPException(
+                400, "Вставьте полный адрес из строки браузера после входа в ChatGPT."
+            ) from None
+        response = await self._finish_callback(
+            state=params.get("state", [""])[0],
+            code=params.get("code", [None])[0],
+            client_id=params.get("client_id", [None])[0],
+            denial=params.get("error", [None])[0],
+        )
+        if response.status_code >= 400:
+            raise HTTPException(response.status_code, bytes(response.body).decode())
+        return self.state
+
+    async def _finish_callback(
+        self, *, state: str, code: str | None, client_id: str | None, denial: str | None
+    ) -> HTMLResponse:
         async with self.lock:
             flow = self.flow
             if flow is None:
                 return HTMLResponse("Подключение уже завершено или отменено.", status_code=409)
-            received_state = request.query_params.get("state", "")
-            if not secrets.compare_digest(received_state, flow.state):
+            if not secrets.compare_digest(state.encode(), flow.state.encode()):
                 return HTMLResponse("Неверное состояние OAuth. Начните подключение заново.", 400)
-            if request.query_params.get("error"):
+            if denial:
                 self.flow = None
                 self.state = ConnectionStatus(status="disconnected", error="oauth_denied")
                 asyncio.create_task(self.stop_after_response(self.server))
                 return HTMLResponse("Подключение отменено. Вернитесь в Language Tutor.", 400)
-            code = request.query_params.get("code")
             if not code:
                 return HTMLResponse("Отсутствует код авторизации.", 400)
             self.flow = None
@@ -257,9 +300,7 @@ class ConnectionService:
                 self.timeout_task.cancel()
             try:
                 async with asyncio.timeout(30):
-                    credentials = await flow.exchange_code(
-                        code, client_id=request.query_params.get("client_id")
-                    )
+                    credentials = await flow.exchange_code(code, client_id=client_id)
                 self.store = CredentialStore(self.data_dir / "credentials")
                 await self.store.save(credentials)
             except Exception as error:

@@ -1,33 +1,23 @@
-# VPS
+# Необязательная конфигурация HTTPS
 
-На VPS запускаются приложение, внутренний MCP и Caddy. Нужны Docker Engine, Compose 2.24.4+ и свободные входящие TCP-порты 80/443. Caddy получает доверенный сертификат для публичного IPv4 через профиль Let's Encrypt `shortlived`, продлевает его автоматически и перенаправляет HTTP на HTTPS. Проверка владения IP проходит через HTTP на порту 80; этот порт должен оставаться доступным для продления. `default_sni` позволяет выбрать сертификат IP для браузеров без SNI. [Описание сертификатов IP](https://letsencrypt.org/2026/01/15/6day-and-ip-general-availability), [настройка ACME в Caddy](https://caddyserver.com/docs/caddyfile/directives/tls), [default_sni](https://caddyserver.com/docs/caddyfile/options#default-sni).
+`compose.edge.yaml` добавляет Caddy с TLS и перенаправлением HTTP на HTTPS. Для этой конфигурации нужны Docker Engine, Compose 2.24.4+, публичный IPv4 и доступные TCP-порты 80/443. Пример настроек находится в `.env.edge.example`; адрес в нём предназначен для документации.
 
-Скопируйте исходники в `/opt/language-tutor`, исключив `ssh_creds`, `.env`, credentials, базы, локальные данные, `.git`, `.venv` и `node_modules`. В этом каталоге:
+Для подготовки исходников следуйте правилу развёртывания из [AGENTS.md](../AGENTS.md). Исключите `.env`, `ssh_creds`, credentials, базы, локальные данные, `.git`, `.venv` и `node_modules`.
 
 ```sh
-cp .env.vps.example .env
-# Укажите публичный IPv4 в PUBLIC_HOST и https://<IPv4> в PUBLIC_ORIGIN.
+cp .env.edge.example .env
+# Укажите свой IPv4 в PUBLIC_HOST и https://<IPv4> в PUBLIC_ORIGIN.
 docker compose config --quiet
 docker compose up --build -d --wait --wait-timeout 180
 docker compose ps
 ```
 
-Откройте `https://<IPv4>`. Создайте собственную учётную запись. Новый том `learning-data` содержит новую установку; пользовательские базы, настройки и подписки с компьютера не переносятся. Учебный пример входит в образ. Backend и MCP не публикуют порты на хост. Caddy передаёт HTTPS и адрес клиента приложению; cookie сессии получает флаг Secure. Данные приложения и сертификаты переживают пересоздание контейнеров. Docker и контейнеры должны автоматически запускаться после перезагрузки VPS.
+Caddy получает сертификат IP через профиль Let's Encrypt `shortlived`. Проверка HTTP-01 и последующее продление требуют доступного порта 80. `default_sni` выбирает сертификат для клиентов без SNI. [Сертификаты IP](https://letsencrypt.org/2026/01/15/6day-and-ip-general-availability), [ACME в Caddy](https://caddyserver.com/docs/caddyfile/directives/tls), [default_sni](https://caddyserver.com/docs/caddyfile/options#default-sni).
 
-Для временной модели Ollama Cloud задайте `OLLAMA_API_KEY` в серверном `.env` и пересоздайте приложение. В «Настройки → Учебный AI» включите «Временная модель · gemma4:31b (Ollama Cloud)». Для этого режима достаточно серверного ключа; выбор сохраняется отдельно для каждого учащегося. Ключ передаётся только контейнеру приложения и не публикуется в браузере. Ollama Cloud работает через внешний API, дополнительный контейнер с моделью не требуется.
+Приложение и MCP доступны внутри Compose; Caddy передаёт схему HTTPS и адрес клиента. Cookie сессии получает Secure. Тома приложения и сертификатов сохраняются при пересоздании контейнеров. При первом запуске создайте учётную запись; каждый учащийся подключает AI в своих настройках.
 
-Для подключения личной подписки опубликуйте callback только на loopback VPS:
+Для временной модели задайте `OLLAMA_API_KEY` в `.env`, пересоздайте приложение и включите «Настройки → Учебный AI → Временная модель». Ключ передаётся только приложению.
 
-```sh
-docker compose -f compose.yaml -f compose.vps.yaml -f compose.oauth.yaml up -d
-```
+Подключение подписки завершается в веб-интерфейсе: откройте страницу ChatGPT, подтвердите разрешение и при необходимости вставьте полный адрес из строки браузера в поле «Адрес после входа в ChatGPT». Автоматический loopback callback остаётся дополнительным вариантом для локального запуска с `compose.oauth.yaml`.
 
-На своём компьютере откройте туннель и оставьте его работать во время подключения:
-
-```sh
-ssh -N -L 1456:127.0.0.1:1456 root@<IPv4>
-```
-
-В браузере откройте приложение на VPS, перейдите в настройки и подключите подписку. OAuth вернёт браузер на `127.0.0.1:1456`, а туннель доставит callback приложению. Порт должен быть свободен на вашем компьютере. Если callback нужен после пересоздания контейнеров, задайте `COMPOSE_FILE=compose.yaml:compose.vps.yaml:compose.oauth.yaml` в серверном `.env`. Уже подключённая подписка работает без туннеля.
-
-Обновление: замените исходники и выполните `docker compose up --build -d --wait --wait-timeout 180`. Проверка: `docker compose ps` и `curl --fail https://<IPv4>/api/health`. Журналы: `docker compose logs --tail=100`. Не используйте `docker compose down --volumes` при обновлении: эта команда удаляет данные и сертификаты.
+Для обновления используйте исходники выбранной отправленной ревизии и `docker compose up --build -d --wait --wait-timeout 180`. Проверка состояния: `docker compose ps` и `/api/health`. Журналы: `docker compose logs --tail=100`. Обновление выполняется с сохранением постоянных томов.
