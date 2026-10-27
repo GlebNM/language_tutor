@@ -14,7 +14,7 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from pydantic_ai import models
 from pydantic_ai.exceptions import UnexpectedModelBehavior, UsageLimitExceeded
-from pydantic_ai.messages import ModelResponse, ToolCallPart, ToolReturnPart, UserPromptPart
+from pydantic_ai.messages import ModelResponse, ToolCallPart, UserPromptPart
 from pydantic_ai.models.function import FunctionModel
 
 from backend.app.ai_connection.settings import AISettingsStore
@@ -97,107 +97,63 @@ QUESTIONS = [
 
 def adaptive_connection(
     settings_dir, *, reject_once=False, reject_all=False, failure=None, stop=True, capture=None,
-    revision_capture=None, revision_failure=None, repeat_dictionary=False, dictionary_queries=None,
+    revision_capture=None, revision_failure=None, dictionary_queries=None,
 ):
     reviews = 0
+
+    def example(lemma):
+        _, pos, prompt = next(q for q in QUESTIONS if q[0] == lemma)
+        return {"lemma": lemma, "part_of_speech": pos, "surface": lemma,
+                "prompt": prompt, "meaning": "Скрытое значение для проверки."}
 
     def respond(messages, info):
         nonlocal reviews
         assert info.model_settings["openai_reasoning_effort"] == "low"
+        # MCP is executed by the pipeline, independently of model tool-call support.
+        assert not info.function_tools
         payload = json.loads(
             next(p.content for m in messages for p in m.parts if isinstance(p, UserPromptPart))
         )
         if "masked_prompt" in payload:
             reviews += 1
             assert payload["surface"] not in payload["masked_prompt"].split()
-            return ModelResponse(
-                parts=[
-                    ToolCallPart(
-                        info.output_tools[0].name,
-                        {
-                            "usage_valid": True,
-                            "meaning_revealed": reject_all or (reject_once and reviews == 1),
-                            "reason": "Контекст раскрывает значение."
-                            if reviews == 1
-                            else "Контекст нейтрален.",
-                        },
-                    )
-                ]
-            )
-        if "question_to_revise" in payload:
+            output = {"usage_valid": True,
+                      "meaning_revealed": reject_all or (reject_once and reviews == 1),
+                      "reason": "Контекст раскрывает значение." if reviews == 1
+                      else "Контекст нейтрален."}
+        elif "question_to_revise" in payload:
             if revision_capture is not None:
                 revision_capture.append(payload)
-            question = payload["question_to_revise"]
-            question = {
-                **question,
-                "prompt": f"They spoke about the {question['lemma']} again today.",
-            }
+            output = {**payload["question_to_revise"],
+                      "prompt": f"They spoke about the {payload['question_to_revise']['lemma']} "
+                      "again today."}
             if revision_failure == "new_lemma":
-                question.update(lemma="house", surface="house")
+                output.update(lemma="house", surface="house")
             elif revision_failure == "wrong_pos":
-                question["part_of_speech"] = "VERB"
-            return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, question)])
-        if capture is not None:
-            capture.append(payload)
-        if payload["can_finish"] and stop:
-            return ModelResponse(
-                parts=[
-                    ToolCallPart(
-                        info.output_tools[0].name,
-                        {
-                            "question": None,
-                            "finish": True,
-                            "description": "Предварительный профиль по самооценке знакомости.",
-                        },
-                    )
-                ]
-            )
-        lemma, pos, prompt = next(q for q in QUESTIONS if q[0] not in payload["excluded"])
-        returns = [
-            p
-            for m in messages
-            for p in m.parts
-            if isinstance(p, ToolReturnPart) and p.tool_name == "get_frequency_words"
-        ]
-        dictionary_available = any(t.name == "get_frequency_words" for t in info.function_tools)
-        if (
-            not returns or (repeat_dictionary and dictionary_available)
-        ) and failure != "no_dictionary":
+                output["part_of_speech"] = "VERB"
+        elif "dictionary" in payload:
+            lemma = payload["dictionary"]["words"][0]["lemma"]
+            assert frequency_ranks()[lemma] == payload["dictionary"]["words"][0]["rank"]
+            output = example(lemma)
+            if failure == "invented":
+                output["lemma"] = "invented"
+            elif failure == "wrong_pos":
+                output["part_of_speech"] = "VERB"
+        else:
+            if capture is not None:
+                capture.append(payload)
+            lemma = next(q[0] for q in QUESTIONS if q[0] not in payload["excluded"])
             rank = frequency_ranks()[lemma]
-            if dictionary_queries is not None:
+            output = {"group": None, "min_rank": rank, "max_rank": rank,
+                      "description": "Уточняем знакомость этой частотной группы."}
+            if payload["can_finish"]:
+                output["finish"] = stop
+            if dictionary_queries is not None and not (payload["can_finish"] and stop):
                 dictionary_queries.append(lemma)
-            return ModelResponse(
-                parts=[
-                    ToolCallPart(
-                        "get_frequency_words",
-                        {
-                            "min_rank": rank,
-                            "max_rank": rank,
-                            "limit": 1,
-                        },
-                    )
-                ]
-            )
-        if returns:
-            assert lemma in str(returns[-1].content)
-        return ModelResponse(
-            parts=[
-                ToolCallPart(
-                    info.output_tools[0].name,
-                    {
-                        "question": {
-                            "lemma": "invented" if failure == "invented" else lemma,
-                            "part_of_speech": "VERB" if failure == "wrong_pos" else pos,
-                            "surface": lemma,
-                            "prompt": prompt,
-                            "meaning": "Скрытое значение для проверки.",
-                        },
-                        "finish": False,
-                        "description": "Уточняем знакомость этой частотной группы.",
-                    },
-                )
-            ]
-        )
+            if failure == "no_dictionary":
+                # A model cannot bypass range selection by returning an ungrounded question.
+                output = example(lemma)
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, output)])
 
     async def execute(operation, *, settings=None):
         try:
@@ -365,11 +321,11 @@ def test_rejected_context_is_revised_with_the_same_verified_word(tmp_path, diagn
         assert revisions[0]["review_feedback"] == "Контекст раскрывает значение."
 
 
-def test_dictionary_tool_is_removed_after_a_nonempty_sample(tmp_path, diagnostic_mcp):
+def test_dictionary_is_fetched_without_model_tool_calls(tmp_path, diagnostic_mcp):
     queries = []
     with diagnostic_client(
         tmp_path / "api.sqlite3", service=adaptive_connection(
-            tmp_path, repeat_dictionary=True, dictionary_queries=queries
+            tmp_path, dictionary_queries=queries
         ), mcp_url=diagnostic_mcp,
     ) as client:
         session = next_question(client, client.post("/api/diagnostics", json={}).json())
@@ -394,7 +350,7 @@ def test_revision_cannot_replace_the_verified_target(tmp_path, diagnostic_mcp, f
 def test_ollama_question_regeneration_keeps_schema_within_round_budget(
     tmp_path, diagnostic_mcp, monkeypatch
 ):
-    """Replay the format-repair loop seen before the first placement question."""
+    """Use real MCP without requiring tool calls from a JSON-only model."""
     import httpx2
     from openai import AsyncOpenAI
 
@@ -418,70 +374,35 @@ def test_ollama_question_regeneration_keeps_schema_within_round_budget(
             "finish": False, "description": "Уточняем знакомость слова.",
         }
 
-    def call(name, arguments):
-        return {
-            "role": "assistant", "content": None,
-            "tool_calls": [{
-                "id": f"call_{len(requests)}", "type": "function",
-                "function": {"name": name, "arguments": json.dumps(arguments)},
-            }],
-        }
-
-    def dictionary(index):
-        rank = frequency_ranks()[QUESTIONS[index][0]]
-        return call("get_frequency_words", {"min_rank": rank, "max_rank": rank, "limit": 1})
-
     async def respond(request):
         nonlocal reviews
         payload = json.loads(request.content)
         requests.append(payload)
-        messages = payload["messages"]
-        instructions = " ".join(
-            m["content"] for m in messages if m["role"] in ("system", "developer")
-        )
-        if '"properties"' in instructions:
-            # A prompted schema lets the model use the exact field names immediately.
-            assert payload["response_format"] == {"type": "json_object"}
-            if "masked_prompt" in messages[-1]["content"]:
-                reviews += 1
-                output = {
-                    "usage_valid": True, "meaning_revealed": reviews == 1,
-                    "reason": "Проверка контекста.",
-                }
-                message = {"role": "assistant", "content": json.dumps(output)}
-            elif "question_to_revise" in messages[-1]["content"]:
-                revised = question(0)["question"]
-                revised["prompt"] = "They spoke about the water again today."
-                message = {"role": "assistant", "content": json.dumps(revised)}
-            elif messages[-1]["role"] == "tool":
-                message = {"role": "assistant", "content": json.dumps(question(reviews))}
-            else:
-                message = dictionary(reviews)
+        assert not payload.get("tools")
+        assert payload["response_format"] == {"type": "json_object"}
+        data = json.loads(payload["messages"][-1]["content"])
+        if "can_finish" in data:
+            rank = frequency_ranks()["water"]
+            output = {"group": None, "min_rank": rank, "max_rank": rank,
+                      "description": "Уточняем знакомость слова."}
+        elif "dictionary" in data:
+            words = data["dictionary"]["words"]
+            assert len(words) == 1 and words[0]["lemma"] == "water"
+            output = question(0)["question"]
+        elif "masked_prompt" in data:
+            reviews += 1
+            output = {"usage_valid": True, "meaning_revealed": reviews == 1,
+                      "reason": "Проверка контекста."}
         else:
-            # Captured pattern: dictionary, three format repairs, rejected context,
-            # dictionary again, then a fresh format error consumes the shared budget.
-            broken = {**question(0), "question": QUESTIONS[0][2]}
-            wrong_fields = question(0)
-            wrong_fields["question"]["pos"] = "noun"
-            wrong_fields["question"]["sentence"] = wrong_fields["question"].pop("prompt")
-            del wrong_fields["question"]["part_of_speech"]
-            wrong_pos = question(0)
-            wrong_pos["question"]["part_of_speech"] = "noun"
-            replay = [
-                lambda: dictionary(0),
-                lambda: {"role": "assistant", "content": json.dumps(broken)},
-                lambda: call("final_result", wrong_fields),
-                lambda: call("final_result", wrong_pos),
-                lambda: call("final_result", question(0)),
-                lambda: call("final_result", {"acceptable": False, "reason": "Подсказка."}),
-                lambda: dictionary(1),
-                lambda: {"role": "assistant", "content": json.dumps(broken)},
-            ]
-            message = replay[len(requests) - 1]()
+            assert "question_to_revise" in data
+            output = {**data["question_to_revise"],
+                      "prompt": "They spoke about the water again today."}
         return httpx2.Response(200, json={
             "id": "placement-test", "object": "chat.completion", "created": 1,
             "model": "gemma4:31b",
-            "choices": [{"index": 0, "message": message, "finish_reason": "stop"}],
+            "choices": [{"index": 0,
+                         "message": {"role": "assistant", "content": json.dumps(output)},
+                         "finish_reason": "stop"}],
         })
 
     def controlled_client(**kwargs):
