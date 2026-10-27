@@ -1679,6 +1679,41 @@ main {
   font-size: 16px;
   margin-bottom: 15px;
 }
+.settings-card .temporary-model-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.temporary-model-toggle input[role="switch"] {
+  appearance: none;
+  width: 38px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background: #78838a;
+  position: relative;
+  cursor: pointer;
+}
+.temporary-model-toggle input[role="switch"]::before {
+  content: "";
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  top: 3px;
+  left: 3px;
+  border-radius: 50%;
+  background: white;
+}
+.temporary-model-toggle input[role="switch"]:checked {
+  background: var(--accent);
+}
+.temporary-model-toggle input[role="switch"]:checked::before {
+  left: 19px;
+}
+.temporary-model-toggle input[role="switch"]:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
 .settings-card p {
   font-size: 13px;
   color: var(--muted);

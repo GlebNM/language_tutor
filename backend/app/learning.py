@@ -157,7 +157,7 @@ class LearningService:
     async def card(self, selection: SelectionInput | MessageSelectionInput) -> dict[str, Any]:
         started = time.monotonic()
         settings = (
-            self.connection.settings_store.read()
+            self.connection.settings_store.read().effective()
             if self.connection
             else AISettings(model="gpt-6-luna", reasoning_effort="low")
         )
@@ -464,7 +464,7 @@ class LearningService:
             task = running[2]
         else:
             settings = (
-                self.connection.settings_store.read()
+                self.connection.settings_store.read().effective()
                 if self.connection
                 else AISettings(
                     model="gpt-6-luna",

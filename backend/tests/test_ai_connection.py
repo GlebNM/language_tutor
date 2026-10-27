@@ -22,9 +22,12 @@ def test_local_learner_can_inspect_connection_without_credentials(tmp_path: Path
         assert client.post("/api/ai/proof").status_code == 409
 
 
-def test_ai_settings_persist_and_reject_unsupported_reasoning(tmp_path: Path) -> None:
+def test_ai_settings_persist_and_reject_unsupported_reasoning(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from backend.app.ai_connection.settings import AISettingsStore
 
+    monkeypatch.delenv("OLLAMA_API_KEY", raising=False)
     class CatalogService:
         def __init__(self) -> None:
             self.settings_store = AISettingsStore(tmp_path)
@@ -54,6 +57,8 @@ def test_ai_settings_persist_and_reject_unsupported_reasoning(tmp_path: Path) ->
         assert client.get("/api/ai/settings").json() == {
             "model": "gpt-6-luna",
             "reasoning_effort": "low",
+            "temporary_model": False,
+            "temporary_model_available": False,
         }
         assert client.get("/api/ai/models").json()["models"][0]["reasoning_efforts"] == [
             "low",

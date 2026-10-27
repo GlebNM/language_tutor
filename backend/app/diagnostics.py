@@ -197,7 +197,7 @@ class DiagnosticsService:
                 ]
             )
         )[:98]
-        settings = connection.settings_store.read()
+        settings = connection.settings_store.read().effective()
         step = await connection.execute(
             lambda model: run_diagnostic_step(
                 model=model,

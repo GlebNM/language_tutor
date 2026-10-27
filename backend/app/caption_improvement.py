@@ -61,7 +61,7 @@ class CaptionImprovementService:
         if existing and existing["status"] in {"queued", "running", "completed"}:
             return existing
         settings = (
-            self.connection.settings_store.read()
+            self.connection.settings_store.read().effective()
             if self.connection
             else AISettings(model="gpt-6-luna", reasoning_effort="low")
         )

@@ -23,6 +23,7 @@ from pydantic_ai.providers.openai import OpenAIProvider
 
 from backend.app.agents.subscription_proof import ProofResult, run_proof
 
+from .ollama import ollama_configured, ollama_model
 from .settings import AISettings, AISettingsStore
 from .siwc import DIRECT_SCOPE, SIWCOAuthFlow, SubscriptionError, TokenManager
 from .siwc_model import SIWCTransport, siwc_model
@@ -161,6 +162,12 @@ class ConnectionService:
         self.server: uvicorn.Server | None = None
         self.server_task: asyncio.Task[None] | None = None
         self.timeout_task: asyncio.Task[None] | None = None
+
+    @property
+    def available(self) -> bool:
+        if self.settings_store.read().temporary_model:
+            return ollama_configured()
+        return self.state.status in {"connected", "limit_reached"}
 
     async def inspect(self) -> ConnectionStatus:
         if self.state.status == "connected":
@@ -375,29 +382,48 @@ class ConnectionService:
         *,
         settings: AISettings | None = None,
     ) -> RunOutput:
-        """Run one subscription operation; timeout and disconnect cover its whole lifetime."""
+        """Run with the selected provider and a settings snapshot for the whole operation."""
 
         # Capture before awaiting credential setup or the model catalogue. A settings
         # change made while this run waits applies to the next run only.
-        snapshot = settings or self.settings_store.read()
+        snapshot = (settings or self.settings_store.read()).effective()
 
         async def connected() -> RunOutput:
             async with asyncio.timeout(30):
+                if snapshot.temporary_model:
+                    async with ollama_model() as temporary:
+                        return await operation(temporary)
                 model = await self.connected_model(snapshot)
                 return await operation(model)
 
         async with self.lock:
-            if self.state.status not in ("connected", "limit_reached"):
+            if not snapshot.temporary_model and self.state.status not in (
+                "connected", "limit_reached"
+            ):
                 raise HTTPException(409, "Сначала подключите подписку.")
             task = asyncio.create_task(connected())
             self.runs.add(task)
         try:
             result = await task
-            if not self.store.enabled:
+            if not snapshot.temporary_model and not self.store.enabled:
                 raise HTTPException(409, "Подписка отключена.")
-            self.state = ConnectionStatus(status="connected", live_verified=True)
+            if not snapshot.temporary_model:
+                self.state = ConnectionStatus(status="connected", live_verified=True)
             return result
         except (SubscriptionError, ModelHTTPError) as error:
+            if snapshot.temporary_model:
+                status = error.status if isinstance(error, SubscriptionError) else error.status_code
+                if status in (401, 403):
+                    raise HTTPException(
+                        403, "Ollama Cloud отклонила ключ или доступ к модели."
+                    ) from None
+                if status == 429:
+                    raise HTTPException(
+                        429, "Достигнут лимит Ollama Cloud. Повторите позже."
+                    ) from None
+                raise HTTPException(
+                    503, "Ollama Cloud временно недоступна. Повторите запрос."
+                ) from None
             raise self.provider_failure(error) from None
         except TimeoutError:
             raise HTTPException(504, "AI не ответил за 30 секунд. Повторите запрос.") from None

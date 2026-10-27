@@ -15,6 +15,12 @@ from openai.types.shared.reasoning_effort import ReasoningEffort
 class AISettings:
     model: str
     reasoning_effort: ReasoningEffort | None
+    temporary_model: bool = False
+
+    def effective(self) -> AISettings:
+        if self.temporary_model:
+            return AISettings("gemma4:31b", None, temporary_model=True)
+        return self
 
 
 class AISettingsStore:
@@ -27,6 +33,7 @@ class AISettingsStore:
             data = json.loads(self.path.read_text(encoding="utf-8"))
             return AISettings(
                 model=str(data["model"]),
+                temporary_model=data.get("temporary_model") is True,
                 reasoning_effort=(
                     data["reasoning_effort"]
                     if data.get("reasoning_effort") is not None
@@ -47,7 +54,11 @@ class AISettingsStore:
             os.fchmod(descriptor, 0o600)
             with os.fdopen(descriptor, "w", encoding="utf-8") as output:
                 json.dump(
-                    {"model": settings.model, "reasoning_effort": settings.reasoning_effort},
+                    {
+                        "model": settings.model,
+                        "reasoning_effort": settings.reasoning_effort,
+                        "temporary_model": settings.temporary_model,
+                    },
                     output,
                     ensure_ascii=False,
                 )
