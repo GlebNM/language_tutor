@@ -169,7 +169,7 @@ class DiscoveryService:
             "source": (
                 "saved" if self.key_path.exists() else "environment" if self.api_key() else None
             ),
-            "ai_available": bool(self.connection and self.connection.state.status == "connected"),
+            "ai_available": bool(self.connection and self.connection.available),
         }
 
     def start(self, request: DiscoveryInput) -> DiscoveryJob:
@@ -312,7 +312,7 @@ class DiscoveryService:
                         if self.connection is None:
                             raise MaterialError("Для перевода запроса подключите подписку ChatGPT.")
                         job.status = "planning"
-                        settings = self.connection.settings_store.read()
+                        settings = self.connection.settings_store.read().effective()
 
                         async def operation(model: Model) -> str:
                             return await plan_query(model, query, settings.reasoning_effort)

@@ -138,7 +138,7 @@ class DiagnosticsService:
         answers = json.loads(snapshot["answers_json"])
         if {item["id"] for item in items} != {answer["item_id"] for answer in answers}:
             raise MaterialError("Ответьте на все задания или отметьте их как пропущенные.")
-        settings = connection.settings_store.read()
+        settings = connection.settings_store.read().effective()
         result = await connection.execute(
             lambda model: run_diagnosis(
                 model=model,

@@ -55,12 +55,12 @@ class ExpressionAnalysis:
     def available(self) -> bool:
         return self.model_factory is not None or (
             self.connection is not None
-            and self.connection.state.status in {"connected", "limit_reached"}
+            and self.connection.available
         )
 
     def settings(self) -> AISettings:
         return (
-            self.connection.settings_store.read()
+            self.connection.settings_store.read().effective()
             if self.connection
             else AISettings(
                 model="gpt-6-luna",

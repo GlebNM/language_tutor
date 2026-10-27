@@ -374,11 +374,18 @@ type AIModelOption = {
   reasoning_efforts: string[];
   default_reasoning_effort: string | null;
 };
-type AISettingsValue = { model: string; reasoning_effort: string | null };
+type AISettingsValue = {
+  model: string;
+  reasoning_effort: string | null;
+  temporary_model: boolean;
+  temporary_model_available: boolean;
+};
 export function AIModelSettings() {
   const [models, setModels] = useState<AIModelOption[]>([]);
   const [model, setModel] = useState("");
   const [reasoning, setReasoning] = useState("");
+  const [temporaryModel, setTemporaryModel] = useState(false);
+  const [temporaryModelAvailable, setTemporaryModelAvailable] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -400,6 +407,9 @@ export function AIModelSettings() {
         if (controller.signal.aborted) return;
         setModel(saved.model);
         setReasoning(saved.reasoning_effort ?? "");
+        setTemporaryModel(saved.temporary_model);
+        setTemporaryModelAvailable(saved.temporary_model_available);
+        if (saved.temporary_model) return;
         const catalogue = await api<{ models: AIModelOption[] }>("/ai/models", {
           signal: controller.signal,
         });
@@ -414,6 +424,23 @@ export function AIModelSettings() {
     return () => controller.abort();
   }, [loadAttempt]);
   const selected = models.find((option) => option.id === model);
+  async function toggleTemporaryModel(enabled: boolean) {
+    setSaving(true);
+    setError("");
+    setMessage("");
+    try {
+      const saved = await api<AISettingsValue>("/ai/temporary-model", {
+        method: "PUT",
+        body: JSON.stringify({ enabled }),
+      });
+      setTemporaryModel(saved.temporary_model);
+      setLoadAttempt((value) => value + 1);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
   async function save(event: FormEvent) {
     event.preventDefault();
     if (!model) return;
@@ -437,9 +464,28 @@ export function AIModelSettings() {
   return (
     <div className="settings-card ai-model-settings">
       <h2>Учебный AI</h2>
+      <label className="temporary-model-toggle">
+        <input
+          type="checkbox"
+          role="switch"
+          checked={temporaryModel}
+          disabled={loading || saving || (!temporaryModelAvailable && !temporaryModel)}
+          onChange={(event) => void toggleTemporaryModel(event.target.checked)}
+        />
+        Временная модель · gemma4:31b (Ollama Cloud)
+      </label>
+      {!loading && !temporaryModelAvailable && (
+        <p>Для временной модели добавьте OLLAMA_API_KEY в .env и перезапустите приложение.</p>
+      )}
 
       {loading ? (
         <p role="status">Загружаем доступные модели…</p>
+      ) : temporaryModel ? (
+        <>
+          <p role="status">Новые запросы используют gemma4:31b через Ollama Cloud.</p>
+          <p>Выключите временную модель, чтобы вернуться к выбранной модели ChatGPT.</p>
+          {error && <p role="alert" className="warning">{error}</p>}
+        </>
       ) : (
         <form onSubmit={(event) => void save(event)}>
           <label>
