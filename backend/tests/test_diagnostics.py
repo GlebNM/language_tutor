@@ -13,7 +13,7 @@ import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from pydantic_ai import models
-from pydantic_ai.exceptions import UnexpectedModelBehavior
+from pydantic_ai.exceptions import UnexpectedModelBehavior, UsageLimitExceeded
 from pydantic_ai.messages import ModelResponse, ToolCallPart, ToolReturnPart, UserPromptPart
 from pydantic_ai.models.function import FunctionModel
 
@@ -97,7 +97,7 @@ QUESTIONS = [
 
 def adaptive_connection(
     settings_dir, *, reject_once=False, reject_all=False, failure=None, stop=True, capture=None,
-    revision_capture=None, revision_failure=None,
+    revision_capture=None, revision_failure=None, repeat_dictionary=False, dictionary_queries=None,
 ):
     reviews = 0
 
@@ -159,8 +159,13 @@ def adaptive_connection(
             for p in m.parts
             if isinstance(p, ToolReturnPart) and p.tool_name == "get_frequency_words"
         ]
-        if not returns and failure != "no_dictionary":
+        dictionary_available = any(t.name == "get_frequency_words" for t in info.function_tools)
+        if (
+            not returns or (repeat_dictionary and dictionary_available)
+        ) and failure != "no_dictionary":
             rank = frequency_ranks()[lemma]
+            if dictionary_queries is not None:
+                dictionary_queries.append(lemma)
             return ModelResponse(
                 parts=[
                     ToolCallPart(
@@ -199,6 +204,8 @@ def adaptive_connection(
             return await operation(FunctionModel(respond))
         except UnexpectedModelBehavior:
             raise HTTPException(503, "AI вернул недопустимый результат.") from None
+        except UsageLimitExceeded:
+            raise HTTPException(422, "AI достиг ограничения числа раундов.") from None
 
     return SimpleNamespace(execute=execute, settings_store=AISettingsStore(settings_dir))
 
@@ -356,6 +363,18 @@ def test_rejected_context_is_revised_with_the_same_verified_word(tmp_path, diagn
         assert len(revisions) == 1
         assert revisions[0]["question_to_revise"]["prompt"] == QUESTIONS[0][2]
         assert revisions[0]["review_feedback"] == "Контекст раскрывает значение."
+
+
+def test_dictionary_tool_is_removed_after_a_nonempty_sample(tmp_path, diagnostic_mcp):
+    queries = []
+    with diagnostic_client(
+        tmp_path / "api.sqlite3", service=adaptive_connection(
+            tmp_path, repeat_dictionary=True, dictionary_queries=queries
+        ), mcp_url=diagnostic_mcp,
+    ) as client:
+        session = next_question(client, client.post("/api/diagnostics", json={}).json())
+        assert session["items"][0]["surface"] == "water"
+        assert queries == ["water"]
 
 
 @pytest.mark.parametrize("failure", ["new_lemma", "wrong_pos"])

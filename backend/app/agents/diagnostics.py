@@ -135,7 +135,13 @@ async def run_diagnostic_step(
             combined_exclusions = excluded_set | set(requested_exclusions)
             if len(combined_exclusions) > 100:
                 raise ModelRetry("Можно исключить не более 100 слов.")
-            args = {**args, "exclude": sorted(combined_exclusions)}
+            requested_limit = args.get("limit", 12)
+            if not isinstance(requested_limit, int) or not 1 <= requested_limit <= 20:
+                raise ModelRetry("limit должен быть целым числом от 1 до 20.")
+            args = {
+                **args, "exclude": sorted(combined_exclusions),
+                "limit": max(12, requested_limit),
+            }
             result = await call_tool(name, args)
             encoded = result if isinstance(result, str) else json.dumps(result, ensure_ascii=False)
             if len(encoded) > 6000:
@@ -145,11 +151,12 @@ async def run_diagnostic_step(
             return result
         finally:
             logger.info(
-                "request_id=%s tool=%s success=%s duration_ms=%s",
+                "request_id=%s tool=%s success=%s duration_ms=%s retrieved_count=%s",
                 request_id,
                 name,
                 success,
                 int((time.monotonic() - started) * 1000),
+                len(retrieved),
             )
 
     # Every question needs this small dictionary tool, so deferred loading adds a round trip.
@@ -159,7 +166,7 @@ async def run_diagnostic_step(
         process_tool_call=scoped_call,
         read_timeout=10,
         init_timeout=5,
-    ).filtered(lambda ctx, tool: tool.name == "get_frequency_words")
+    ).filtered(lambda ctx, tool: tool.name == "get_frequency_words" and not retrieved)
     settings = OpenAIResponsesModelSettings(openai_reasoning_effort=reasoning_effort)
     writer = Agent(
         model,
@@ -176,7 +183,9 @@ async def run_diagnostic_step(
             "Используй только базовые формы из полученного словаря; не выдумывай ранги. "
             "Сначала охвати все три частотные группы; затем уточняй границу знакомости: "
             "known позволяет повысить сложность, unknown/unsure — проверить более частые слова. "
-            "Запроси новую выборку для каждого вопроса. Не повторяй excluded и уже заданные слова. "
+            "Запроси одну выборку для вопроса. Получив непустой список, выбери слово из него "
+            "и верни вопрос; повторный вызов словаря недоступен. "
+            "Не повторяй excluded и уже заданные слова. "
             "Вопрос: одно короткое естественное английское предложение, 5–20 слов; "
             "простая окружающая лексика. Цель — обычное существительное, глагол, "
             "прилагательное или наречие; одно однозначное употребление, без идиом. "
