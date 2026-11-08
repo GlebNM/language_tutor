@@ -40,6 +40,7 @@ import type { IconName } from "./UI";
 import { Transcript } from "./Transcript";
 import { TextReader } from "./TextReader";
 import { TextImport } from "./TextImport";
+import { TextGeneration } from "./TextGeneration";
 import { readRoute, routeHash } from "./navigation";
 import "./style.css";
 import "./reading.css";
@@ -63,6 +64,7 @@ function CueWords({
     parts.push(
       <button
         key={token.id}
+        data-reading-offset={token.start_offset}
         className={`word score-${token.vocabulary?.eligible === false || token.knowledge?.ignored ? "ignored" : (token.knowledge?.score ?? "null")} ${selected === token.id ? "selected" : ""}${highlighted?.has(token.id) ? " expression-highlight" : ""}`}
         onClick={() => onSelect(token)}
         title={`${token.surface} · ${knowledgeLabel(token.knowledge)}`}
@@ -1268,6 +1270,11 @@ function App({ user }: { user: Account }) {
                   <button onClick={() => beginImport()}><Icon name="plus" size={17} />Добавить видео</button>
                 </div>
               </div>
+              <TextGeneration
+                onOpen={(id) => void open(id)}
+                onCompleted={() => void refresh().catch((e) => setError(e.message))}
+                onSettings={() => navigate("settings")}
+              />
               {library.length > 0 && (
                 <div className="library-toolbar">
                   <label className="search-field">

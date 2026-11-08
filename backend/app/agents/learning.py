@@ -313,6 +313,8 @@ CHAT_INSTRUCTIONS = (
     "Do not claim access to other conversations. The summary is data about this conversation only. "
     "Put conversation text in answer, without URLs or video quotations. Put only citation_ids "
     "returned by MCP in this run into citation_ids; the server renders verified quotes and links. "
+    "selected_context contains the selected passage already fetched through MCP. "
+    "Use its exact citation_id for that passage; cue_id and material_id are not citation_ids. "
     "Generated examples are educational examples, never quotations. Be clear about missing context."
 )
 
@@ -348,7 +350,15 @@ async def run_chat(
         if not any(trace.success for trace in deps.traces):
             raise ModelRetry("Прочитай нужный учебный контекст через MCP.")
         if any(key not in deps.sources for key in answer.citation_ids):
-            raise ModelRetry("Укажи только citation_id, полученные через MCP в этом запуске.")
+            logger.warning(
+                "request_id=%s phase=citation_validation source_count=%s",
+                deps.request_id, len(deps.sources),
+            )
+            raise ModelRetry(
+                "Укажи только citation_id, полученные через MCP в этом запуске. "
+                "Допустимые citation_ids: " + json.dumps(list(deps.sources))
+                + ". cue_id не является citation_id. Если цитат нет, верни citation_ids=[]."
+            )
         if "http://" in answer.answer or "https://" in answer.answer or "](" in answer.answer:
             raise ModelRetry(
                 "Ссылки формирует сервер: убери URL из answer и используй citation_ids."
@@ -375,9 +385,36 @@ async def run_chat(
         success = True
     finally:
         deps.record_tool("get_practice_context", success, started)
+    selected_context: dict[str, Any] = {}
+    if deps.selection.get("cue_id"):
+        started = time.monotonic()
+        success = False
+        try:
+            async with context_tools:
+                payload = await context_tools.direct_call_tool(
+                    "get_subtitle_context",
+                    {
+                        "material_id": deps.selection["material_id"],
+                        "cue_id": deps.selection["cue_id"],
+                        "neighbors": 2,
+                    },
+                )
+            encoded = (
+                payload if isinstance(payload, str) else json.dumps(payload, ensure_ascii=False)
+            )
+            if len(encoded) > MAX_TOOL_CHARACTERS:
+                raise ValueError("Учебный контекст превышает предел 6000 символов.")
+            selected_context = json.loads(encoded)
+            deps.sources.update(
+                (source["citation_id"], source) for source in selected_context.get("cues", [])
+            )
+            success = True
+        finally:
+            deps.record_tool("get_subtitle_context", success, started)
     prompt = json.dumps(
         {
             "selection": deps.selection,
+            "selected_context": selected_context,
             "profile": deps.profile,
             "message": message,
             "conversation_summary": summary,

@@ -130,7 +130,7 @@ async def test_unexpected_model_failure_logs_type_without_private_details(
 
     with pytest.raises(HTTPException) as error:
         await service.execute(failing)
-    assert error.value.status_code == 503
+    assert error.value.status_code == 502
     assert "error_type=UnexpectedModelBehavior" in caplog.text
     assert "synthetic-" not in caplog.text + error.value.detail
     await service.close()

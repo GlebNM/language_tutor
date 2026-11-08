@@ -1,0 +1,918 @@
+"""Background text generation through public job operations with controlled AI."""
+
+import json
+import time
+
+import pytest
+from fastapi.testclient import TestClient
+from pydantic_ai.messages import ModelResponse, ToolCallPart, ToolReturnPart, UserPromptPart
+from pydantic_ai.models.function import FunctionModel
+
+from backend.app.main import create_learner_app
+from backend.tests.generation_fixtures import (
+    context_output,
+    evidence_keys,
+    prompt_payload,
+    requirements_output,
+)
+from backend.tests.test_learning import learning_mcp as learning_mcp
+from backend.tests.test_text_generation_analysis import mark_vocabulary
+
+
+def test_generation_settings_are_available_without_connecting_ai(tmp_path):
+    app = create_learner_app(tmp_path / "learning.sqlite3", seed_demo=False, include_ai=False)
+    with TestClient(app, base_url="http://localhost") as client:
+        settings = client.get("/api/text-generation/settings").json()
+        assert settings["available"] is False
+        assert settings["max_versions"] == 10
+        assert settings["lengths"]["short"] == {
+            "min_words": 100, "max_words": 250,
+            "preferred_min_words": 150, "preferred_max_words": 200, "word_tolerance": 50,
+        }
+        assert settings["difficulty_limits"]["gentle"]["new_or_unassessed_ratio_max"] == 0.02
+        assert settings["difficulty_limits"]["normal"]["new_or_unassessed_ratio_max"] == 0.04
+        assert settings["difficulty_limits"]["normal"]["new_or_unassessed_ratio_target"] == 0.03
+        assert settings["difficulty_limits"]["normal"]["new_or_unassessed_ratio_min"] == 0.02
+        assert settings["difficulty_limits"]["rich"]["new_or_unassessed_ratio_min"] == 0.04
+        assert settings["difficulty_limits"]["rich"]["new_or_unassessed_ratio_max"] == 0.06
+        response = client.post("/api/text-generation/jobs", json={})
+        assert response.status_code == 409
+        assert client.get("/api/text-generation/jobs").json()["jobs"] == []
+
+
+def job_client(database, mcp_url, model):
+    app = create_learner_app(database, seed_demo=False, include_ai=False)
+    service = app.state.text_generation
+    service.model_factory = lambda: model
+    service.mcp_url = mcp_url
+    return TestClient(app, base_url="http://localhost")
+
+
+def test_generation_accepts_temporary_model_and_records_effective_settings(tmp_path, monkeypatch):
+    from backend.app.ai_connection.settings import AISettings
+
+    monkeypatch.setenv("OLLAMA_API_KEY", "synthetic-key")
+    app = create_learner_app(tmp_path / "learning.sqlite3", seed_demo=False)
+    service = app.state.text_generation
+    app.state.connection.settings_store.write(AISettings("gpt-6-luna", "low", True))
+
+    async def hold_job(identity, settings):
+        assert settings == AISettings("gemma4:31b", None, True)
+
+    monkeypatch.setattr(service, "_run", hold_job)
+    with TestClient(app, base_url="http://localhost") as client:
+        assert client.get("/api/text-generation/settings").json()["available"] is True
+        response = client.post("/api/text-generation/jobs", json={})
+        assert response.status_code == 202, response.text
+        assert response.json()["model"] == "gemma4:31b"
+        assert response.json()["reasoning_effort"] is None
+
+
+def wait_job(client, identity):
+    for _ in range(500):
+        response = client.get(f"/api/text-generation/jobs/{identity}")
+        if response.status_code == 404:
+            event = client.get("/api/text-generation/jobs").json().get("error_event")
+            assert event and event["id"] == identity, event
+            return {"id": identity, "status": event["status"], "revision": event["revision"],
+                    "error": event["message"], "result_material_id": None}
+        assert response.status_code == 200, response.text
+        result = response.json()
+        if result["status"] not in {
+            "queued", "preparing", "writing", "checking", "revising", "saving",
+        }:
+            return result
+        time.sleep(0.02)
+    pytest.fail("Generation did not complete within the controlled-model test budget")
+
+
+def controlled_writer(*, weak_once=False, weak_always=False, lookup=False, too_many_unknown=False):
+    writer_inputs = []
+    tool_results = []
+    context_runs = []
+
+    def respond(messages, info):
+        payload = prompt_payload(
+            next(
+                part.content
+                for message in reversed(messages)
+                for part in message.parts
+                if isinstance(part, UserPromptPart)
+            )
+        )
+        if "profile" in payload:
+            returns = [
+                part
+                for message in messages
+                for part in message.parts
+                if isinstance(part, ToolReturnPart)
+            ]
+            if lookup and not any(part.tool_name == "find_texts_with_word" for part in returns):
+                return ModelResponse(parts=[ToolCallPart("find_texts_with_word", {"word": "read"})])
+            if lookup and not any(part.tool_name == "get_text" for part in returns):
+                found = next(part for part in returns if part.tool_name == "find_texts_with_word")
+                data = (
+                    json.loads(found.content) if isinstance(found.content, str) else found.content
+                )
+                tool_results.append(data)
+                material_id = data["texts"][0]["material_id"]
+                return ModelResponse(parts=[ToolCallPart("get_text", {"material_id": material_id})])
+            tool_results.extend(part.content for part in returns if part.tool_name == "get_text")
+            writer_inputs.append(payload)
+            changing = weak_once and len(writer_inputs) > 1
+            text = "We read books. " * 49 + ("We read books." if changing else "We borrow books.")
+            if too_many_unknown:
+                text = "We read books. " * 46 + "We borrow books. " * 4
+            return ModelResponse(
+                parts=[
+                    ToolCallPart(
+                        info.output_tools[0].name,
+                        {
+                            "kind": "draft",
+                            "title": "Books",
+                            "paragraphs": [{"text": text}],
+                        },
+                    )
+                ]
+            )
+        draft = payload["draft"]
+        if "insufficient_vocabulary" in payload:
+            context_runs.append(payload)
+            weak = weak_always or weak_once and len(context_runs) == 1
+            checks = []
+            for word in payload["insufficient_vocabulary"]:
+                for occurrence in word["occurrences"]:
+                    checks.append(
+                        {
+                            "block_id": occurrence["block_id"],
+                            "token_ids": occurrence["token_ids"],
+                            "context_status": "weak" if weak else "clear",
+                            "explanation": "Контекст нужно раскрыть."
+                            if weak
+                            else "Контекст понятен.",
+                            "repair_instructions": "Замените фразу или добавьте подсказку."
+                            if weak
+                            else None,
+                            "evidence": [
+                                {"block_id": occurrence["block_id"], "quote": "We borrow books."}
+                            ],
+                        }
+                    )
+            return ModelResponse(
+                parts=[
+                    ToolCallPart(
+                        info.output_tools[0].name,
+                        context_output(payload, checks),
+                    )
+                ]
+            )
+        return ModelResponse(
+            parts=[
+                ToolCallPart(
+                    info.output_tools[0].name,
+                    requirements_output(payload, [
+                            {
+                                "criterion_id": criterion,
+                                "status": "pass",
+                                "explanation": "Соответствует.",
+                                "evidence": [
+                                    {
+                                        "block_id": draft["paragraphs"][0]["id"],
+                                        "quote": "We read books.",
+                                    }
+                                ],
+                            }
+                            for criterion in payload["required_criteria"]
+                    ]),
+                )
+            ]
+        )
+
+    return FunctionModel(respond), writer_inputs, tool_results
+
+
+def prepare_known_words(client, borrow_score=1):
+    mark_vocabulary(
+        client,
+        "We read books. We borrow books.",
+        {
+            "we": 3,
+            "read": 2,
+            "book": 2,
+            "borrow": borrow_score,
+        },
+    )
+
+
+def test_real_mcp_job_saves_once_and_writer_reads_existing_texts(learning_mcp):
+    mcp_url, database = learning_mcp
+    model, writer_inputs, tools = controlled_writer(lookup=True)
+    with job_client(database, mcp_url, model) as client:
+        prepare_known_words(client)
+        original = client.post(
+            "/api/materials/text",
+            json={
+                "title": "An Evening",
+                "content": "We read books.",
+            },
+        )
+        assert original.status_code == 201, original.text
+        before = len(client.get("/api/materials").json())
+        request = {"length": "short", "difficulty": "gentle"}
+        started = client.post(
+            "/api/text-generation/jobs", json=request, headers={"Idempotency-Key": "same-request"}
+        )
+        assert started.status_code == 202, started.text
+        job = wait_job(client, started.json()["id"])
+        assert job["status"] == "completed", job
+        assert client.get("/api/text-generation/jobs").json()["jobs"][0]["id"] == job["id"]
+        material = client.get(f"/api/materials/{job['result_material_id']}").json()
+        assert material["kind"] == "text" and material["source"] == "generated"
+        assert material["youtube_video_id"] is None
+        assert len(client.get("/api/materials").json()) == before + 1
+        repeated = client.post(
+            "/api/text-generation/jobs", json=request, headers={"Idempotency-Key": "same-request"}
+        )
+        assert repeated.json()["id"] == job["id"]
+        assert repeated.json()["result_material_id"] == material["id"]
+        assert len(client.get("/api/materials").json()) == before + 1
+        assert writer_inputs[0]["profile"]["snapshot_id"] == job["analysis"]["snapshot_id"]
+        assert tools and original.json()["id"] in str(tools)
+
+
+def test_multiround_writer_outlives_a_single_request_deadline(learning_mcp, monkeypatch):
+    import asyncio
+
+    mcp_url, database = learning_mcp
+    base_model, _, _ = controlled_writer(lookup=True)
+    assert base_model.function is not None
+    original_timeout = asyncio.timeout
+
+    def shortened_request_timeout(delay):
+        return original_timeout(0.3 if delay in (30, 60, 90, 120) else delay)
+
+    monkeypatch.setattr(asyncio, "timeout", shortened_request_timeout)
+
+    async def respond(messages, info):
+        payload = prompt_payload(next(part.content for message in reversed(messages)
+                                  for part in message.parts if isinstance(part, UserPromptPart)))
+        if "profile" in payload:
+            await asyncio.sleep(0.18)
+        return base_model.function(messages, info)
+
+    with job_client(database, mcp_url, FunctionModel(respond)) as client:
+        prepare_known_words(client)
+        original = client.post("/api/materials/text", json={
+            "title": "An Evening", "content": "We read books.",
+        })
+        assert original.status_code == 201
+        started = client.post("/api/text-generation/jobs", json={"length": "short"})
+        assert started.status_code == 202
+        result = wait_job(client, started.json()["id"])
+        assert result["status"] == "completed", json.dumps(result, ensure_ascii=False)
+        assert client.get(f"/api/materials/{result['result_material_id']}").json()["kind"] == "text"
+
+
+def test_dictionary_search_leaves_budget_for_context_revision_and_publication(learning_mcp):
+    mcp_url, database = learning_mcp
+    base_model, writer_inputs, _ = controlled_writer(weak_once=True)
+    assert base_model.function is not None
+    dictionary_pages = []
+
+    def respond(messages, info):
+        payload = prompt_payload(next(part.content for message in reversed(messages)
+                                  for part in message.parts if isinstance(part, UserPromptPart)))
+        if "profile" in payload:
+            dictionary_pages.extend(
+                json.loads(part.content)
+                for message in messages for part in message.parts
+                if isinstance(part, ToolReturnPart)
+                and part.tool_name == "list_generation_vocabulary"
+            )
+            if any(tool.name == "list_generation_vocabulary" for tool in info.function_tools):
+                return ModelResponse(parts=[ToolCallPart("list_generation_vocabulary", {
+                    "job_id": "untrusted-job", "category": "known", "limit": 2,
+                })])
+        return base_model.function(messages, info)
+
+    with job_client(database, mcp_url, FunctionModel(respond)) as client:
+        prepare_known_words(client)
+        started = client.post("/api/text-generation/jobs", json={"length": "short"})
+        assert started.status_code == 202
+        result = wait_job(client, started.json()["id"])
+        assert result["status"] == "completed", {
+            "status": result["status"], "error": result["error"],
+        }
+        assert result["revision"] == 2
+        assert writer_inputs[1]["feedback"]["blocking_issues"]
+        assert dictionary_pages and dictionary_pages[0]["items"]
+        assert dictionary_pages[0]["items"] == writer_inputs[0]["profile"]["known_examples"][:2]
+        assert writer_inputs[0]["profile"] == writer_inputs[1]["profile"]
+        assert result["usage"]["model_requests"] <= 18
+        assert client.get(f"/api/materials/{result['result_material_id']}").json()["kind"] == "text"
+
+
+def test_job_deadline_still_stops_a_writer_with_a_longer_operation_budget(learning_mcp):
+    import asyncio
+    from threading import Event
+
+    entered = Event()
+    mcp_url, database = learning_mcp
+
+    async def respond(messages, info):
+        entered.set()
+        await asyncio.sleep(5)
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {
+            "kind": "draft", "title": "Books",
+            "paragraphs": [{"text": "We read books. " * 50}],
+        })])
+
+    client = job_client(database, mcp_url, FunctionModel(respond))
+    client.app.state.text_generation.timeout_seconds = 2
+    with client:
+        prepare_known_words(client)
+        before = len(client.get("/api/materials").json())
+        started = client.post("/api/text-generation/jobs", json={"length": "short"})
+        assert started.status_code == 202
+        assert entered.wait(3)
+        result = wait_job(client, started.json()["id"])
+        assert result["status"] == "needs_changes", result
+        assert "Истекло время" in result["error"]
+        assert len(client.get("/api/materials").json()) == before
+
+
+@pytest.mark.parametrize(("failure", "expected_status"), [
+    ("timeout", "needs_changes"), ("requests", "needs_changes"), ("provider", "failed"),
+])
+def test_subscription_budget_failure_discards_job_and_draft(
+    learning_mcp, monkeypatch, failure, expected_status,
+):
+    import asyncio
+
+    import httpx2
+    from openai import AsyncOpenAI
+    from pydantic_ai import models
+    from pydantic_ai.providers.openai import OpenAIProvider
+
+    from backend.app.ai_connection.service import ConnectionStatus
+    from backend.app.ai_connection.siwc import TokenManager
+    from backend.app.ai_connection.siwc_credentials import SIWCCredentials
+    from backend.app.ai_connection.siwc_model import SIWCTransport
+
+    mcp_url, database = learning_mcp
+    app = create_learner_app(database, seed_demo=False, include_ai=True)
+    service = app.state.text_generation
+    service.mcp_url = mcp_url
+    if failure == "requests":
+        service.model_request_limit = 1
+    connection = app.state.connection
+    asyncio.run(connection.store.save(SIWCCredentials(
+        access_token="test-access", refresh_token="test-refresh", id_token="test-id",
+        client_id="oaiapp_test", subject="learner", scopes=["chatgpt.tokens.use.direct"],
+        expires_at=time.time() + 3600,
+    )))
+    connection.state = ConnectionStatus(status="connected")
+    original_timeout = asyncio.timeout
+
+    def shortened_operation_timeout(delay):
+        return original_timeout(0.2 if failure == "timeout" and delay == 600 else delay)
+
+    monkeypatch.setattr(asyncio, "timeout", shortened_operation_timeout)
+
+    async def remote(request):
+        if request.url.path == "/v1/models":
+            return httpx2.Response(200, json={"models": [{
+                "slug": "gpt-6-luna", "visibility": "list",
+                "supported_reasoning_levels": [{"effort": "low"}],
+            }]})
+        body = json.loads(request.content)
+        tools = body["input"][0]["tools"]
+        writer = next((tool for tool in tools
+                       if {"kind", "paragraphs"} <= set(
+                           tool["parameters"].get("properties", {}))), None)
+        if writer is None:
+            if failure == "provider":
+                return httpx2.Response(422, json={"error": {
+                    "message": "Synthetic provider validation error",
+                    "type": "invalid_request_error", "code": "invalid_payload",
+                }})
+            await asyncio.sleep(0.5)
+            raise AssertionError("The subscription operation should have timed out")
+        item = {"id": "fc_draft", "type": "function_call", "call_id": "call_draft",
+                "name": writer["name"], "status": "completed", "arguments": json.dumps({
+                    "kind": "draft", "title": "Books",
+                    "paragraphs": [{"text": "We read books. " * 49 + "We borrow books."}],
+                })}
+        response = {"id": "resp_draft", "object": "response", "created_at": time.time(),
+                    "model": "gpt-6-luna", "status": "completed", "output": [item]}
+        events = [
+            {"type": "response.output_item.added", "item": {**item, "arguments": ""},
+             "output_index": 0, "sequence_number": 0},
+            {"type": "response.output_item.done", "item": item,
+             "output_index": 0, "sequence_number": 1},
+            {"type": "response.completed", "response": response, "sequence_number": 2},
+        ]
+        return httpx2.Response(
+            200, headers={"content-type": "text/event-stream"},
+            content="".join(f"data: {json.dumps(e)}\n\n" for e in events).encode(),
+        )
+
+    sdk_client = httpx2.AsyncClient(transport=SIWCTransport(
+        TokenManager(connection.store), transport=httpx2.MockTransport(remote),
+    ))
+    connection.http_client = sdk_client
+    connection.provider = OpenAIProvider(openai_client=AsyncOpenAI(
+        api_key="subscription-oauth", http_client=sdk_client, max_retries=0,
+    ))
+    with (
+        TestClient(app, base_url="http://localhost") as client,
+        models.override_allow_model_requests(True),
+    ):
+        prepare_known_words(client)
+        before = len(client.get("/api/materials").json())
+        started = client.post("/api/text-generation/jobs", json={"length": "short"})
+        assert started.status_code == 202
+        result = wait_job(client, started.json()["id"])
+        assert result["status"] == expected_status, {
+            "status": result["status"], "error": result["error"],
+        }
+        assert client.get(f"/api/text-generation/jobs/{result['id']}").status_code == 404
+        assert client.get("/api/text-generation/jobs").json()["jobs"] == []
+        assert result["result_material_id"] is None
+        if failure == "timeout":
+            assert "время" in result["error"] or "не ответил" in result["error"]
+        elif failure == "requests":
+            assert "ограничения числа раундов" in result["error"]
+        assert len(client.get("/api/materials").json()) == before
+
+
+def test_writer_reads_all_expression_meanings_from_its_snapshot_through_real_mcp(learning_mcp):
+    import asyncio
+    from threading import Event
+
+    from backend.tests.test_expressions import analyze
+
+    mcp_url, database = learning_mcp
+    entered, release = Event(), Event()
+    pages, profiles = [], []
+    base_model, _, _ = controlled_writer()
+    assert base_model.function is not None
+
+    async def respond(messages, info):
+        payload = prompt_payload(next(part.content for message in reversed(messages)
+                                  for part in message.parts if isinstance(part, UserPromptPart)))
+        if "profile" in payload:
+            if not entered.is_set():
+                profiles.append(payload["profile"])
+                entered.set()
+                while not release.is_set():
+                    await asyncio.sleep(0.01)
+            if any(tool.name == "list_generation_expressions" for tool in info.function_tools):
+                returns = [part for message in messages for part in message.parts
+                           if isinstance(part, ToolReturnPart)
+                           and part.tool_name == "list_generation_expressions"]
+                latest = None
+                if returns:
+                    latest = json.loads(returns[-1].content)
+                    pages.append(latest)
+                if latest is None or latest["next_offset"] is not None:
+                    return ModelResponse(parts=[ToolCallPart("list_generation_expressions", {
+                        "job_id": "forged-other-job", "limit": 30,
+                        "offset": latest["next_offset"] if latest else 0,
+                    })])
+        return base_model.function(messages, info)
+
+    def extract(messages, info):
+        payload = prompt_payload(next(part.content for message in reversed(messages)
+                                  for part in message.parts if isinstance(part, UserPromptPart)))
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {"expressions": [
+            {"canonical": " ".join(token["text"].lower() for token in cue["tokens"][1:]),
+             "kind": "phrasal_verb", "sense_key": "saved-meaning",
+             "translation": "Значение выражения. " * 15,
+             "explanation": "PRIVATE SOURCE DETAIL", "example": "PRIVATE SOURCE EXAMPLE",
+             "token_ids": [token["id"] for token in cue["tokens"][1:]]}
+            for cue in payload["cues"]
+        ]})])
+
+    phrases = ("give up", "turn off", "take off", "put on", "look after", "look for",
+               "look up", "go on", "come back", "get up", "wake up", "sit down",
+               "stand up", "put down", "pick up", "find out", "work out", "run out",
+               "carry on", "bring back", "come in", "go out", "break down", "call off", "set up")
+    with job_client(database, mcp_url, FunctionModel(respond)) as client:
+        prepare_known_words(client)
+        client.app.state.expression_analysis.model_factory = lambda: FunctionModel(extract)
+        material = client.post("/api/materials/text", json={
+            "title": "Expressions", "content": "\n\n".join(f"We {phrase}." for phrase in phrases),
+        }).json()
+        analyzed = analyze(client, material)
+        assert analyzed["job"]["status"] == "completed", analyzed
+        entries = {entry["id"]: entry for entry in analyzed["occurrences"]}
+        assert len(entries) == 25
+        for identity in entries:
+            assert client.put(f"/api/expressions/{identity}/knowledge",
+                              json={"score": 1}).status_code == 200
+        started = client.post("/api/text-generation/jobs", json={"length": "short"}).json()
+        assert entered.wait(3)
+        changed = next(iter(entries))
+        assert client.put(f"/api/expressions/{changed}/knowledge",
+                          json={"score": 3}).status_code == 200
+        release.set()
+        job = wait_job(client, started["id"])
+        assert job["status"] == "completed", job
+        assert pages, "The generation writer must be able to retrieve expression meanings"
+        meanings = [item for page in pages for item in page["items"]]
+        assert {item["id"] for item in meanings} == set(entries)
+        assert len(meanings) == 25
+        assert len(profiles[0]["expression_examples"]) < 25
+        assert all(page["snapshot_id"] == profiles[0]["snapshot_id"] for page in pages)
+        assert all(item["familiarity"]["score"] == 1 for item in meanings)
+        assert all(set(item) == {"id", "canonical", "sense_key", "translation", "familiarity"}
+                   for item in meanings)
+        assert all(len(json.dumps(page, ensure_ascii=False, separators=(",", ":"))) <= 6000
+                   for page in pages)
+        assert "PRIVATE SOURCE" not in json.dumps([profiles, pages])
+        assert client.get(f"/api/expressions/{changed}").json()["knowledge"]["score"] == 3
+
+        from fastmcp import Client
+        from fastmcp.exceptions import ToolError
+
+        from backend.app.accounts import AccountInput, AccountStore
+        from backend.app.tenant_context import current_mcp_token
+
+        accounts = AccountStore(database.parents[2])
+        other = accounts.register(
+            AccountInput(username="other-reader", password="test-password-123")
+        )
+        with accounts.connect() as db:
+            other_token = db.execute("SELECT mcp_token FROM accounts WHERE id=?",
+                                     (other["id"],)).fetchone()[0]
+
+        async def check_scope():
+            async with Client(mcp_url, auth=current_mcp_token.get()) as own:
+                with pytest.raises(ToolError):
+                    await own.call_tool("list_generation_expressions", {
+                        "job_id": started["id"], "limit": 31,
+                    })
+            async with Client(mcp_url, auth=other_token) as foreign:
+                with pytest.raises(ToolError):
+                    await foreign.call_tool("list_generation_expressions", {
+                        "job_id": started["id"],
+                    })
+
+        asyncio.run(check_scope())
+
+
+def test_context_feedback_rewrites_without_fixed_vocabulary(learning_mcp):
+    mcp_url, database = learning_mcp
+    model, inputs, _ = controlled_writer(weak_once=True)
+    with job_client(database, mcp_url, model) as client:
+        prepare_known_words(client)
+        started = client.post("/api/text-generation/jobs", json={"length": "short"}).json()
+        job = wait_job(client, started["id"])
+        assert job["status"] == "completed", job
+        assert job["revision"] == 2
+        assert inputs[-1]["feedback"]["blocking_issues"][0]["criterion_id"] == "context_support"
+        assert "borrow" not in job["draft"]["paragraphs"][0]["text"]
+        assert job["analysis"]["insufficient_vocabulary"] == []
+
+
+def test_numeric_failure_cannot_be_overridden_by_successful_reviewers(learning_mcp):
+    mcp_url, database = learning_mcp
+    model, _, _ = controlled_writer(too_many_unknown=True)
+    with job_client(database, mcp_url, model) as client:
+        prepare_known_words(client, borrow_score=0)
+        before = len(client.get("/api/materials").json())
+        started = client.post("/api/text-generation/jobs", json={"length": "short"}).json()
+        job = wait_job(client, started["id"])
+        assert job["status"] == "needs_changes", job
+        assert job["revision"] == 10
+        assert "10 попыток" in job["error"]
+        assert job["result_material_id"] is None
+        assert client.get(f"/api/text-generation/jobs/{job['id']}").status_code == 404
+        assert len(client.get("/api/materials").json()) == before
+
+
+def test_cancelled_writer_cannot_publish_and_leaves_no_job_after_restart(learning_mcp):
+    import asyncio
+    from threading import Event
+
+    mcp_url, database = learning_mcp
+    entered = Event()
+
+    async def respond(messages, info):
+        entered.set()
+        await asyncio.sleep(60)
+        return ModelResponse(
+            parts=[
+                ToolCallPart(
+                    info.output_tools[0].name,
+                    {
+                        "kind": "draft",
+                        "title": "Books",
+                        "paragraphs": [{"text": "We read books. " * 50}],
+                    },
+                )
+            ]
+        )
+
+    with job_client(database, mcp_url, FunctionModel(respond)) as client:
+        prepare_known_words(client)
+        before = len(client.get("/api/materials").json())
+        started = client.post("/api/text-generation/jobs", json={"length": "short"})
+        assert started.status_code == 202, started.text
+        identity = started.json()["id"]
+        assert entered.wait(3)
+        stopped = client.delete(f"/api/text-generation/jobs/{identity}")
+        assert stopped.json()["status"] == "cancelled"
+        time.sleep(0.03)
+        assert client.get(f"/api/text-generation/jobs/{identity}").status_code == 404
+        assert len(client.get("/api/materials").json()) == before
+    model, _, _ = controlled_writer()
+    with job_client(database, mcp_url, model) as restarted:
+        assert restarted.get(f"/api/text-generation/jobs/{identity}").status_code == 404
+        retry = restarted.post("/api/text-generation/jobs", json={"length": "short"})
+        assert retry.status_code == 202
+        assert retry.json()["id"] != identity
+        result = wait_job(restarted, retry.json()["id"])
+        assert result["status"] == "completed", result
+
+
+def test_profile_change_is_rechecked_before_a_text_can_be_saved(learning_mcp):
+    import asyncio
+    from threading import Event
+
+    mcp_url, database = learning_mcp
+    model, _, _ = controlled_writer(too_many_unknown=True)
+    entered, release = Event(), Event()
+    respond = model.function
+    assert respond is not None
+
+    async def paused(messages, info):
+        payload = prompt_payload(
+            next(
+                part.content
+                for message in reversed(messages)
+                for part in message.parts
+                if isinstance(part, UserPromptPart)
+            )
+        )
+        if "insufficient_vocabulary" in payload and not entered.is_set():
+            entered.set()
+            while not release.is_set():
+                await asyncio.sleep(0.01)
+        return respond(messages, info)
+
+    with job_client(database, mcp_url, FunctionModel(paused)) as client:
+        prepare_known_words(client, borrow_score=1)
+        borrow = next(
+            entry for entry in client.get("/api/dictionary").json() if entry["lemma"] == "borrow"
+        )
+        started = client.post("/api/text-generation/jobs", json={"length": "short"}).json()
+        assert entered.wait(3)
+        changed = client.put(f"/api/lexemes/{borrow['lexeme_id']}/knowledge", json={"score": 0})
+        assert changed.status_code == 200
+        revision = client.get("/api/profile").json()["revision"]
+        release.set()
+        job = wait_job(client, started["id"])
+        assert job["status"] == "needs_changes", job
+        assert job["result_material_id"] is None
+        assert client.get("/api/profile").json()["revision"] == revision
+        assert client.get(f"/api/text-generation/jobs/{job['id']}").status_code == 404
+        assert not any(
+            item["source"] == "generated" for item in client.get("/api/materials").json()
+        )
+
+
+def test_numeric_revision_retains_unresolved_context_advice_without_reusing_approval(learning_mcp):
+    mcp_url, database = learning_mcp
+    base, inputs, _ = controlled_writer(weak_once=True)
+    assert base.function is not None
+
+    def respond(messages, info):
+        payload = prompt_payload(next(part.content for message in reversed(messages)
+                                  for part in message.parts if isinstance(part, UserPromptPart)))
+        result = base.function(messages, info)
+        if 'profile' in payload and len(inputs) == 2:
+            return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {
+                'kind': 'draft', 'title': 'Books',
+                'paragraphs': [{'text': 'We read books. ' * 180 + 'We borrow books.'}],
+            })])
+        if 'profile' in payload and len(inputs) == 3:
+            advice = payload['feedback']['earlier_semantic_issues']
+            assert advice[0]['from_revision'] == 1
+            assert advice[0]['criterion_id'] == 'context_support'
+            assert advice[0]['repair_instructions']
+            assert payload['feedback']['blocking_issues'][0]['criterion_id'] == 'length'
+        return result
+
+    with job_client(database, mcp_url, FunctionModel(respond)) as client:
+        prepare_known_words(client)
+        start = client.post('/api/text-generation/jobs', json={'length': 'short'}).json()
+        job = wait_job(client, start['id'])
+        assert job['status'] == 'completed', job
+        assert job['revision'] == 3
+        assert job['feedback']['context_review']['revision'] == 3
+        assert job['feedback']['earlier_semantic_issues'] == []
+
+
+@pytest.mark.parametrize("completion_version", [5, 10])
+def test_writer_can_complete_on_later_version_with_full_dialogue(
+    learning_mcp, completion_version,
+):
+    mcp_url, database = learning_mcp
+    base, inputs, _ = controlled_writer(weak_always=True)
+    assert base.function is not None
+
+    def respond(messages, info):
+        payload = prompt_payload(next(part.content for message in reversed(messages)
+                                  for part in message.parts if isinstance(part, UserPromptPart)))
+        if 'profile' in payload:
+            earlier_drafts = [p for m in messages for p in m.parts
+                              if isinstance(p, ToolCallPart)
+                              and p.args_as_dict().get('kind') == 'draft']
+            assert len(earlier_drafts) == len(inputs)
+        response = base.function(messages, info)
+        if 'profile' in payload and len(inputs) == completion_version:
+            return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {
+                'kind': 'draft', 'title': 'Books', 'paragraphs': [{
+                    'text': 'We read books. ' * 49 + 'We borrow books. We return books.',
+                }],
+            })])
+        if 'review_keys' in payload and len(inputs) == completion_version:
+            args = response.parts[0].args_as_dict()
+            for check in args['context_checks'].values():
+                check['context_status'] = 'clear'
+                check['explanation'] = 'Возврат книги раскрывает временное пользование.'
+                check['evidence'] = evidence_keys(payload, [{'quote': 'We return books.'}])
+                check['repair_instructions'] = None
+            return ModelResponse(parts=[ToolCallPart(response.parts[0].tool_name, args)])
+        return response
+
+    with job_client(database, mcp_url, FunctionModel(respond)) as client:
+        prepare_known_words(client)
+        mark_vocabulary(client, 'We return books.', {'return': 2})
+        before = len(client.get('/api/materials').json())
+        started = client.post('/api/text-generation/jobs', json={'length': 'short'}).json()
+        job = wait_job(client, started['id'])
+        assert job['status'] == 'completed', job
+        assert job['revision'] == completion_version
+        assert len(inputs) == completion_version
+        assert len(client.get('/api/materials').json()) == before + 1
+
+
+@pytest.mark.parametrize("always_invalid", [False, True])
+def test_invalid_response_retries_once_inside_same_job_without_failure_history(
+    learning_mcp, always_invalid,
+):
+    from pydantic_ai.exceptions import UnexpectedModelBehavior
+
+    mcp_url, database = learning_mcp
+    model, writer_inputs, _ = controlled_writer()
+    respond = model.function
+    calls = 0
+
+    def invalid_first(messages, info):
+        nonlocal calls
+        calls += 1
+        if always_invalid or calls == 1:
+            raise UnexpectedModelBehavior("Invalid structured response")
+        return respond(messages, info)
+
+    with job_client(database, mcp_url, FunctionModel(invalid_first)) as client:
+        prepare_known_words(client)
+        started = client.post("/api/text-generation/jobs", json={"length": "short"}).json()
+        result = wait_job(client, started["id"])
+        assert result["status"] == ("failed" if always_invalid else "completed"), result
+        if always_invalid:
+            assert calls == 2
+            assert client.get(f"/api/text-generation/jobs/{started['id']}").status_code == 404
+            # wait_job already consumed the only transient error notification.
+            listing = client.get("/api/text-generation/jobs")
+            assert listing.json() == {"jobs": [], "error_event": None}
+            assert listing.headers["cache-control"] == "no-store"
+        else:
+            assert len(writer_inputs) == 1
+            assert result["revision"] == 1
+            assert client.get("/api/text-generation/jobs").json()["jobs"][0]["id"] == started["id"]
+        with client.app.state.materials.connect() as db:
+            rows = db.execute("SELECT id,status FROM text_generation_jobs").fetchall()
+            assert [(r["id"], r["status"]) for r in rows] == (
+                [] if always_invalid else [(started["id"], "completed")]
+            )
+            if always_invalid:
+                assert db.execute("SELECT count(*) FROM text_generation_drafts").fetchone()[0] == 0
+        assert len([m for m in client.get("/api/materials").json()
+                    if m["source"] == "generated"]) == (0 if always_invalid else 1)
+
+
+def test_restart_removes_legacy_failures_and_drafts_preserving_completed_material(learning_mcp):
+    mcp_url, database = learning_mcp
+    model, _, _ = controlled_writer()
+    with job_client(database, mcp_url, model) as client:
+        prepare_known_words(client)
+        completed = client.post("/api/text-generation/jobs", json={"length": "short"}).json()
+        completed = wait_job(client, completed["id"])
+        assert completed["status"] == "completed", completed
+        library = client.app.state.materials
+        with library.connect() as db:
+            original = dict(db.execute("SELECT * FROM text_generation_jobs WHERE id=?",
+                                       (completed["id"],)).fetchone())
+            for status in ("failed", "needs_changes", "cancelled", "interrupted", "writing"):
+                legacy = {**original, "id": "legacy-" + status, "status": status,
+                          "result_material_id": None}
+                db.execute("INSERT INTO text_generation_jobs (" + ",".join(legacy)
+                           + ") VALUES (" + ",".join("?" for _ in legacy) + ")",
+                           tuple(legacy.values()))
+                db.execute("INSERT INTO text_generation_drafts "
+                           "SELECT ?,revision,draft_json,analysis_json,context_json,"
+                           "requirements_json,created_at FROM text_generation_drafts "
+                           "WHERE job_id=?",
+                           (legacy["id"], completed["id"]))
+    with job_client(database, mcp_url, model) as restarted:
+        assert restarted.get("/api/text-generation/jobs").json() == {
+            "jobs": [], "error_event": None,
+        }
+        assert restarted.get(f"/api/materials/{completed['result_material_id']}").status_code == 200
+        with restarted.app.state.materials.connect() as db:
+            assert db.execute("SELECT count(*) FROM text_generation_jobs").fetchone()[0] == 1
+            assert db.execute("SELECT count(*) FROM text_generation_drafts "
+                              "WHERE job_id<>?", (completed["id"],)).fetchone()[0] == 0
+
+
+def test_too_easy_text_is_revised_in_one_dialogue_before_publication(learning_mcp):
+    mcp_url, database = learning_mcp
+    model, writer_inputs, _ = controlled_writer()
+    respond = model.function
+    history_seen = []
+
+    def revise(messages, info):
+        payload = prompt_payload(next(
+            p.content for m in reversed(messages) for p in m.parts
+            if isinstance(p, UserPromptPart)
+        ))
+        if "profile" in payload:
+            previous_drafts = [
+                p.args_as_dict() for m in messages for p in m.parts
+                if isinstance(p, ToolCallPart) and p.args_as_dict().get("kind") == "draft"
+            ]
+            history_seen.append(previous_drafts)
+            result = respond(messages, info)
+            if payload["feedback"]:
+                issue = next(i for i in payload["feedback"]["blocking_issues"]
+                             if i["criterion_id"] == "new_ratio")
+                assert issue["actual"] < issue["minimum"]
+                assert "канву" in issue["repair_instructions"]
+                return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {
+                    "kind": "draft", "title": "Books",
+                    "paragraphs": [{"text": "We read books. " * 45 + "We borrow books. " * 5}],
+                })])
+            return result
+        return respond(messages, info)
+
+    with job_client(database, mcp_url, FunctionModel(revise)) as client:
+        prepare_known_words(client, borrow_score=0)
+        started = client.post("/api/text-generation/jobs", json={
+            "length": "short", "difficulty": "normal",
+        }).json()
+        job = wait_job(client, started["id"])
+        assert job["status"] == "completed", job
+        assert job["revision"] == 2
+        assert history_seen[0] == []
+        assert len(history_seen[1]) == 1
+        assert history_seen[1][0]["paragraphs"][0]["text"] == (
+            "We read books. " * 49 + "We borrow books."
+        )
+        assert job["analysis"]["constraints"]["policy_version"] == "generation-lexical-v3"
+        assert 0.02 <= job["analysis"]["metrics"]["new_or_unassessed_ratio"] <= 0.04
+        with client.app.state.materials.connect() as db:
+            assert db.execute("SELECT count(*) FROM materials WHERE generation_job_id=?",
+                              (started["id"],)).fetchone()[0] == 1
+
+
+def test_numeric_and_context_repairs_arrive_together_for_second_version(learning_mcp):
+    mcp_url, database = learning_mcp
+    base, inputs, _ = controlled_writer(weak_once=True)
+    respond = base.function
+
+    def combined(messages, info):
+        payload = prompt_payload(next(p.content for m in reversed(messages) for p in m.parts
+                                      if isinstance(p, UserPromptPart)))
+        result = respond(messages, info)
+        if "profile" in payload and len(inputs) == 2:
+            kinds = {i["criterion_id"] for i in payload["feedback"]["blocking_issues"]}
+            assert {"new_ratio", "context_support"} <= kinds
+            assert payload["feedback"]["earlier_semantic_issues"] == []
+            return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {
+                "kind": "draft", "title": "Books",
+                "paragraphs": [{"text": "We read books. " * 45 + "We borrow books. " * 5}],
+            })])
+        return result
+
+    with job_client(database, mcp_url, FunctionModel(combined)) as client:
+        prepare_known_words(client, borrow_score=0)
+        started = client.post("/api/text-generation/jobs", json={
+            "length": "short", "difficulty": "normal",
+        }).json()
+        result = wait_job(client, started["id"])
+        assert result["status"] == "completed", result
+        assert result["revision"] == 2

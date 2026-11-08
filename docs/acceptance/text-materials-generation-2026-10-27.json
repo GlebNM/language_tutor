@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-27",
+  "timezone": "Europe/Moscow",
+  "source_commit": "cd5cdce2ca8daacdd47f48dc0943a87ebf433c80",
+  "checks": {
+    "backend": {
+      "passed": 260,
+      "seconds": 110.9
+    },
+    "web": {
+      "passed": 42
+    },
+    "typescript": "passed",
+    "production_build": "passed",
+    "ruff": "passed",
+    "mypy": {
+      "passed": true,
+      "files": 49
+    }
+  },
+  "review": {
+    "standards": "Self review completed; no subagents used. Pinned output APIs and canonical source binding checked.",
+    "spec": "Self review completed; all occurrences required, literal evidence validated, stale advice never approves new revisions, numeric policy and four settings preserved."
+  },
+  "live_subscription": {
+    "success": true,
+    "model": "gpt-6-luna",
+    "reasoning_effort": "medium",
+    "duration_seconds": 49.96,
+    "revision": 2,
+    "word_count": 166,
+    "learning_ratio": 0.0,
+    "new_or_unassessed_ratio": 0.012269938650306749,
+    "reviews_passed": true,
+    "automatic_save": true,
+    "idempotent_result": true,
+    "protocol": "text-generation-live-2026-10-27.json"
+  },
+  "compose": {
+    "app": "healthy",
+    "mcp": "healthy",
+    "health": "ok",
+    "url": "http://127.0.0.1:18765"
+  },
+  "acceptance": {
+    "A66-A79": "passed; combines prior API/browser/MCP checks with final real subscription run"
+  },
+  "supersedes": "text-materials-generation-2026-10-26.json"
+}

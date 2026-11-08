@@ -16,10 +16,10 @@ import jwt
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
-from openai import AsyncOpenAI
+from openai import APIConnectionError, APITimeoutError, AsyncOpenAI
 from openai.types.shared.reasoning_effort import ReasoningEffort
 from pydantic import BaseModel
-from pydantic_ai.exceptions import ModelHTTPError, UsageLimitExceeded
+from pydantic_ai.exceptions import ModelHTTPError, UnexpectedModelBehavior, UsageLimitExceeded
 from pydantic_ai.models import Model
 from pydantic_ai.providers.openai import OpenAIProvider
 
@@ -31,12 +31,22 @@ from .siwc import DIRECT_SCOPE, SIWCOAuthFlow, SubscriptionError, TokenManager
 from .siwc_model import SIWCTransport, siwc_model
 from .storage import CredentialStore
 
+logger = logging.getLogger(__name__)
+
 RunOutput = TypeVar("RunOutput")
 logger = logging.getLogger(__name__)
 _SDK_REASONING_LITERAL = next(
     value for value in get_args(ReasoningEffort) if get_origin(value) is Literal
 )
 SUPPORTED_REASONING_EFFORTS = frozenset(get_args(_SDK_REASONING_LITERAL))
+
+
+class AIBudgetExceeded(HTTPException):
+    """An application time or request budget ended a subscription operation."""
+
+
+class AIResponseError(HTTPException):
+    """A structured model response could not be accepted after its repair attempts."""
 
 
 class CatalogModel(TypedDict):
@@ -81,6 +91,7 @@ def normalize_model_catalog(raw_models: object) -> list[CatalogModel]:
             }
         )
     return result
+
 
 OAuthFailureCategory = Literal[
     "provider",
@@ -424,6 +435,7 @@ class ConnectionService:
         operation: Callable[[Model], Awaitable[RunOutput]],
         *,
         settings: AISettings | None = None,
+        timeout_seconds: float = 30.0,
     ) -> RunOutput:
         """Run with the selected provider and a settings snapshot for the whole operation."""
 
@@ -432,7 +444,7 @@ class ConnectionService:
         snapshot = (settings or self.settings_store.read()).effective()
 
         async def connected() -> RunOutput:
-            async with asyncio.timeout(30):
+            async with asyncio.timeout(timeout_seconds):
                 if snapshot.temporary_model:
                     async with ollama_model() as temporary:
                         return await operation(temporary)
@@ -471,14 +483,29 @@ class ConnectionService:
                     503, "Ollama Cloud временно недоступна. Повторите запрос."
                 ) from None
             raise self.provider_failure(error) from None
-        except TimeoutError:
-            logger.warning("ai_operation_failed model=%s error_type=TimeoutError", snapshot.model)
-            raise HTTPException(504, "AI не ответил за 30 секунд. Повторите запрос.") from None
-        except UsageLimitExceeded:
-            logger.warning(
-                "ai_operation_failed model=%s error_type=UsageLimitExceeded", snapshot.model
-            )
+        except APITimeoutError as error:
+            logger.warning("AI operation failed: %s", type(error).__name__)
+            raise AIBudgetExceeded(
+                504, "Истекло время ожидания ответа модели. Повторите запрос."
+            ) from None
+        except APIConnectionError as error:
+            logger.warning("AI operation failed: %s", type(error).__name__)
             raise HTTPException(
+                503, "Не удалось соединиться с AI. Проверьте подключение и повторите запрос."
+            ) from None
+        except UnexpectedModelBehavior as error:
+            logger.warning(
+                "ai_operation_failed model=%s error_type=%s", snapshot.model, type(error).__name__
+            )
+            raise AIResponseError(
+                502, "Не удалось получить полный ответ модели после повторной проверки."
+            ) from None
+        except TimeoutError:
+            raise AIBudgetExceeded(
+                504, f"AI не ответил за {timeout_seconds:g} секунд. Повторите запрос."
+            ) from None
+        except UsageLimitExceeded:
+            raise AIBudgetExceeded(
                 422, "AI достиг ограничения числа раундов. Уточните вопрос и повторите запрос."
             ) from None
         except asyncio.CancelledError:

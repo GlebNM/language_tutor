@@ -176,31 +176,55 @@ class LearningService:
             )
             context = self.context.subtitle_context(selection.material_id, selection.cue_id)
         profile = self.library.get_profile()
+        cache_context = {
+            "selection": selected,
+            "profile": profile,
+            "prompt": PROMPT_VERSION,
+            "model": settings.model,
+            "reasoning_effort": settings.reasoning_effort,
+            "context": context,
+        }
         cache_key = hashlib.sha256(
             json.dumps(
-                {
-                    "selection": selected,
-                    "profile": profile,
-                    "prompt": PROMPT_VERSION,
-                    "model": settings.model,
-                    "reasoning_effort": settings.reasoning_effort,
-                    "context": context,
-                },
+                cache_context,
                 sort_keys=True,
                 ensure_ascii=False,
             ).encode()
         ).hexdigest()
         lock = self.locks.setdefault("card:" + cache_key, asyncio.Lock())
         async with lock:
+            legacy_hit = False
             with self.library.connect() as db:
                 cached = db.execute(
                     "SELECT result_json FROM contextual_cards WHERE cache_key=?",
                     (cache_key,),
                 ).fetchone()
+                # Before text materials, video cache inputs lacked these additive fields.
+                # Keep every original input in the fallback, including profile and settings.
+                if cached is None and selected.get("kind") == "video":
+                    legacy_context = {
+                        **cache_context,
+                        "selection": {key: value for key, value in selected.items()
+                                      if key not in {"kind", "block_id"}},
+                        "context": {**context, "cues": [
+                            {key: value for key, value in cue.items()
+                             if key not in {"kind", "block_id", "material_url"}}
+                            for cue in context["cues"]
+                        ]},
+                    }
+                    legacy_key = hashlib.sha256(json.dumps(
+                        legacy_context, sort_keys=True, ensure_ascii=False,
+                    ).encode()).hexdigest()
+                    cached = db.execute(
+                        "SELECT result_json FROM contextual_cards WHERE cache_key=?",
+                        (legacy_key,),
+                    ).fetchone()
+                    legacy_hit = cached is not None
             request_id = str(uuid4())
             if cached and not selection.force_refresh:
                 result = json.loads(cached["result_json"])
                 result.update(
+                    selection=selected,
                     request_id=request_id,
                     cached=True,
                     tools=[],
@@ -210,6 +234,11 @@ class LearningService:
                 with self.library.connect() as db:
                     db.execute("BEGIN IMMEDIATE")
                     self.ensure_generation(profile, db)
+                    if legacy_hit:
+                        db.execute(
+                            "INSERT OR REPLACE INTO contextual_cards VALUES(?,?,?)",
+                            (cache_key, json.dumps(result, ensure_ascii=False), now()),
+                        )
                     self.record_translation(db, selected, result)
                 return dict(result)
             deps = LearningRun(

@@ -1,0 +1,157 @@
+{
+  "date": "2026-11-08",
+  "timezone": "Europe/Moscow",
+  "scope": "Read-only production inspection and isolated replays; no application fix or deployment",
+  "production": {
+    "origin": "https://199.195.193.65",
+    "hostname": "379311.fornex.cloud",
+    "deployed_revision": "c2f7e7994199bfd8768e6b9693e20e509a258ad1",
+    "revision_marker": "/opt/language-tutor/DEPLOYED_REVISION",
+    "pydantic_ai_version": "2.57.0",
+    "effective_model": "gemma4:31b",
+    "reasoning_effort": null,
+    "provider": "Ollama Cloud",
+    "temporary_model_enabled": true,
+    "public_health_http_status": 200,
+    "public_health_body": {"status": "ok"},
+    "containers": {
+      "app": {"healthy": true, "started_at_utc": "2026-10-27T15:11:54.321428071Z", "restart_count": 0, "oom_killed": false},
+      "mcp": {"healthy": true, "started_at_utc": "2026-10-27T15:11:48.460072488Z", "restart_count": 0, "oom_killed": false},
+      "proxy": {"running": true, "started_at_utc": "2026-10-27T12:53:21.645338685Z", "restart_count": 0, "oom_killed": false}
+    },
+    "files_verified_equal_between_checkout_server_and_container": {
+      "backend/app/main.py": "79c53d0890006b9daf8c81d4b02ba5611f790aa123296197b327979095342026",
+      "backend/app/agents/learning.py": "d312120822d7786b7034ddb17e12dfeeba7c055ed9dc607593b12c6d295103e9",
+      "backend/app/ai_connection/ollama.py": "cabd6c9ed9103a7c14f322dc4c6112024c32db08abe5ec860c462d0bd272158d"
+    }
+  },
+  "generation": {
+    "finding": "The deployed revision contains typed generation agents, but omits the background service, HTTP routes and generation UI implemented on a separate local integration branch.",
+    "deployed_missing_files": [
+      "backend/app/text_generation_jobs.py",
+      "apps/web/src/TextGeneration.tsx"
+    ],
+    "registered_generation_routes": [],
+    "isolated_learner_api_probe": {
+      "method": "GET",
+      "path": "/api/text-generation/settings",
+      "http_status": 404,
+      "application_code": "Production container; temporary cloned learning database; learner API called through ASGI"
+    },
+    "complete_implementation_branch": "codex/text-materials-integration",
+    "complete_implementation_revision": "ce54ecc8f72dc755cc842b59bdaa6b911b3002bc",
+    "branch_contains_missing_service_routes_and_ui": true,
+    "service_introduction_commit": "a663445",
+    "service_introduction_commit_is_ancestor_of_deployed_revision": false,
+    "remote_integration_branch_present_at_inspection": false,
+    "related_closed_issue": "https://github.com/GlebNM/language_tutor/issues/29",
+    "historical_acceptance_models": ["gpt-6-luna/medium", "gpt-6-sol/medium"],
+    "historical_acceptance_document": "docs/acceptance/text-generation-model-comparison-2026-10-27.md",
+    "interpretation": "Completion and acceptance on the local integration branch were not followed by inclusion of that branch in the production revision. Existing live-generation evidence does not establish availability or compatibility with the temporary production model."
+  },
+  "word_discussion": {
+    "production_request_id": "301edef9-6a4a-42ad-91c7-ad515689c5f2",
+    "stored_message_status": "failed",
+    "stored_message_has_response": false,
+    "original_production_failures": [
+      {
+        "at_utc": "2026-11-08T17:03:11.182423410Z",
+        "at_moscow": "2026-11-08T20:03:11+03:00",
+        "model": "gemma4:31b",
+        "error_type": "UnexpectedModelBehavior",
+        "preceding_mcp_tool": "get_practice_context",
+        "mcp_success": true,
+        "mcp_duration_ms": 5094
+      },
+      {
+        "at_utc": "2026-11-08T17:03:56.758926804Z",
+        "at_moscow": "2026-11-08T20:03:56+03:00",
+        "model": "gemma4:31b",
+        "error_type": "UnexpectedModelBehavior",
+        "preceding_mcp_tool": "get_practice_context",
+        "mcp_success": true,
+        "mcp_duration_ms": 192
+      }
+    ],
+    "reproduced_failure_chain": [
+      "get_practice_context succeeds and supplies vocabulary and material metadata, without registering subtitle citation sources.",
+      "The model answers without requesting the selected subtitle through an MCP tool and supplies an unverified citation identifier.",
+      "In the inspected controlled runs the returned identifier equals selection.cue_id, while verified citations use material_id:cue_id.",
+      "The output validator rejects the identifier: Укажи только citation_id, полученные через MCP в этом запуске.",
+      "One output correction is exhausted and Pydantic AI raises UnexpectedModelBehavior: Exceeded maximum output retries (1).",
+      "ConnectionService.execute catches the exception and returns HTTP 503 with a generic AI/MCP message."
+    ],
+    "replays": [
+      {
+        "case": "Original stored request, production run_chat, streaming path",
+        "attempts": 3,
+        "failures": 3,
+        "error_type": "UnexpectedModelBehavior",
+        "cause": "Unverified citation_id; maximum output retries exhausted"
+      },
+      {
+        "case": "Original stored request through POST /api/conversations/{id}/messages",
+        "isolation": "Temporary SQLite backup; production code and real model; real read-only MCP access to the existing learning context",
+        "attempts": 2,
+        "http_statuses": [503, 503],
+        "response_detail": "Не удалось завершить запрос AI и MCP. Повторите запрос.",
+        "validation_retry": "Укажи только citation_id, полученные через MCP в этом запуске.",
+        "mcp_success": true,
+        "mcp_durations_ms": [179, 156],
+        "red_assertion": "Saved word-discussion request must return HTTP 200",
+        "assertion_passed": false
+      },
+      {
+        "case": "Shortened generic explanation request",
+        "attempts": 2,
+        "successes": 2,
+        "note": "Removing the original request wording removed the citation failure. One run corrected a separate suggested_topics array validation error."
+      },
+      {
+        "case": "Original request with explicit instruction to return no citations",
+        "attempts": 2,
+        "successes": 2,
+        "model_requests_per_attempt": [1, 1],
+        "note": "Diagnostic control only; this does not verify the required citation scenario."
+      },
+      {
+        "case": "Selected subtitle fetched through MCP and registered as a source before inference, without exposing its citation_id in the prompt",
+        "attempts": 2,
+        "failures": 2,
+        "returned_citation_equals_cue_id": true,
+        "returned_citation_is_registered": false,
+        "note": "Populating the source registry alone did not correct the model's identifier."
+      },
+      {
+        "case": "Selected subtitle fetched through MCP, registered as a source, and its confirmed citation_id explicitly supplied in the diagnostic prompt",
+        "attempts": 2,
+        "successes": 2,
+        "model_requests_per_attempt": [1, 1],
+        "durations_seconds": [3.004, 1.694],
+        "returned_citation_is_registered": true,
+        "returned_citation_format": "material_id:cue_id",
+        "output_validator_enabled": true
+      }
+    ],
+    "code_locations": {
+      "citation_validator": "backend/app/agents/learning.py:350",
+      "mandatory_context_prefetch": "backend/app/agents/learning.py:358",
+      "citation_identifier_construction": "backend/app/learning_context.py:74",
+      "generic_error_mapping": "backend/app/ai_connection/service.py:491"
+    }
+  },
+  "limitations": [
+    "Original production logs record the exception class, without the nested validation reason. The citation reason is established by repeated replays of the saved failed request, including the actual HTTP handler.",
+    "The successful confirmed-citation probe is a temporary diagnostic intervention. It is not an implemented or deployed fix, a regression test, or full linguistic quality acceptance.",
+    "The complete generation integration branch was inspected but not integrated, deployed or retested against gemma4:31b."
+  ],
+  "recommended_follow_up": [
+    "Integrate the complete generation branch while preserving the deployed diagnostic fixes; verify all required files and routes before deployment.",
+    "Fetch the selected subtitle through real MCP before inference, register the returned sources and explicitly expose their confirmed citation_id values to the learning agent.",
+    "Keep citation validation and include actionable allowed-source information when requesting output correction.",
+    "Add a regression covering cue_id mistakenly returned as citation_id and a request that asks for examples from the selected material.",
+    "Record sanitized validation stage and request_id in failure logs so provider, output-validation and MCP transport failures are distinguishable.",
+    "After committing, pushing and verifying the remote revision, deploy that revision and repeat generation and word-discussion acceptance with the actual production model."
+  ],
+  "redaction": "No API keys, passwords, MCP bearer tokens, account IDs, private message text or full provider payloads are included."
+}

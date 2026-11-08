@@ -56,6 +56,83 @@ def test_assessment_uses_current_familiarity_without_registering_draft_words(tmp
         assert client.get("/api/dictionary").json() == before
 
 
+def test_writer_profile_keeps_manually_saved_fillers_consistent_with_assessment(tmp_path):
+    with client_for(tmp_path / "learning.sqlite3") as client:
+        mark_vocabulary(client, "Hmm, we read books.", {
+            "hmm": 3, "we": 3, "read": 2, "book": 2,
+        })
+        profile = client.get("/api/text-generation/profile").json()
+        assert any(word["lemma"] == "hmm" and word["source"] == "manual"
+                   for word in profile["known_examples"])
+        assessment = client.post("/api/text-generation/assess", json={
+            "settings": {"length": "short"},
+            "draft": {"title": "Books", "paragraphs": [{"text": "Hmm, we read books. " * 40}]},
+        }).json()
+        assert assessment["metrics"]["known_tokens"] == 161
+        assert assessment["metrics"]["counted_tokens"] == 161
+
+
+def test_writer_profile_explains_prior_coverage_and_sample_access(tmp_path):
+    with client_for(tmp_path / "learning.sqlite3") as client:
+        profile = client.get("/api/text-generation/profile").json()
+        assert [(band["min_rank"], band["max_rank"], band["default_score"])
+                for band in profile["prior_bands"]] == [
+            (1, 1000, 2), (1001, 3000, 2), (3001, 6000, 2),
+        ]
+        assert profile["counts_scope"] == "saved_entries_only"
+        assert profile["vocabulary_access"] == {
+            "examples_scope": "sample",
+            "page_tool": "list_generation_vocabulary",
+            "word_tool": "get_generation_word_knowledge",
+            "draft_tool": "check_text_difficulty",
+        }
+
+
+@pytest.mark.parametrize("category", ["known", "learning"])
+@pytest.mark.parametrize("word_count", [8, 120])
+def test_job_vocabulary_samples_full_pool_with_stable_complete_pages(category, word_count):
+    from backend.app.diagnostic_data import frequency_ranks
+    from backend.app.knowledge import knowledge_value
+    from backend.app.text_generation_analysis import (
+        VocabularySnapshot,
+        build_writing_profile,
+        vocabulary_page,
+    )
+
+    words = {
+        (lemma, "NOUN"): knowledge_value(
+            (2 if category == "known" else 0) + index % 2, source="manual"
+        )
+        for index, lemma in enumerate(list(frequency_ranks())[:word_count])
+    }
+    words[("excluded", "NOUN")] = knowledge_value(0, ignored=True, source="manual")
+    snapshot = VocabularySnapshot("same-dictionary", 1, "storage", "en", words, frozenset())
+    profiles = [build_writing_profile(snapshot, sample_seed=seed)
+                for seed in ("job-a", "job-b")]
+    key = f"{category}_examples"
+    assert len(profiles[0][key]) == min(word_count, 40)
+    assert profiles[0][key] != profiles[1][key]
+    if word_count > 40:
+        assert {word["lemma"] for word in profiles[0][key]} != {
+            word["lemma"] for word in profiles[1][key]
+        }
+    assert profiles[0] == build_writing_profile(snapshot, sample_seed="job-a")
+
+    items = []
+    offset = 0
+    while offset is not None:
+        page = vocabulary_page(snapshot, category, offset=offset, limit=17,
+                               sample_seed="job-a")
+        items.extend(page["items"])
+        offset = page["next_offset"]
+    assert items[:40] == profiles[0][key]
+    assert len(items) == word_count
+    assert len({(word["lemma"], word["part_of_speech"]) for word in items}) == word_count
+    assert {word["lemma"] for word in items} == set(list(frequency_ranks())[:word_count])
+    assert all(word["score"] == snapshot.knowledge(word["lemma"], "NOUN")["score"]
+               for word in items)
+
+
 def measured_text(unfamiliar_count, different=False):
     nouns = ["stories", "letters", "novels", "poems", "papers", "notes"]
     sentences = [
@@ -67,23 +144,29 @@ def measured_text(unfamiliar_count, different=False):
 
 
 @pytest.mark.parametrize(("difficulty", "score", "count", "passes"), [
-    ("gentle", 0, 2, True), ("gentle", 0, 3, False),
-    ("normal", 0, 6, True), ("normal", 0, 7, False),
-    ("rich", 0, 10, True), ("rich", 0, 11, False),
-    ("gentle", 1, 8, True), ("gentle", 1, 9, False),
-    ("normal", 1, 14, True), ("normal", 1, 15, False),
-    ("rich", 1, 20, True), ("rich", 1, 21, False),
+    ("gentle", 0, 4, True), ("gentle", 0, 5, False),
+    ("normal", 0, 8, True), ("normal", 0, 9, False),
+    ("rich", 0, 12, True), ("rich", 0, 13, False),
+    ("gentle", 1, 10, True), ("gentle", 1, 11, False),
+    ("normal", 1, 16, True), ("normal", 1, 17, False),
+    ("rich", 1, 22, True), ("rich", 1, 23, False),
 ])
 def test_presets_compare_actual_occurrences_without_rounding(
     tmp_path, difficulty, score, count, passes,
 ):
     with client_for(tmp_path / "learning.sqlite3") as client:
-        mark_vocabulary(client, "We read books. We read puzzles.", {
-            "we": 3, "read": 2, "book": 2, "puzzle": score,
+        mark_vocabulary(client, "We read books. We read puzzles. We read novels.", {
+            "we": 3, "read": 2, "book": 2, "puzzle": score, "novel": 0,
         })
+        draft = measured_text(count)
+        if score == 1:
+            extra_u = {"gentle": 0, "normal": 6, "rich": 10}[difficulty]
+            draft["paragraphs"][0]["text"] = draft["paragraphs"][0]["text"].replace(
+                "We read books.", "We read novels.", extra_u,
+            )
         result = client.post("/api/text-generation/assess", json={
             "settings": {"length": "short", "difficulty": difficulty},
-            "draft": measured_text(count),
+            "draft": draft,
         })
         assert result.status_code == 200, result.text
         report = result.json()
@@ -126,3 +209,76 @@ def test_generation_rejects_removed_controls_and_empty_drafts(tmp_path):
         assert client.get("/api/text-generation/profile").json()[
             "profile_sufficiency"
         ] == "insufficient"
+
+
+def test_length_presets_accept_fifty_word_margin_but_reject_beyond_it(tmp_path):
+    cases = {
+        'short': [(99, False), (100, True), (250, True), (251, False)],
+        'medium': [(199, False), (200, True), (400, True), (401, False)],
+        'long': [(399, False), (400, True), (600, True), (601, False)],
+    }
+    with client_for(tmp_path / 'learning.sqlite3') as client:
+        mark_vocabulary(client, 'We read books.', {'book': 2})
+        for length, examples in cases.items():
+            for count, passes in examples:
+                report = client.post('/api/text-generation/assess', json={
+                    'settings': {'length': length},
+                    'draft': {'title': 'Books', 'paragraphs': [{'text': 'books ' * (count - 1)}]},
+                }).json()
+                assert report['metrics']['word_count'] == count
+                assert (report['status'] == 'pass') is passes, (length, count, report)
+
+
+@pytest.mark.parametrize(("difficulty", "count", "passes"), [
+    ("gentle", 0, True), ("gentle", 4, True), ("gentle", 5, False),
+    ("normal", 0, False), ("normal", 3, False), ("normal", 4, True),
+    ("normal", 6, True), ("normal", 8, True), ("normal", 9, False),
+    ("rich", 7, False), ("rich", 8, True), ("rich", 10, True),
+    ("rich", 12, True), ("rich", 13, False),
+])
+@pytest.mark.parametrize("score", [0, None])
+def test_unfamiliar_share_must_reach_the_preset_target_with_one_point_tolerance(
+    tmp_path, difficulty, count, passes, score,
+):
+    with client_for(tmp_path / "learning.sqlite3") as client:
+        mark_vocabulary(client, "We read books. We read puzzles.", {
+            "we": 3, "read": 2, "book": 2, "puzzle": score,
+        })
+        report = client.post("/api/text-generation/assess", json={
+            "settings": {"length": "short", "difficulty": difficulty},
+            "draft": measured_text(count),
+        }).json()
+        assert report["metrics"]["counted_tokens"] == 200
+        assert (report["status"] == "pass") is passes, report["violations"]
+        if not passes:
+            violation = next(v for v in report["violations"] if v["criterion_id"] == "new_ratio")
+            target = {"gentle": 1, "normal": 3, "rich": 5}[difficulty]
+            assert violation["actual"] == count / 200
+            assert violation["minimum"] == max(0, target - 1) / 100
+            assert violation["maximum"] == (target + 1) / 100
+            assert violation["repair_instructions"]
+
+
+def test_lower_bound_uses_exact_counts_and_learning_words_do_not_fill_u(tmp_path):
+    with client_for(tmp_path / "learning.sqlite3") as client:
+        mark_vocabulary(client, "We read books. We read puzzles.", {
+            "we": 3, "read": 2, "book": 2, "puzzle": 0,
+        })
+        draft = measured_text(4)
+        draft["paragraphs"][0]["text"] += " books."
+        report = client.post("/api/text-generation/assess", json={
+            "settings": {"length": "short", "difficulty": "normal"}, "draft": draft,
+        }).json()
+        assert report["metrics"]["counted_tokens"] == 201
+        assert round(report["metrics"]["new_or_unassessed_ratio"] * 100, 1) == 2.0
+        issue = next(v for v in report["violations"] if v["criterion_id"] == "new_ratio")
+        assert issue["minimum_occurrences"] == 5
+        assert issue["target_occurrences"] == 6
+        mark_vocabulary(client, "We read puzzles.", {"puzzle": 1})
+        report = client.post("/api/text-generation/assess", json={
+            "settings": {"length": "short", "difficulty": "normal"},
+            "draft": measured_text(6),
+        }).json()
+        assert report["metrics"]["learning_tokens"] == 6
+        assert report["metrics"]["new_or_unassessed_ratio"] == 0
+        assert any(v["criterion_id"] == "new_ratio" for v in report["violations"])

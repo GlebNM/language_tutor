@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import random
 from collections import Counter
 from dataclasses import dataclass
 from typing import Any, Literal
@@ -17,9 +18,11 @@ from backend.app.language import english_adapter
 from backend.app.materials import MaterialLibrary
 from backend.app.vocabulary import CALENDAR_NAMES, NAME_ENTITIES, sound_reason, vocabulary_value
 
-POLICY_VERSION = "generation-lexical-v1"
+POLICY_VERSION = "generation-lexical-v3"
 LENGTHS = {"short": (150, 200), "medium": (250, 350), "long": (450, 550)}
 LOAD_LIMITS = {"gentle": (4, 1), "normal": (7, 3), "rich": (10, 5)}
+WORD_TOLERANCE = 50
+LEXICAL_TOLERANCE_POINTS = 1
 
 
 class GenerationRequest(BaseModel):
@@ -41,10 +44,16 @@ class GenerationRequest(BaseModel):
         return {
             **self.model_dump(),
             "language": "en",
-            "min_words": low,
-            "max_words": high,
-            "learning_ratio_max": learning / 100,
-            "new_or_unassessed_ratio_max": unfamiliar / 100,
+            "preferred_min_words": low,
+            "preferred_max_words": high,
+            "min_words": low - WORD_TOLERANCE,
+            "max_words": high + WORD_TOLERANCE,
+            "word_tolerance": WORD_TOLERANCE,
+            "lexical_tolerance_points": LEXICAL_TOLERANCE_POINTS,
+            "learning_ratio_max": (learning + LEXICAL_TOLERANCE_POINTS) / 100,
+            "new_or_unassessed_ratio_target": unfamiliar / 100,
+            "new_or_unassessed_ratio_min": max(0, unfamiliar - LEXICAL_TOLERANCE_POINTS) / 100,
+            "new_or_unassessed_ratio_max": (unfamiliar + LEXICAL_TOLERANCE_POINTS) / 100,
             "policy_version": POLICY_VERSION,
             "required_criteria": ["coherence"]
             + (["topic"] if self.topic else [])
@@ -74,7 +83,7 @@ class DraftText(BaseModel):
 class CannotGenerate(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     kind: Literal["blocked"] = "blocked"
-    reason_code: str = Field(min_length=1, max_length=100)
+    reason_code: Literal["insufficient_profile", "conflicting_constraints", "cannot_generate"]
     explanation: str = Field(min_length=1, max_length=1500)
     conflicting_constraints: list[str] = Field(default_factory=list, max_length=12)
 
@@ -161,6 +170,7 @@ class VocabularySnapshot:
 def vocabulary_page(
     snapshot: VocabularySnapshot, category: Literal["known", "learning"], *,
     part_of_speech: str | None = None, offset: int = 0, limit: int = 30,
+    sample_seed: str | None = None,
 ) -> dict[str, Any]:
     if not 0 <= offset <= 100000 or not 1 <= limit <= 80:
         raise ValueError("Некорректная страница словаря.")
@@ -170,7 +180,7 @@ def vocabulary_page(
         for (lemma, pos), value in snapshot.words.items()
         if not value["ignored"] and value["score"] in wanted
         and (part_of_speech is None or pos == part_of_speech)
-        and sound_reason(lemma) is None
+        and vocabulary_value(sound_reason(lemma), value)["eligible"]
     ]
     if category == "known" and snapshot.prior_groups and part_of_speech is None:
         explicit_lemmas = {key[0] for key in snapshot.words}
@@ -181,29 +191,67 @@ def vocabulary_page(
     ranks = frequency_ranks()
     entries.sort(key=lambda item: (ranks.get(item["lemma"], 100000), item["lemma"],
                                    item["part_of_speech"] or ""))
+    if sample_seed is not None:
+        # Shuffle the full pool before slicing; a job seed keeps pagination repeatable.
+        random.Random(f"{sample_seed}:{category}").shuffle(entries)
     page = entries[offset:offset + limit]
     return {"snapshot_id": snapshot.snapshot_id, "items": page,
             "next_offset": offset + limit if offset + limit < len(entries) else None}
 
 
-def build_writing_profile(snapshot: VocabularySnapshot) -> dict[str, Any]:
+def build_writing_profile(
+    snapshot: VocabularySnapshot, *, sample_seed: str | None = None,
+) -> dict[str, Any]:
     counts = Counter(str(value["score"]) for value in snapshot.words.values()
                      if not value["ignored"])
     has_known = bool(counts["2"] + counts["3"])
+    rank_ranges = ((1, 1000), (1001, 3000), (3001, max(frequency_ranks().values())))
     return {
         "snapshot_id": snapshot.snapshot_id, "profile_revision": snapshot.profile_revision,
         "language": snapshot.language,
         "counts_by_score": {"unknown_0": counts["0"], "learning_1": counts["1"],
                             "recognizing_2": counts["2"], "confident_3": counts["3"],
                             "unassessed": counts["None"]},
+        "counts_scope": "saved_entries_only",
         "prior_bands": [{"group": group, "enabled": group in snapshot.prior_groups,
-                         "provisional": True} for group in (1, 2, 3)],
-        "known_examples": vocabulary_page(snapshot, "known", limit=40)["items"],
-        "learning_examples": vocabulary_page(snapshot, "learning", limit=40)["items"],
-        "expression_examples": [dict(e) for e in snapshot.expressions if not e["ignored"]][:20],
+                         "provisional": True, "default_score": 2,
+                         "min_rank": low, "max_rank": high}
+                        for group, (low, high) in enumerate(rank_ranges, start=1)],
+        "vocabulary_access": {"examples_scope": "sample",
+                              "page_tool": "list_generation_vocabulary",
+                              "word_tool": "get_generation_word_knowledge",
+                              "draft_tool": "check_text_difficulty"},
+        "known_examples": vocabulary_page(
+            snapshot, "known", limit=40, sample_seed=sample_seed,
+        )["items"],
+        "learning_examples": vocabulary_page(
+            snapshot, "learning", limit=40, sample_seed=sample_seed,
+        )["items"],
+        "expression_examples": expression_page(snapshot)["items"],
         "profile_sufficiency": "provisional" if snapshot.prior_groups else
                                "sufficient" if has_known else "insufficient",
-        "notice": "Предварительные оценки не подтверждают знание каждого слова; CEFR не выводится.",
+        "notice": "Примеры — выборка, а не весь словарь. Активные частотные правила дают "
+                  "предварительный score 2, если нет более приоритетной оценки. Проверка "
+                  "черновика уже учитывает эти правила. Они не подтверждают знание каждого "
+                  "слова; CEFR не выводится.",
+    }
+
+
+def expression_page(
+    snapshot: VocabularySnapshot, *, offset: int = 0, limit: int = 20,
+) -> dict[str, Any]:
+    """Share meaning metadata without source-derived explanations or examples."""
+    if not 0 <= offset <= 100000 or not 1 <= limit <= 30:
+        raise ValueError("Некорректная страница выражений.")
+    entries = [
+        {**{key: expression[key] for key in ("id", "canonical", "sense_key", "translation")},
+         "familiarity": {"score": expression["score"], "ignored": bool(expression["ignored"])}}
+        for expression in snapshot.expressions if not expression["ignored"]
+    ]
+    entries.sort(key=lambda item: (item["canonical"], item["sense_key"], item["id"]))
+    return {
+        "snapshot_id": snapshot.snapshot_id, "items": entries[offset:offset + limit],
+        "next_offset": offset + limit if offset + limit < len(entries) else None,
     }
 
 
@@ -278,20 +326,48 @@ def assess_draft(
     metrics.update(learning_ratio=learning / n if n else None,
                    new_or_unassessed_ratio=unfamiliar / n if n else None,
                    new_unique=sum(item["score"] in (0, None) for item in insufficient.values()))
-    low, high = LENGTHS[settings.length]
-    l_max, u_max = LOAD_LIMITS[settings.difficulty]
+    constraints = settings.constraints()
+    low, high = constraints["min_words"], constraints["max_words"]
+    nominal_learning, nominal_unfamiliar = LOAD_LIMITS[settings.difficulty]
+    l_max = nominal_learning + LEXICAL_TOLERANCE_POINTS
+    u_min = max(0, nominal_unfamiliar - LEXICAL_TOLERANCE_POINTS)
+    u_max = nominal_unfamiliar + LEXICAL_TOLERANCE_POINTS
     violations: list[dict[str, Any]] = []
     if not low <= counts["word_count"] <= high:
-        violations.append({"criterion_id": "length", "actual": counts["word_count"],
-                           "minimum": low, "maximum": high})
+        violations.append({
+            "criterion_id": "length", "actual": counts["word_count"],
+            "minimum": low, "maximum": high,
+            "repair_instructions": (
+                f"Длина {counts['word_count']} слов. Приведи текст к предпочтительным "
+                f"{constraints['preferred_min_words']}–{constraints['preferred_max_words']} словам "
+                "точечным сокращением или расширением, сохрани канву и подсказки к словам."
+            ),
+        })
     if not n:
         violations.append({"criterion_id": "empty_vocabulary", "actual": 0})
     if n and learning * 100 > n * l_max:
         violations.append({"criterion_id": "learning_ratio", "actual": learning / n,
                            "maximum": l_max / 100})
-    if n and unfamiliar * 100 > n * u_max:
-        violations.append({"criterion_id": "new_ratio", "actual": unfamiliar / n,
-                           "maximum": u_max / 100})
+    if n and not n * u_min <= unfamiliar * 100 <= n * u_max:
+        violations.append({
+            "criterion_id": "new_ratio", "actual": unfamiliar / n,
+            "minimum": u_min / 100, "maximum": u_max / 100,
+            "target": nominal_unfamiliar / 100,
+            "actual_occurrences": unfamiliar,
+            "minimum_occurrences": (n * u_min + 99) // 100,
+            "maximum_occurrences": n * u_max // 100,
+            "target_occurrences": (n * nominal_unfamiliar + 50) // 100,
+            "occurrence_delta": (n * nominal_unfamiliar + 50) // 100 - unfamiliar,
+            "repair_instructions": (
+                f"Доля U должна быть от {u_min}% до {u_max}% с целью {nominal_unfamiliar}%. "
+                + ("Найди места, где можно заменить простую фразу более сложным словом "
+                   "с понятной подсказкой; не меняй канву текста. "
+                   if unfamiliar * 100 < n * u_min else
+                   "Замени сложные слова знакомыми простыми синонимами или опиши их "
+                   "несколькими знакомыми словами; не меняй канву текста. ")
+                + "Учитывай все вхождения, включая повторы; знакомость не меняй."
+            ),
+        })
     profile = build_writing_profile(snapshot)
     if profile["profile_sufficiency"] == "insufficient":
         violations.append({"criterion_id": "insufficient_profile",

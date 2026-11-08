@@ -1,0 +1,82 @@
+{
+  "date": "2026-10-27",
+  "source_commit": "920277f5501ab88a19185d8be1c6c0ff631db810",
+  "issue": 31,
+  "policy_version": "generation-lexical-v2",
+  "max_versions": 5,
+  "preferred_lengths": {
+    "short": [
+      150,
+      200
+    ],
+    "medium": [
+      250,
+      350
+    ],
+    "long": [
+      450,
+      550
+    ]
+  },
+  "accepted_lengths": {
+    "short": [
+      100,
+      250
+    ],
+    "medium": [
+      200,
+      400
+    ],
+    "long": [
+      400,
+      600
+    ]
+  },
+  "accepted_L_U_percent": {
+    "gentle": [
+      5,
+      2
+    ],
+    "normal": [
+      8,
+      4
+    ],
+    "rich": [
+      11,
+      6
+    ]
+  },
+  "lower_lexical_quotas": false,
+  "operational_budgets": {
+    "seconds": 300,
+    "model_requests": 30,
+    "tool_attempts": 50
+  },
+  "checks": {
+    "backend": {
+      "passed": 262,
+      "seconds": 112.54
+    },
+    "web": {
+      "passed": 42
+    },
+    "typescript": "passed",
+    "production_build": "passed",
+    "ruff": "passed",
+    "mypy": {
+      "passed": true,
+      "files": 49
+    }
+  },
+  "regressions": [
+    "Exact ±50-word boundaries pass and one word beyond fails for every length.",
+    "L/U upper bounds include one percentage point and use exact integer comparisons.",
+    "A job passes both reviews and saves on version five after four context revisions through real MCP and a controlled external model."
+  ],
+  "deployment": {
+    "status": "updated",
+    "health": "ok",
+    "url": "http://127.0.0.1:18765"
+  },
+  "new_live_model_run": false
+}

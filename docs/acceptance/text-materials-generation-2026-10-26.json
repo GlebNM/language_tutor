@@ -1,0 +1,106 @@
+{
+  "date": "2026-10-26",
+  "scope": "Standalone web; F22/F23; A66–A79",
+  "integration_branch": "codex/text-materials-integration",
+  "checks": {
+    "backend": {
+      "passed": 254,
+      "seconds": 104.96
+    },
+    "web": {
+      "passed": 42
+    },
+    "typescript": "passed",
+    "production_build": "passed",
+    "ruff": "passed",
+    "mypy": {
+      "status": "passed",
+      "source_files": 49
+    }
+  },
+  "browser": {
+    "environment": "isolated synthetic account, real API and Streamable HTTP MCP, controlled external FunctionModel",
+    "manual_text": "passed",
+    "word_card": "passed",
+    "familiarity_reload": "passed",
+    "generation_four_settings": "passed",
+    "generation_revisions": 2,
+    "generated_material_saved_once": "passed",
+    "reading_position": {
+      "intra_paragraph_offset": 4193,
+      "word": "Anna",
+      "reopen": "passed",
+      "reload": "passed"
+    },
+    "mobile": {
+      "viewport": [
+        390,
+        844
+      ],
+      "document_width": 390,
+      "generation_dialog": "passed"
+    },
+    "txt_import": "passed; native file chooser, filename title, two paragraphs"
+  },
+  "review": {
+    "standards": "passed after manual vocabulary priority fix; rechecked",
+    "spec": "passed after legacy video card cache, reading offset and paginated expression tools fixes; rechecked"
+  },
+  "compose": {
+    "url": "http://127.0.0.1:18765",
+    "app": "healthy",
+    "mcp": "healthy",
+    "health": "ok",
+    "migration": {
+      "schema": 18,
+      "legacy": {
+        "from_schema": 15,
+        "unchanged_tables": 25,
+        "changed_tables": [],
+        "materials": 7,
+        "cues": 1540,
+        "lexemes": 1891,
+        "word_knowledge": 15,
+        "contextual_cards": 21,
+        "foreign_key_errors": 0
+      },
+      "account": {
+        "from_schema": 16,
+        "unchanged_tables": 30,
+        "changed_tables": [],
+        "materials": 7,
+        "cues": 1540,
+        "lexemes": 1936,
+        "word_knowledge": 84,
+        "contextual_cards": 34,
+        "expression_occurrences": 26,
+        "foreign_key_errors": 0
+      }
+    },
+    "dns_override": "/Users/glebnaumov/Documents/Study/language_tutor/.env.dns.compose.yaml"
+  },
+  "live_subscription": {
+    "status": "not_confirmed",
+    "latest_duration_seconds": 42.48,
+    "latest_result": "failed",
+    "real_model": "gpt-6-luna",
+    "reasoning_effort": "medium",
+    "real_mcp": true,
+    "material_published": false,
+    "earlier_numeric_drafts_and_both_reviews": "observed",
+    "protocol": "text-generation-live-2026-10-26.json"
+  },
+  "limitations": [
+    "A successful live end-to-end generation has not been confirmed; the final real run failed with an AI/MCP error after three tool calls.",
+    "Controlled models verify workflow and UI, not language quality.",
+    "A small live sample does not establish learning effectiveness or generation reliability across topics."
+  ],
+  "source_commit": "4fd824ffe74ac4e88d2d7aa4f0f1c26319775488",
+  "acceptance_status": {
+    "A66-A78": "implemented and covered by automated/API/MCP/browser checks as specified",
+    "A79": "incomplete: no successful live end-to-end generation",
+    "issue_23": "open",
+    "issue_29": "open"
+  },
+  "superseded_by": "text-materials-generation-2026-10-27.json"
+}

@@ -9,6 +9,7 @@ from typing import Any
 
 import spacy
 from spacy.language import Language
+from spacy.tokens import Doc
 
 
 class EnglishAdapter:
@@ -47,8 +48,21 @@ class EnglishAdapter:
             )
         return result
 
-    def lemmatize(self, text: str) -> list[dict[str, Any]]:
-        return self.tokenize(text)
+    def lemmatize(
+        self, text: str, part_of_speech: str | None = None,
+    ) -> list[dict[str, Any]]:
+        result = self.tokenize(text)
+        if part_of_speech is not None:
+            # A standalone word is ambiguous (leaves: leaf/NOUN or leave/VERB).
+            # Reuse the pinned model's rules with the caller's explicit POS hint.
+            with self._lock:
+                for token in result:
+                    document = Doc(self._nlp.vocab, words=[token["surface"]])
+                    document[0].pos_ = part_of_speech
+                    document = self._nlp.get_pipe("lemmatizer")(document)
+                    token["lemma"] = document[0].lemma_.casefold()
+                    token["part_of_speech"] = part_of_speech
+        return result
 
     def vocabulary_features(self, text: str) -> dict[tuple[int, int], tuple[str, str]]:
         with self._lock:

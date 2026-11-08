@@ -75,6 +75,7 @@ def create_learner_app(
         try:
             yield
         finally:
+            await app.state.text_generation.close()
             await app.state.expression_analysis.close()
             await app.state.discovery.close()
             await app.state.caption_improvement.close()
@@ -144,6 +145,19 @@ def create_learner_app(
         app.include_router(
             create_learning_router(library=library, connection=connection, mcp_url=mcp_url)
         )
+
+    from backend.app.text_generation_analysis import create_assessment_router
+    from backend.app.text_generation_jobs import (
+        TextGenerationService,
+        create_text_generation_router,
+    )
+
+    text_generation = TextGenerationService(
+        library, connection, mcp_url=os.getenv("MCP_URL", "http://mcp:8001/mcp")
+    )
+    app.state.text_generation = text_generation
+    app.include_router(create_assessment_router(library))
+    app.include_router(create_text_generation_router(text_generation))
 
     from backend.app.discovery import DiscoveryService, create_discovery_router
 
@@ -245,6 +259,7 @@ def create_learner_app(
 
     @app.post("/api/data/reset")
     async def reset_data(confirmation: DataReset) -> dict[str, str]:
+        await text_generation.reset()
         await discovery.reset()
         await captions.close()
         await expressions.close()
