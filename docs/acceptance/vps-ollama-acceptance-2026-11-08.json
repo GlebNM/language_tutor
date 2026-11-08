@@ -1,0 +1,940 @@
+{
+  "date": "2026-11-08",
+  "timezone": "Europe/Moscow",
+  "origin": "https://199.195.193.65",
+  "deployed_revision": "3f9264b47ec97fe796b8619621303e9740f35d6f",
+  "remote_main_verified_before_deployment": "3f9264b47ec97fe796b8619621303e9740f35d6f",
+  "integrated_branch": {
+    "name": "codex/text-materials-integration",
+    "revision": "ce54ecc8f72dc755cc842b59bdaa6b911b3002bc"
+  },
+  "model": "gemma4:31b",
+  "provider": "Ollama Cloud",
+  "reasoning_effort": null,
+  "pydantic_ai_version": "2.57.0",
+  "started_at_utc": "2026-11-08T19:17:38.842414+00:00",
+  "finished_at_utc": "2026-11-08T19:20:24.833979+00:00",
+  "automated_checks": {
+    "backend_tests_passed": 340,
+    "backend_seconds": 151.91,
+    "web_tests_passed": 42,
+    "web_production_build": "passed",
+    "ruff_backend_and_scripts": "passed",
+    "mypy_server_source_files": 50,
+    "mypy": "passed"
+  },
+  "deployment": {
+    "source_archive_sha256": "ff4425fbd0cc14f9f7bb640500117864b034a76bf07578b8662ed71a87d9e5ab",
+    "archive_files_verified": 154,
+    "runtime_files_verified_per_container": 89,
+    "app_image": "sha256:53eef455a394ddc86fac7487ab16cfbe4914d71bdf7f3d24582b6dbe34db75e9",
+    "mcp_image": "sha256:a749cf661a390e324773ce8fc7bb4dbeab0dd4f71d8205fc8a3eff3112379f6d",
+    "healthy_services": [
+      "app",
+      "mcp"
+    ],
+    "public_health_http_status": 200,
+    "backup_directory": "/opt/language-tutor-backups/20261108-before-3f9264b",
+    "backup_includes": [
+      "source.tar.gz",
+      "learning-data.tar.gz",
+      "data-fingerprints.json"
+    ],
+    "rollback_images": [
+      "language-tutor-app:rollback-c2f7e79",
+      "language-tutor-mcp:rollback-c2f7e79"
+    ]
+  },
+  "preservation": {
+    "existing_profiles": 2,
+    "existing_learner_tables_compared": 12,
+    "before_after_rows_and_values_equal": true,
+    "temporary_accounts_removed": true
+  },
+  "served_frontend": {
+    "asset": "/assets/index-B4H9G-aC.js",
+    "generation_settings_and_jobs_paths_present": true,
+    "create_text_label_present": true
+  },
+  "live_environment": {
+    "requests": "Public HTTPS API of the deployed service",
+    "profile": {
+      "synthetic": true,
+      "prior_frequency_groups": [
+        1,
+        2,
+        3
+      ],
+      "borrow": 1,
+      "umbrella": 0
+    },
+    "model_or_tool_results_substituted": false,
+    "validation_disabled": false,
+    "private_user_data_modified": false
+  },
+  "public_word_discussions": [
+    {
+      "model": "gemma4:31b",
+      "reasoning_effort": null,
+      "answer": "В этом предложении «left» — это прошедшее время от глагола «leave». Здесь оно означает «забыть что-то где-либо» (не специально оставить, а именно случайно оставить/забыть).\n\nПример из вашего текста: «I left my bag on the bus» (Я оставил/забыл свою сумку в автобусе).",
+      "citations": [
+        {
+          "citation_id": "a1dec2a8cb534c5ca4c79c765eff0dc0:af8fa6784a8a4114855ffa2aa58e2e70",
+          "material_id": "a1dec2a8cb534c5ca4c79c765eff0dc0",
+          "cue_id": "af8fa6784a8a4114855ffa2aa58e2e70",
+          "block_id": "af8fa6784a8a4114855ffa2aa58e2e70",
+          "kind": "text",
+          "material_url": "#material/a1dec2a8cb534c5ca4c79c765eff0dc0?block=af8fa6784a8a4114855ffa2aa58e2e70",
+          "text": "I left my bag on the bus, so I called the driver. I borrow an umbrella when it rains.",
+          "truncated": false,
+          "start_ms": null,
+          "end_ms": null,
+          "youtube_video_id": null,
+          "version": 1,
+          "title": "Verification passage",
+          "youtube_url": null
+        }
+      ],
+      "tools": [
+        {
+          "name": "get_practice_context",
+          "success": true,
+          "duration_ms": 3492
+        },
+        {
+          "name": "get_subtitle_context",
+          "success": true,
+          "duration_ms": 185
+        }
+      ],
+      "model_requests": 2,
+      "duration_ms": 10808
+    },
+    {
+      "model": "gemma4:31b",
+      "reasoning_effort": null,
+      "answer": "В данном контексте 'left' — это прошедшее время глагола 'leave'. Здесь оно означает «забыть» или «оставить» что-то в определенном месте (случайно).\n\nПример из текста:\n«I left my bag on the bus» (Я оставил/забыл свою сумку в автобусе).",
+      "citations": [
+        {
+          "citation_id": "a1249c0eccb944409e74948640f9b9ae:8e970723ce174c1e868d3ae42de72ae1",
+          "material_id": "a1249c0eccb944409e74948640f9b9ae",
+          "cue_id": "8e970723ce174c1e868d3ae42de72ae1",
+          "block_id": "8e970723ce174c1e868d3ae42de72ae1",
+          "kind": "text",
+          "material_url": "#material/a1249c0eccb944409e74948640f9b9ae?block=8e970723ce174c1e868d3ae42de72ae1",
+          "text": "I left my bag on the bus, so I called the driver. I borrow an umbrella when it rains.",
+          "truncated": false,
+          "start_ms": null,
+          "end_ms": null,
+          "youtube_video_id": null,
+          "version": 1,
+          "title": "Verification passage",
+          "youtube_url": null
+        }
+      ],
+      "tools": [
+        {
+          "name": "get_practice_context",
+          "success": true,
+          "duration_ms": 542
+        },
+        {
+          "name": "get_subtitle_context",
+          "success": true,
+          "duration_ms": 227
+        }
+      ],
+      "model_requests": 2,
+      "duration_ms": 5775
+    }
+  ],
+  "original_failed_request_replay": {
+    "request_id": "301edef9-6a4a-42ad-91c7-ad515689c5f2",
+    "isolation": "Temporary SQLite backup with real model and real read-only MCP access; original stored message retained unchanged",
+    "before_fix_http_statuses": [
+      503,
+      503
+    ],
+    "after_fix_http_statuses": [
+      200,
+      200
+    ],
+    "after_fix_second_response": "Idempotent replay from the temporary database cache",
+    "successful_mcp_tools": [
+      "get_practice_context",
+      "get_subtitle_context"
+    ],
+    "output_validation_retries": []
+  },
+  "generation": {
+    "successes": 3,
+    "attempts": 3,
+    "trials": [
+      {
+        "request": {
+          "length": "short",
+          "difficulty": "gentle",
+          "topic": "A friend helps return a lost bag on a bus",
+          "style": "A simple realistic story"
+        },
+        "model": "gemma4:31b",
+        "reasoning_effort": null,
+        "status": "completed",
+        "revision": 1,
+        "elapsed_seconds": 12.903,
+        "metrics": {
+          "word_count": 152,
+          "counted_tokens": 144,
+          "known_tokens": 142,
+          "learning_tokens": 0,
+          "explicit_unknown_tokens": 1,
+          "unassessed_tokens": 1,
+          "provisional_tokens": 142,
+          "learning_ratio": 0.0,
+          "new_or_unassessed_ratio": 0.013888888888888888,
+          "new_unique": 2
+        },
+        "usage": {
+          "model_requests": 4,
+          "tool_calls": 1,
+          "input_tokens": 18079,
+          "output_tokens": 896
+        },
+        "draft": {
+          "kind": "draft",
+          "title": "The Lost Bag",
+          "paragraphs": [
+            {
+              "text": "Mark was very sad. He had left his small bag on the bus this morning. The bag had his wallet and some important papers inside. He did not know how to get it back."
+            },
+            {
+              "text": "His friend, Sam, saw that Mark was upset. Sam told him not to worry and helped him call the bus company. They found out that a driver had found the bag. Now they just needed to go to the office to pick it up."
+            },
+            {
+              "text": "On the way, it started to rain. Sam had an umbrella, a special tool to keep the rain off their clothes, and he held it over both of them. Mark felt lucky to have such a kind friend."
+            },
+            {
+              "text": "When they arrived, the man at the desk gave the bag back to Mark. Mark checked the bag, and everything was still there. He thanked Sam and the bus driver for their help."
+            }
+          ]
+        },
+        "material_saved_once": true,
+        "idempotent_replay": true,
+        "revisions": [
+          {
+            "revision": 1,
+            "metrics": {
+              "word_count": 152,
+              "counted_tokens": 144,
+              "known_tokens": 142,
+              "learning_tokens": 0,
+              "explicit_unknown_tokens": 1,
+              "unassessed_tokens": 1,
+              "provisional_tokens": 142,
+              "learning_ratio": 0.0,
+              "new_or_unassessed_ratio": 0.013888888888888888,
+              "new_unique": 2
+            },
+            "violations": []
+          }
+        ],
+        "constraints": {
+          "topic": "A friend helps return a lost bag on a bus",
+          "style": "A simple realistic story",
+          "length": "short",
+          "difficulty": "gentle",
+          "language": "en",
+          "preferred_min_words": 150,
+          "preferred_max_words": 200,
+          "min_words": 100,
+          "max_words": 250,
+          "word_tolerance": 50,
+          "lexical_tolerance_points": 1,
+          "learning_ratio_max": 0.05,
+          "new_or_unassessed_ratio_target": 0.01,
+          "new_or_unassessed_ratio_min": 0.0,
+          "new_or_unassessed_ratio_max": 0.02,
+          "policy_version": "generation-lexical-v3",
+          "required_criteria": [
+            "coherence",
+            "topic",
+            "style"
+          ]
+        },
+        "context_review": {
+          "draft_id": "103de3c63d4c44aaaf574565868f1e67",
+          "revision": 1,
+          "draft_hash": "dd0d9d7b2e52253a97967dddd31d911eaf63617b04dc9c312f88577037deebf9",
+          "snapshot_id": "ab094ef085066ff046861ab6ac7757eda5a4248bd59f964a764f9e88bcb4651c",
+          "context_checks": [
+            {
+              "block_id": "103de3c63d4c44aaaf574565868f1e67:r1:p3",
+              "token_ids": [
+                "103de3c63d4c44aaaf574565868f1e67:r1:p3:t10"
+              ],
+              "context_status": "clear",
+              "explanation": "Функция предмета прямо описана: инструмент, чтобы дождь не попадал на одежду.",
+              "evidence": [
+                {
+                  "block_id": "103de3c63d4c44aaaf574565868f1e67:r1:p3",
+                  "quote": "Sam had an umbrella, a special tool to keep the rain off their clothes, and he held it over both of them.",
+                  "token_ids": []
+                }
+              ],
+              "repair_instructions": null
+            },
+            {
+              "block_id": "103de3c63d4c44aaaf574565868f1e67:r1:p3",
+              "token_ids": [
+                "103de3c63d4c44aaaf574565868f1e67:r1:p3:t20"
+              ],
+              "context_status": "clear",
+              "explanation": "Понятно, что это вещи на человеке, которые нужно защитить от дождя с помощью зонта.",
+              "evidence": [
+                {
+                  "block_id": "103de3c63d4c44aaaf574565868f1e67:r1:p3",
+                  "quote": "Sam had an umbrella, a special tool to keep the rain off their clothes, and he held it over both of them.",
+                  "token_ids": []
+                }
+              ],
+              "repair_instructions": null
+            }
+          ],
+          "passed": true,
+          "blocking_issues": []
+        },
+        "requirements_review": {
+          "draft_id": "103de3c63d4c44aaaf574565868f1e67",
+          "revision": 1,
+          "draft_hash": "dd0d9d7b2e52253a97967dddd31d911eaf63617b04dc9c312f88577037deebf9",
+          "snapshot_id": "ab094ef085066ff046861ab6ac7757eda5a4248bd59f964a764f9e88bcb4651c",
+          "checks": [
+            {
+              "criterion_id": "coherence",
+              "status": "pass",
+              "explanation": "События развиваются логически: от потери сумки до её возврата.",
+              "evidence": [
+                {
+                  "block_id": "103de3c63d4c44aaaf574565868f1e67:r1:p1",
+                  "quote": "He had left his small bag on the bus this morning.",
+                  "token_ids": []
+                },
+                {
+                  "block_id": "103de3c63d4c44aaaf574565868f1e67:r1:p2",
+                  "quote": "Sam told him not to worry and helped him call the bus company.",
+                  "token_ids": []
+                },
+                {
+                  "block_id": "103de3c63d4c44aaaf574565868f1e67:r1:p2",
+                  "quote": "Now they just needed to go to the office to pick it up.",
+                  "token_ids": []
+                },
+                {
+                  "block_id": "103de3c63d4c44aaaf574565868f1e67:r1:p4",
+                  "quote": "When they arrived, the man at the desk gave the bag back to Mark.",
+                  "token_ids": []
+                }
+              ],
+              "repair_instructions": null
+            },
+            {
+              "criterion_id": "topic",
+              "status": "pass",
+              "explanation": "Сюжет полностью соответствует теме помощи друга в возврате потерянной сумки.",
+              "evidence": [
+                {
+                  "block_id": "103de3c63d4c44aaaf574565868f1e67:r1:title",
+                  "quote": "The Lost Bag",
+                  "token_ids": []
+                },
+                {
+                  "block_id": "103de3c63d4c44aaaf574565868f1e67:r1:p2",
+                  "quote": "Sam told him not to worry and helped him call the bus company.",
+                  "token_ids": []
+                },
+                {
+                  "block_id": "103de3c63d4c44aaaf574565868f1e67:r1:p4",
+                  "quote": "When they arrived, the man at the desk gave the bag back to Mark.",
+                  "token_ids": []
+                }
+              ],
+              "repair_instructions": null
+            },
+            {
+              "criterion_id": "style",
+              "status": "pass",
+              "explanation": "Использован простой язык и реалистичный сценарий, подходящий для короткого рассказа.",
+              "evidence": [
+                {
+                  "block_id": "103de3c63d4c44aaaf574565868f1e67:r1:p1",
+                  "quote": "Mark was very sad.",
+                  "token_ids": []
+                },
+                {
+                  "block_id": "103de3c63d4c44aaaf574565868f1e67:r1:p3",
+                  "quote": "On the way, it started to rain.",
+                  "token_ids": []
+                },
+                {
+                  "block_id": "103de3c63d4c44aaaf574565868f1e67:r1:p4",
+                  "quote": "He thanked Sam and the bus driver for their help.",
+                  "token_ids": []
+                }
+              ],
+              "repair_instructions": null
+            }
+          ],
+          "passed": true,
+          "blocking_issues": []
+        },
+        "blocking_issues": []
+      },
+      {
+        "request": {
+          "length": "medium",
+          "difficulty": "gentle",
+          "topic": null,
+          "style": null
+        },
+        "model": "gemma4:31b",
+        "reasoning_effort": null,
+        "status": "completed",
+        "revision": 1,
+        "elapsed_seconds": 8.34,
+        "metrics": {
+          "word_count": 251,
+          "counted_tokens": 244,
+          "known_tokens": 241,
+          "learning_tokens": 2,
+          "explicit_unknown_tokens": 1,
+          "unassessed_tokens": 0,
+          "provisional_tokens": 241,
+          "learning_ratio": 0.00819672131147541,
+          "new_or_unassessed_ratio": 0.004098360655737705,
+          "new_unique": 1
+        },
+        "usage": {
+          "model_requests": 4,
+          "tool_calls": 1,
+          "input_tokens": 19273,
+          "output_tokens": 1011
+        },
+        "draft": {
+          "kind": "draft",
+          "title": "A Visit in the Rain",
+          "paragraphs": [
+            {
+              "text": "Jacob lived in a small house near the coast. He loved the sea, but he also loved his old books. One day, Jacob decided to visit a friend who lived in a large villa on the hill. The villa had been restored, so it looked new and clean, without any dust on the walls. Jacob wanted to bring a gift, but he did not have any money for a new book. He decided to borrow a rare book from the local library, promising to give it back in a week."
+            },
+            {
+              "text": "As he left his house, the sky turned grey. A few moments later, it started to rain. Jacob did not have an umbrella to keep himself dry, so he had to use his coat to cover his head. The rain was heavy, and he got wet. He walked slowly, thinking about the risks of walking in a storm. He did not want the borrowed book to get wet, so he held it tight against his chest."
+            },
+            {
+              "text": "When he finally arrived at the villa, his friend Victor welcomed him. Victor was a distinguished man who spent his time studying history. They sat in the living room and talked about many things. Victor liked the book Jacob had brought and suggested they read it together. They spent the whole afternoon in the quiet room, enjoying the story and the sound of the rain outside. Jacob was happy that he chose to visit his friend despite the bad weather."
+            }
+          ]
+        },
+        "material_saved_once": true,
+        "idempotent_replay": true,
+        "revisions": [
+          {
+            "revision": 1,
+            "metrics": {
+              "word_count": 251,
+              "counted_tokens": 244,
+              "known_tokens": 241,
+              "learning_tokens": 2,
+              "explicit_unknown_tokens": 1,
+              "unassessed_tokens": 0,
+              "provisional_tokens": 241,
+              "learning_ratio": 0.00819672131147541,
+              "new_or_unassessed_ratio": 0.004098360655737705,
+              "new_unique": 1
+            },
+            "violations": []
+          }
+        ],
+        "constraints": {
+          "topic": null,
+          "style": null,
+          "length": "medium",
+          "difficulty": "gentle",
+          "language": "en",
+          "preferred_min_words": 250,
+          "preferred_max_words": 350,
+          "min_words": 200,
+          "max_words": 400,
+          "word_tolerance": 50,
+          "lexical_tolerance_points": 1,
+          "learning_ratio_max": 0.05,
+          "new_or_unassessed_ratio_target": 0.01,
+          "new_or_unassessed_ratio_min": 0.0,
+          "new_or_unassessed_ratio_max": 0.02,
+          "policy_version": "generation-lexical-v3",
+          "required_criteria": [
+            "coherence"
+          ]
+        },
+        "context_review": {
+          "draft_id": "ba82b17b73404d16bb0dae453ad8d7be",
+          "revision": 1,
+          "draft_hash": "85692a1c634cd5dd2bd952553a375d86662781469806f800bd99a316910a4aa8",
+          "snapshot_id": "ab094ef085066ff046861ab6ac7757eda5a4248bd59f964a764f9e88bcb4651c",
+          "context_checks": [
+            {
+              "block_id": "ba82b17b73404d16bb0dae453ad8d7be:r1:p1",
+              "token_ids": [
+                "ba82b17b73404d16bb0dae453ad8d7be:r1:p1:t74"
+              ],
+              "context_status": "clear",
+              "explanation": "Обещание вернуть книгу через неделю раскрывает смысл временного пользования.",
+              "evidence": [
+                {
+                  "block_id": "ba82b17b73404d16bb0dae453ad8d7be:r1:p1",
+                  "quote": "He decided to borrow a rare book from the local library, promising to give it back in a week.",
+                  "token_ids": []
+                }
+              ],
+              "repair_instructions": null
+            },
+            {
+              "block_id": "ba82b17b73404d16bb0dae453ad8d7be:r1:p2",
+              "token_ids": [
+                "ba82b17b73404d16bb0dae453ad8d7be:r1:p2:t63"
+              ],
+              "context_status": "clear",
+              "explanation": "Значение уже было раскрыто в первом вхождении через обещание вернуть вещь.",
+              "evidence": [
+                {
+                  "block_id": "ba82b17b73404d16bb0dae453ad8d7be:r1:p1",
+                  "quote": "He decided to borrow a rare book from the local library, promising to give it back in a week.",
+                  "token_ids": []
+                }
+              ],
+              "repair_instructions": null
+            },
+            {
+              "block_id": "ba82b17b73404d16bb0dae453ad8d7be:r1:p2",
+              "token_ids": [
+                "ba82b17b73404d16bb0dae453ad8d7be:r1:p2:t22"
+              ],
+              "context_status": "clear",
+              "explanation": "Функция предмета (сохранить сухость во время дождя) позволяет понять, что это зонт.",
+              "evidence": [
+                {
+                  "block_id": "ba82b17b73404d16bb0dae453ad8d7be:r1:p2",
+                  "quote": "Jacob did not have an umbrella to keep himself dry, so he had to use his coat to cover his head.",
+                  "token_ids": []
+                }
+              ],
+              "repair_instructions": null
+            }
+          ],
+          "passed": true,
+          "blocking_issues": []
+        },
+        "requirements_review": {
+          "draft_id": "ba82b17b73404d16bb0dae453ad8d7be",
+          "revision": 1,
+          "draft_hash": "85692a1c634cd5dd2bd952553a375d86662781469806f800bd99a316910a4aa8",
+          "snapshot_id": "ab094ef085066ff046861ab6ac7757eda5a4248bd59f964a764f9e88bcb4651c",
+          "checks": [
+            {
+              "criterion_id": "coherence",
+              "status": "pass",
+              "explanation": "Текст последовательно развивает сюжет от подготовки к визиту через путь в дождь к встрече с другом.",
+              "evidence": [
+                {
+                  "block_id": "ba82b17b73404d16bb0dae453ad8d7be:r1:p1",
+                  "quote": "One day, Jacob decided to visit a friend who lived in a large villa on the hill.",
+                  "token_ids": []
+                },
+                {
+                  "block_id": "ba82b17b73404d16bb0dae453ad8d7be:r1:p2",
+                  "quote": "As he left his house, the sky turned grey.",
+                  "token_ids": []
+                },
+                {
+                  "block_id": "ba82b17b73404d16bb0dae453ad8d7be:r1:p3",
+                  "quote": "When he finally arrived at the villa, his friend Victor welcomed him.",
+                  "token_ids": []
+                }
+              ],
+              "repair_instructions": null
+            }
+          ],
+          "passed": true,
+          "blocking_issues": []
+        },
+        "blocking_issues": []
+      },
+      {
+        "request": {
+          "length": "short",
+          "difficulty": "normal",
+          "topic": "A gardener repairs a small greenhouse with a friend",
+          "style": "A simple realistic story"
+        },
+        "model": "gemma4:31b",
+        "reasoning_effort": null,
+        "status": "completed",
+        "revision": 3,
+        "elapsed_seconds": 24.67,
+        "metrics": {
+          "word_count": 145,
+          "counted_tokens": 141,
+          "known_tokens": 135,
+          "learning_tokens": 1,
+          "explicit_unknown_tokens": 0,
+          "unassessed_tokens": 5,
+          "provisional_tokens": 135,
+          "learning_ratio": 0.0070921985815602835,
+          "new_or_unassessed_ratio": 0.03546099290780142,
+          "new_unique": 3
+        },
+        "usage": {
+          "model_requests": 15,
+          "tool_calls": 5,
+          "input_tokens": 132016,
+          "output_tokens": 3722
+        },
+        "draft": {
+          "kind": "draft",
+          "title": "Fixing the Greenhouse",
+          "paragraphs": [
+            {
+              "text": "Tom loved his garden, but his small greenhouse needed work. The warm building where he grew food had a broken pane, a single piece of glass that had cracked during the winter. He called his friend, Sam, to help him fix it."
+            },
+            {
+              "text": "Sam arrived with a heavy bag of tools. He did not have a machine to make holes, so he had to borrow one from the neighbor. After getting the tool, the two friends started to work. They carefully removed the old glass and cleaned the metal frame."
+            },
+            {
+              "text": "Tom used a hammer to hit the nails into the wood, making sure the new glass was tight. They worked quickly in the quiet morning air. By noon, the greenhouse was sturdy again, strong enough to stand against the wind. The two friends sat down to rest, feeling proud of their hard work."
+            }
+          ]
+        },
+        "material_saved_once": true,
+        "idempotent_replay": true,
+        "revisions": [
+          {
+            "revision": 1,
+            "metrics": {
+              "word_count": 139,
+              "counted_tokens": 135,
+              "known_tokens": 133,
+              "learning_tokens": 1,
+              "explicit_unknown_tokens": 0,
+              "unassessed_tokens": 1,
+              "provisional_tokens": 133,
+              "learning_ratio": 0.007407407407407408,
+              "new_or_unassessed_ratio": 0.007407407407407408,
+              "new_unique": 1
+            },
+            "violations": [
+              {
+                "criterion_id": "new_ratio",
+                "actual": 0.007407407407407408,
+                "minimum": 0.02,
+                "maximum": 0.04,
+                "target": 0.03,
+                "actual_occurrences": 1,
+                "minimum_occurrences": 3,
+                "maximum_occurrences": 5,
+                "target_occurrences": 4,
+                "occurrence_delta": 3,
+                "repair_instructions": "Доля U должна быть от 2% до 4% с целью 3%. Найди места, где можно заменить простую фразу более сложным словом с понятной подсказкой; не меняй канву текста. Учитывай все вхождения, включая повторы; знакомость не меняй."
+              }
+            ]
+          },
+          {
+            "revision": 2,
+            "metrics": {
+              "word_count": 139,
+              "counted_tokens": 135,
+              "known_tokens": 133,
+              "learning_tokens": 1,
+              "explicit_unknown_tokens": 0,
+              "unassessed_tokens": 1,
+              "provisional_tokens": 133,
+              "learning_ratio": 0.007407407407407408,
+              "new_or_unassessed_ratio": 0.007407407407407408,
+              "new_unique": 1
+            },
+            "violations": [
+              {
+                "criterion_id": "new_ratio",
+                "actual": 0.007407407407407408,
+                "minimum": 0.02,
+                "maximum": 0.04,
+                "target": 0.03,
+                "actual_occurrences": 1,
+                "minimum_occurrences": 3,
+                "maximum_occurrences": 5,
+                "target_occurrences": 4,
+                "occurrence_delta": 3,
+                "repair_instructions": "Доля U должна быть от 2% до 4% с целью 3%. Найди места, где можно заменить простую фразу более сложным словом с понятной подсказкой; не меняй канву текста. Учитывай все вхождения, включая повторы; знакомость не меняй."
+              }
+            ]
+          },
+          {
+            "revision": 3,
+            "metrics": {
+              "word_count": 148,
+              "counted_tokens": 144,
+              "known_tokens": 137,
+              "learning_tokens": 1,
+              "explicit_unknown_tokens": 0,
+              "unassessed_tokens": 6,
+              "provisional_tokens": 137,
+              "learning_ratio": 0.006944444444444444,
+              "new_or_unassessed_ratio": 0.041666666666666664,
+              "new_unique": 4
+            },
+            "violations": [
+              {
+                "criterion_id": "new_ratio",
+                "actual": 0.041666666666666664,
+                "minimum": 0.02,
+                "maximum": 0.04,
+                "target": 0.03,
+                "actual_occurrences": 6,
+                "minimum_occurrences": 3,
+                "maximum_occurrences": 5,
+                "target_occurrences": 4,
+                "occurrence_delta": -2,
+                "repair_instructions": "Доля U должна быть от 2% до 4% с целью 3%. Замени сложные слова знакомыми простыми синонимами или опиши их несколькими знакомыми словами; не меняй канву текста. Учитывай все вхождения, включая повторы; знакомость не меняй."
+              }
+            ]
+          }
+        ],
+        "constraints": {
+          "topic": "A gardener repairs a small greenhouse with a friend",
+          "style": "A simple realistic story",
+          "length": "short",
+          "difficulty": "normal",
+          "language": "en",
+          "preferred_min_words": 150,
+          "preferred_max_words": 200,
+          "min_words": 100,
+          "max_words": 250,
+          "word_tolerance": 50,
+          "lexical_tolerance_points": 1,
+          "learning_ratio_max": 0.08,
+          "new_or_unassessed_ratio_target": 0.03,
+          "new_or_unassessed_ratio_min": 0.02,
+          "new_or_unassessed_ratio_max": 0.04,
+          "policy_version": "generation-lexical-v3",
+          "required_criteria": [
+            "coherence",
+            "topic",
+            "style"
+          ]
+        },
+        "context_review": {
+          "draft_id": "867a1a518c6e4f95a7b6ccb3cbf6292b",
+          "revision": 3,
+          "draft_hash": "4f971af128af07eaf70c954b8620e1216983e363fd27eb4801d7d7737b9a8ba5",
+          "snapshot_id": "9ea121d1f825c280610e81496e0a5945dac16a0b2ea9b6b14f1d15e0a081a673",
+          "context_checks": [
+            {
+              "block_id": "867a1a518c6e4f95a7b6ccb3cbf6292b:r3:title",
+              "token_ids": [
+                "867a1a518c6e4f95a7b6ccb3cbf6292b:r3:title:t2"
+              ],
+              "context_status": "clear",
+              "explanation": "Значение раскрывается через описание в первом абзаце: теплое здание, где выращивают еду.",
+              "evidence": [
+                {
+                  "block_id": "867a1a518c6e4f95a7b6ccb3cbf6292b:r3:p1",
+                  "quote": "The warm building where he grew food had a broken pane, a single piece of glass that had cracked during the winter.",
+                  "token_ids": []
+                }
+              ],
+              "repair_instructions": null
+            },
+            {
+              "block_id": "867a1a518c6e4f95a7b6ccb3cbf6292b:r3:p1",
+              "token_ids": [
+                "867a1a518c6e4f95a7b6ccb3cbf6292b:r3:p1:t7"
+              ],
+              "context_status": "clear",
+              "explanation": "Значение раскрывается через описание: теплое здание, где выращивают еду.",
+              "evidence": [
+                {
+                  "block_id": "867a1a518c6e4f95a7b6ccb3cbf6292b:r3:p1",
+                  "quote": "The warm building where he grew food had a broken pane, a single piece of glass that had cracked during the winter.",
+                  "token_ids": []
+                }
+              ],
+              "repair_instructions": null
+            },
+            {
+              "block_id": "867a1a518c6e4f95a7b6ccb3cbf6292b:r3:p3",
+              "token_ids": [
+                "867a1a518c6e4f95a7b6ccb3cbf6292b:r3:p3:t29"
+              ],
+              "context_status": "clear",
+              "explanation": "Значение уже было раскрыто ранее через функцию здания (e3).",
+              "evidence": [
+                {
+                  "block_id": "867a1a518c6e4f95a7b6ccb3cbf6292b:r3:p1",
+                  "quote": "The warm building where he grew food had a broken pane, a single piece of glass that had cracked during the winter.",
+                  "token_ids": []
+                }
+              ],
+              "repair_instructions": null
+            },
+            {
+              "block_id": "867a1a518c6e4f95a7b6ccb3cbf6292b:r3:p1",
+              "token_ids": [
+                "867a1a518c6e4f95a7b6ccb3cbf6292b:r3:p1:t20"
+              ],
+              "context_status": "clear",
+              "explanation": "Слово напрямую поясняется как 'a single piece of glass'.",
+              "evidence": [
+                {
+                  "block_id": "867a1a518c6e4f95a7b6ccb3cbf6292b:r3:p1",
+                  "quote": "The warm building where he grew food had a broken pane, a single piece of glass that had cracked during the winter.",
+                  "token_ids": []
+                }
+              ],
+              "repair_instructions": null
+            },
+            {
+              "block_id": "867a1a518c6e4f95a7b6ccb3cbf6292b:r3:p2",
+              "token_ids": [
+                "867a1a518c6e4f95a7b6ccb3cbf6292b:r3:p2:t21"
+              ],
+              "context_status": "clear",
+              "explanation": "Действие понятно из контекста: у героя нет своей машины для отверстий, поэтому он берет её у соседа.",
+              "evidence": [
+                {
+                  "block_id": "867a1a518c6e4f95a7b6ccb3cbf6292b:r3:p2",
+                  "quote": "He did not have a machine to make holes, so he had to borrow one from the neighbor.",
+                  "token_ids": []
+                }
+              ],
+              "repair_instructions": null
+            },
+            {
+              "block_id": "867a1a518c6e4f95a7b6ccb3cbf6292b:r3:p3",
+              "token_ids": [
+                "867a1a518c6e4f95a7b6ccb3cbf6292b:r3:p3:t31"
+              ],
+              "context_status": "clear",
+              "explanation": "Значение раскрывается через пояснение 'strong enough to stand against the wind'.",
+              "evidence": [
+                {
+                  "block_id": "867a1a518c6e4f95a7b6ccb3cbf6292b:r3:p3",
+                  "quote": "By noon, the greenhouse was sturdy again, strong enough to stand against the wind.",
+                  "token_ids": []
+                }
+              ],
+              "repair_instructions": null
+            }
+          ],
+          "passed": true,
+          "blocking_issues": []
+        },
+        "requirements_review": {
+          "draft_id": "867a1a518c6e4f95a7b6ccb3cbf6292b",
+          "revision": 3,
+          "draft_hash": "4f971af128af07eaf70c954b8620e1216983e363fd27eb4801d7d7737b9a8ba5",
+          "snapshot_id": "9ea121d1f825c280610e81496e0a5945dac16a0b2ea9b6b14f1d15e0a081a673",
+          "checks": [
+            {
+              "criterion_id": "coherence",
+              "status": "pass",
+              "explanation": "Повествование следует логической последовательности событий: от обнаружения проблемы до её решения.",
+              "evidence": [
+                {
+                  "block_id": "867a1a518c6e4f95a7b6ccb3cbf6292b:r3:p1",
+                  "quote": "Tom loved his garden, but his small greenhouse needed work.",
+                  "token_ids": []
+                },
+                {
+                  "block_id": "867a1a518c6e4f95a7b6ccb3cbf6292b:r3:p1",
+                  "quote": "He called his friend, Sam, to help him fix it.",
+                  "token_ids": []
+                },
+                {
+                  "block_id": "867a1a518c6e4f95a7b6ccb3cbf6292b:r3:p2",
+                  "quote": "After getting the tool, the two friends started to work.",
+                  "token_ids": []
+                },
+                {
+                  "block_id": "867a1a518c6e4f95a7b6ccb3cbf6292b:r3:p3",
+                  "quote": "By noon, the greenhouse was sturdy again, strong enough to stand against the wind.",
+                  "token_ids": []
+                }
+              ],
+              "repair_instructions": null
+            },
+            {
+              "criterion_id": "topic",
+              "status": "pass",
+              "explanation": "Текст полностью соответствует теме ремонта теплицы садоводом и его другом.",
+              "evidence": [
+                {
+                  "block_id": "867a1a518c6e4f95a7b6ccb3cbf6292b:r3:title",
+                  "quote": "Fixing the Greenhouse",
+                  "token_ids": []
+                },
+                {
+                  "block_id": "867a1a518c6e4f95a7b6ccb3cbf6292b:r3:p1",
+                  "quote": "Tom loved his garden, but his small greenhouse needed work.",
+                  "token_ids": []
+                },
+                {
+                  "block_id": "867a1a518c6e4f95a7b6ccb3cbf6292b:r3:p1",
+                  "quote": "He called his friend, Sam, to help him fix it.",
+                  "token_ids": []
+                },
+                {
+                  "block_id": "867a1a518c6e4f95a7b6ccb3cbf6292b:r3:p3",
+                  "quote": "The two friends sat down to rest, feeling proud of their hard work.",
+                  "token_ids": []
+                }
+              ],
+              "repair_instructions": null
+            },
+            {
+              "criterion_id": "style",
+              "status": "pass",
+              "explanation": "Стиль повествования простой, реалистичный и соответствует формату короткой истории.",
+              "evidence": [
+                {
+                  "block_id": "867a1a518c6e4f95a7b6ccb3cbf6292b:r3:p2",
+                  "quote": "Sam arrived with a heavy bag of tools.",
+                  "token_ids": []
+                },
+                {
+                  "block_id": "867a1a518c6e4f95a7b6ccb3cbf6292b:r3:p2",
+                  "quote": "They carefully removed the old glass and cleaned the metal frame.",
+                  "token_ids": []
+                },
+                {
+                  "block_id": "867a1a518c6e4f95a7b6ccb3cbf6292b:r3:p3",
+                  "quote": "They worked quickly in the quiet morning air.",
+                  "token_ids": []
+                }
+              ],
+              "repair_instructions": null
+            }
+          ],
+          "passed": true,
+          "blocking_issues": []
+        },
+        "blocking_issues": []
+      }
+    ]
+  },
+  "verification_notes": [
+    "A preflight verification-client request lacked the required X-Session-Key header and received HTTP 401. The client was corrected before any model or generation attempt; its temporary account was removed.",
+    "All three actual generation jobs are included. The synthetic profile assumes familiarity with the three frequency groups up to rank 6000, with explicit borrow=1 and umbrella=0.",
+    "The normal-difficulty job exercised revision and both semantic reviews. Only its final approved draft was saved.",
+    "These are observed functional checks on a small synthetic sample; they do not estimate model reliability across arbitrary topics or learner profiles.",
+    "No browser-driven UI acceptance was performed in this run. The public HTTPS API, served frontend bundle, controlled web tests and production build were checked."
+  ],
+  "redaction": "No API keys, passwords, account IDs, MCP tokens, session keys or private learner message text are included. Text samples and citations belong to disposable synthetic accounts."
+}
