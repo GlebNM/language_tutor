@@ -9,7 +9,7 @@ from typing import Any, Literal
 
 from openai.types.shared.reasoning_effort import ReasoningEffort
 from pydantic import BaseModel, ConfigDict, Field, create_model, model_validator
-from pydantic_ai import Agent, ModelRetry, RunContext
+from pydantic_ai import Agent, ModelRetry, NativeOutput, RunContext
 from pydantic_ai.capabilities import Caching
 from pydantic_ai.messages import ModelMessage, ToolReturnPart
 from pydantic_ai.models import Model
@@ -17,9 +17,10 @@ from pydantic_ai.models.openai import OpenAIResponsesModelSettings
 from pydantic_ai.toolsets import AbstractToolset
 from pydantic_ai.usage import RunUsage, UsageLimits
 
+from backend.app.ai_connection.cloudflare import MODEL as CLOUDFLARE_MODEL
 from backend.app.text_generation_analysis import CannotGenerate, DraftText, GenerationRequest
 
-PROMPT_VERSION = "personal-text-13"
+PROMPT_VERSION = "personal-text-14"
 
 
 class Evidence(BaseModel):
@@ -343,7 +344,8 @@ async def review_context(
     agent = Agent(
         model,
         name="context_reviewer",
-        output_type=response_type,
+        output_type=NativeOutput(response_type)
+        if model.model_name == CLOUDFLARE_MODEL else response_type,
         capabilities=[Caching()],
         retries=2,
         model_settings=OpenAIResponsesModelSettings(
@@ -465,7 +467,8 @@ async def review_requirements(
     agent = Agent(
         model,
         name="requirements_reviewer",
-        output_type=response_type,
+        output_type=NativeOutput(response_type)
+        if model.model_name == CLOUDFLARE_MODEL else response_type,
         capabilities=[Caching()],
         retries=2,
         model_settings=OpenAIResponsesModelSettings(
@@ -535,7 +538,8 @@ async def write_text(
     agent: Agent[Any, DraftText | CannotGenerate] = Agent(
         model,
         name="text_writer",
-        output_type=[DraftText, CannotGenerate],
+        output_type=NativeOutput[DraftText | CannotGenerate]([DraftText, CannotGenerate])
+        if model.model_name == CLOUDFLARE_MODEL else [DraftText, CannotGenerate],
         capabilities=[Caching()],
         toolsets=[toolset.filtered(lambda ctx, tool: ctx.run_step <= 3) for toolset in toolsets],
         retries=1,
@@ -581,6 +585,10 @@ async def write_text(
             "Активные prior_bands уже учитываются проверкой как предварительная знакомость 2; "
             "это предположение профиля, а не доказанное знание каждого слова. Для дополнительных "
             "слов используй list_generation_vocabulary или get_generation_word_knowledge. "
+            "Для get_generation_word_knowledge передавай words списком объектов, например "
+            "words=[{\"lemma\":\"umbrella\",\"part_of_speech\":\"NOUN\"}]. "
+            "Для check_text_difficulty передавай paragraphs списком строк [\"...\"]. "
+            "В финальном DraftText paragraphs — список объектов [{\"text\":\"...\"}]. "
             "При исправлении текста крайне рекомендуется перед отправкой новой версии "
             "вызвать get_generation_word_knowledge для слов, которыми собираешься заменить "
             "прежние: проверяй их реальные оценки, а не предполагаемую сложность. При нехватке "

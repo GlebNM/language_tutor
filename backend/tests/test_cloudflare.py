@@ -66,7 +66,7 @@ async def test_cloudflare_provider_sends_authenticated_cloud_request(
         assert payload["reasoning_effort"] == "low"
         assert payload["max_completion_tokens"] == 8192
         return httpx2.Response(200, json={
-            "id": "ollama-test", "object": "chat.completion", "created": 1,
+            "id": "cloudflare-test", "object": "chat.completion", "created": 1,
             "model": "@cf/openai/gpt-oss-120b",
             "choices": [{"index": 0, "message": {"role": "assistant", "content": "Hello!"},
                          "finish_reason": "stop"}],
