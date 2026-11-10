@@ -38,7 +38,7 @@ def test_temporary_model_preserves_subscription_choice_and_requires_key(
             "temporary_model": True, "temporary_model_available": True,
         }
         assert "synthetic-cloudflare-secret" not in enabled.text
-        assert store.read().effective() == AISettings("@cf/openai/gpt-oss-20b", "low", True)
+        assert store.read().effective() == AISettings("@cf/zai-org/glm-4.7-flash", None, True)
         # A different learner uses the same server key with independent settings.
         assert not AISettingsStore(tmp_path / "other-learner").read().temporary_model
         monkeypatch.delenv("CLOUDFLARE_API_TOKEN")
@@ -62,12 +62,13 @@ async def test_cloudflare_provider_sends_authenticated_cloud_request(
         )
         assert request.headers["authorization"] == "Bearer synthetic-cloudflare-secret"
         payload = json.loads(request.content)
-        assert payload["model"] == "@cf/openai/gpt-oss-20b"
-        assert payload["reasoning_effort"] == "low"
+        assert payload["model"] == "@cf/zai-org/glm-4.7-flash"
+        assert "reasoning_effort" not in payload
+        assert payload["chat_template_kwargs"]["enable_thinking"] is True
         assert payload["max_completion_tokens"] == 8192
         return httpx2.Response(200, json={
             "id": "cloudflare-test", "object": "chat.completion", "created": 1,
-            "model": "@cf/openai/gpt-oss-20b",
+            "model": "@cf/zai-org/glm-4.7-flash",
             "choices": [{"index": 0, "message": {"role": "assistant", "content": "Hello!"},
                          "finish_reason": "stop"}],
         })
@@ -104,7 +105,7 @@ async def test_temporary_execution_without_subscription_keeps_snapshot(
     started, resume = asyncio.Event(), asyncio.Event()
 
     async def operation(model):
-        assert model.model_name == "@cf/openai/gpt-oss-20b"
+        assert model.model_name == "@cf/zai-org/glm-4.7-flash"
         started.set()
         await resume.wait()
         return "ok"
@@ -188,6 +189,8 @@ async def test_tool_round_trip_normalizes_text_parts_and_null_assistant_content(
         else:
             assert any(m.get("tool_calls") and m["content"] == ""
                        for m in payload["messages"])
+            assert any(m.get("reasoning_content") == "synthetic reasoning"
+                       for m in payload["messages"])
             assert any(m["role"] == "tool" and "оставил" in m["content"]
                        for m in payload["messages"])
             name, arguments = "final_result", {"translation": "оставил"}
@@ -195,7 +198,8 @@ async def test_tool_round_trip_normalizes_text_parts_and_null_assistant_content(
             "id": "cloudflare-tools", "object": "chat.completion", "created": 1,
             "model": cloudflare.MODEL,
             "choices": [{"index": 0, "finish_reason": "tool_calls", "message": {
-                "role": "assistant", "content": None, "tool_calls": [{
+                "role": "assistant", "content": None,
+                "reasoning_content": "synthetic reasoning", "tool_calls": [{
                     "id": "call-" + str(len(requests)), "type": "function",
                     "function": {"name": name, "arguments": json.dumps(arguments)},
                 }],

@@ -23,7 +23,9 @@ function aiProvenance(value?: {
   reasoning_effort?: string | null;
 }) {
   if (!value?.model) return null;
-  const reasoning = Object.prototype.hasOwnProperty.call(
+  const reasoning = value.model === "@cf/zai-org/glm-4.7-flash"
+    ? "reasoning включён"
+    : Object.prototype.hasOwnProperty.call(
     value,
     "reasoning_effort",
   )
@@ -472,7 +474,7 @@ export function AIModelSettings() {
           disabled={loading || saving || (!temporaryModelAvailable && !temporaryModel)}
           onChange={(event) => void toggleTemporaryModel(event.target.checked)}
         />
-        Временная модель · gpt-oss-20b (Cloudflare)
+        Временная модель · GLM-4.7-Flash (Cloudflare)
       </label>
       {!loading && !temporaryModelAvailable && (
         <p>Для временной модели добавьте CLOUDFLARE_ACCOUNT_ID и CLOUDFLARE_API_TOKEN в .env и перезапустите приложение.</p>
@@ -482,7 +484,7 @@ export function AIModelSettings() {
         <p role="status">Загружаем доступные модели…</p>
       ) : temporaryModel ? (
         <>
-          <p role="status">Новые запросы используют gpt-oss-20b через Cloudflare Workers AI.</p>
+          <p role="status">Новые запросы используют GLM-4.7-Flash через Cloudflare Workers AI. Reasoning включён.</p>
           <p>Выключите временную модель, чтобы вернуться к выбранной модели ChatGPT.</p>
           {error && <p role="alert" className="warning">{error}</p>}
         </>
