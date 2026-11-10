@@ -398,7 +398,7 @@ def test_cloudflare_question_regeneration_keeps_schema_within_round_budget(
                       "prompt": "They spoke about the water again today."}
         return httpx2.Response(200, json={
             "id": "placement-test", "object": "chat.completion", "created": 1,
-            "model": "@cf/openai/gpt-oss-120b",
+            "model": "@cf/zai-org/glm-4.7-flash",
             "choices": [{"index": 0,
                          "message": {"role": "assistant", "content": None, "tool_calls": [{
                              "id": "output-" + str(len(requests)), "type": "function",

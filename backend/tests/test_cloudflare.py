@@ -38,7 +38,7 @@ def test_temporary_model_preserves_subscription_choice_and_requires_key(
             "temporary_model": True, "temporary_model_available": True,
         }
         assert "synthetic-cloudflare-secret" not in enabled.text
-        assert store.read().effective() == AISettings("@cf/openai/gpt-oss-120b", "low", True)
+        assert store.read().effective() == AISettings("@cf/zai-org/glm-4.7-flash", None, True)
         # A different learner uses the same server key with independent settings.
         assert not AISettingsStore(tmp_path / "other-learner").read().temporary_model
         monkeypatch.delenv("CLOUDFLARE_API_TOKEN")
@@ -62,12 +62,13 @@ async def test_cloudflare_provider_sends_authenticated_cloud_request(
         )
         assert request.headers["authorization"] == "Bearer synthetic-cloudflare-secret"
         payload = json.loads(request.content)
-        assert payload["model"] == "@cf/openai/gpt-oss-120b"
-        assert payload["reasoning_effort"] == "low"
+        assert payload["model"] == "@cf/zai-org/glm-4.7-flash"
+        assert "reasoning_effort" not in payload
+        assert payload["chat_template_kwargs"]["enable_thinking"] is True
         assert payload["max_completion_tokens"] == 8192
         return httpx2.Response(200, json={
             "id": "cloudflare-test", "object": "chat.completion", "created": 1,
-            "model": "@cf/openai/gpt-oss-120b",
+            "model": "@cf/zai-org/glm-4.7-flash",
             "choices": [{"index": 0, "message": {"role": "assistant", "content": "Hello!"},
                          "finish_reason": "stop"}],
         })
@@ -104,7 +105,7 @@ async def test_temporary_execution_without_subscription_keeps_snapshot(
     started, resume = asyncio.Event(), asyncio.Event()
 
     async def operation(model):
-        assert model.model_name == "@cf/openai/gpt-oss-120b"
+        assert model.model_name == "@cf/zai-org/glm-4.7-flash"
         started.set()
         await resume.wait()
         return "ok"
@@ -188,6 +189,8 @@ async def test_tool_round_trip_normalizes_text_parts_and_null_assistant_content(
         else:
             assert any(m.get("tool_calls") and m["content"] == ""
                        for m in payload["messages"])
+            assert any(m.get("reasoning_content") == "synthetic reasoning"
+                       for m in payload["messages"])
             assert any(m["role"] == "tool" and "оставил" in m["content"]
                        for m in payload["messages"])
             name, arguments = "final_result", {"translation": "оставил"}
@@ -195,7 +198,8 @@ async def test_tool_round_trip_normalizes_text_parts_and_null_assistant_content(
             "id": "cloudflare-tools", "object": "chat.completion", "created": 1,
             "model": cloudflare.MODEL,
             "choices": [{"index": 0, "finish_reason": "tool_calls", "message": {
-                "role": "assistant", "content": None, "tool_calls": [{
+                "role": "assistant", "content": None,
+                "reasoning_content": "synthetic reasoning", "tool_calls": [{
                     "id": "call-" + str(len(requests)), "type": "function",
                     "function": {"name": name, "arguments": json.dumps(arguments)},
                 }],
@@ -218,3 +222,75 @@ async def test_tool_round_trip_normalizes_text_parts_and_null_assistant_content(
     assert result.output.translation == "оставил"
     assert calls == ["left"]
     assert len(requests) == 2
+
+
+@pytest.mark.parametrize("request_limit", [4, 5])
+async def test_cloudflare_writer_uses_strict_output_tools_with_function_tools(
+    monkeypatch, request_limit
+):
+    """Keep response_format out of mixed tool turns after live Harmony/JSON failures."""
+    from pydantic_ai.toolsets import FunctionToolset
+    from pydantic_ai.usage import UsageLimits
+
+    from backend.app.agents.text_generation import write_text
+    from backend.app.text_generation_analysis import GenerationRequest
+
+    monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "a" * 32)
+    monkeypatch.setenv("CLOUDFLARE_API_TOKEN", "synthetic-cloudflare-secret")
+    payloads = []
+    checked = []
+    tools = FunctionToolset()
+
+    @tools.tool_plain
+    def check_text_difficulty(title: str, paragraphs: list[str]) -> str:
+        checked.append((title, paragraphs))
+        return '{"status":"pass"}'
+
+    async def respond(request):
+        payload = json.loads(request.content)
+        payloads.append(payload)
+        assert "response_format" not in payload
+        if len(payloads) <= 4:
+            assert any(t["function"]["name"] == "check_text_difficulty" for t in payload["tools"])
+            name, arguments = "check_text_difficulty", {
+                "title": "A Bag", "paragraphs": ["We found a bag."]
+            }
+        else:
+            output = next(t["function"] for t in payload["tools"]
+                          if "kind" in t["function"]["parameters"].get("properties", {}))
+            assert output["strict"] is True
+            name = output["name"]
+            arguments = {"kind": "draft", "title": "A Bag",
+                         "paragraphs": [{"text": "We found a bag."}]}
+        return httpx2.Response(200, json={
+            "id": "writer-roundtrip", "object": "chat.completion", "created": 1,
+            "model": cloudflare.MODEL,
+            "choices": [{"index": 0, "finish_reason": "tool_calls", "message": {
+                "role": "assistant", "content": None, "tool_calls": [{
+                    "id": f"writer-{len(payloads)}", "type": "function",
+                    "function": {"name": name, "arguments": json.dumps(arguments)},
+                }],
+            }}],
+        })
+
+    transport = cloudflare.CloudflareTransport
+    monkeypatch.setattr(
+        cloudflare, "CloudflareTransport", lambda: transport(httpx2.MockTransport(respond))
+    )
+    async with cloudflare.cloudflare_model() as model:
+        async def run():
+            return await write_text(
+                model=model, settings=GenerationRequest(),
+                profile={"profile_sufficiency": "provisional"}, toolsets=[tools],
+                usage_limits=UsageLimits(request_limit=request_limit),
+            )
+
+        if request_limit == 4:
+            from pydantic_ai.exceptions import UsageLimitExceeded
+
+            with pytest.raises(UsageLimitExceeded):
+                await run()
+        else:
+            assert (await run()).kind == "draft"
+    assert checked == [("A Bag", ["We found a bag."])] * 4
+    assert len(payloads) == request_limit

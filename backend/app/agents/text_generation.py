@@ -9,7 +9,7 @@ from typing import Any, Literal
 
 from openai.types.shared.reasoning_effort import ReasoningEffort
 from pydantic import BaseModel, ConfigDict, Field, create_model, model_validator
-from pydantic_ai import Agent, ModelRetry, NativeOutput, RunContext
+from pydantic_ai import Agent, ModelRetry, NativeOutput, RunContext, ToolOutput
 from pydantic_ai.capabilities import Caching
 from pydantic_ai.messages import ModelMessage, ToolReturnPart
 from pydantic_ai.models import Model
@@ -20,7 +20,7 @@ from pydantic_ai.usage import RunUsage, UsageLimits
 from backend.app.ai_connection.cloudflare import MODEL as CLOUDFLARE_MODEL
 from backend.app.text_generation_analysis import CannotGenerate, DraftText, GenerationRequest
 
-PROMPT_VERSION = "personal-text-14"
+PROMPT_VERSION = "personal-text-15"
 
 
 class Evidence(BaseModel):
@@ -535,13 +535,22 @@ async def write_text(
     usage: RunUsage | None = None,
     usage_limits: UsageLimits | None = None,
 ) -> DraftText | CannotGenerate:
+    cloudflare = model.model_name == CLOUDFLARE_MODEL
+    tool_instructions = (
+        "Инструменты доступны в пределах общего бюджета задания. " if cloudflare else
+        "Инструменты доступны только в первых трёх ходах этого прохода автора. "
+    )
     agent: Agent[Any, DraftText | CannotGenerate] = Agent(
         model,
         name="text_writer",
-        output_type=NativeOutput[DraftText | CannotGenerate]([DraftText, CannotGenerate])
-        if model.model_name == CLOUDFLARE_MODEL else [DraftText, CannotGenerate],
+        # Workers AI can emit Harmony text when response_format is combined with
+        # function tools. Keep the writer's final response in strict output tools.
+        output_type=[ToolOutput(DraftText, strict=True), ToolOutput(CannotGenerate, strict=True)]
+        if cloudflare else [DraftText, CannotGenerate],
         capabilities=[Caching()],
-        toolsets=[toolset.filtered(lambda ctx, tool: ctx.run_step <= 3) for toolset in toolsets],
+        toolsets=toolsets if cloudflare else [
+            toolset.filtered(lambda ctx, tool: ctx.run_step <= 3) for toolset in toolsets
+        ],
         retries=1,
         model_settings=OpenAIResponsesModelSettings(
             openai_reasoning_effort=reasoning_effort,
@@ -597,7 +606,7 @@ async def write_text(
             "обязательный этап или требование использовать фиксированный список слов. "
             "Не отказывайся из-за неполной выборки: сначала составь черновик для проверки "
             "приложением или проверь его через check_text_difficulty. "
-            "Инструменты доступны только в первых трёх ходах этого прохода автора. "
+            f"{tool_instructions}"
             "Ответ get_generation_profile уже передан в profile; "
             "повторно запрашивать его не нужно. "
             "Запрашивай лишь недостающие сведения; не нужно перечислять весь словарь или "

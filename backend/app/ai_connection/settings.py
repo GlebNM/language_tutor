@@ -21,7 +21,7 @@ class AISettings:
 
     def effective(self) -> AISettings:
         if self.temporary_model:
-            return AISettings(MODEL, "low", temporary_model=True)
+            return AISettings(MODEL, None, temporary_model=True)
         return self
 
 

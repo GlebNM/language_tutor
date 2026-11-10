@@ -13,7 +13,7 @@ from pydantic_ai.models.openai import OpenAIChatModel, OpenAIChatModelSettings
 from pydantic_ai.profiles.openai import OpenAIModelProfile
 from pydantic_ai.providers.openai import OpenAIProvider
 
-MODEL = "@cf/openai/gpt-oss-120b"
+MODEL = "@cf/zai-org/glm-4.7-flash"
 
 
 def cloudflare_configured() -> bool:
@@ -70,9 +70,12 @@ async def cloudflare_model() -> AsyncIterator[OpenAIChatModel]:
             profile=OpenAIModelProfile(
                 default_structured_output_mode="tool",
                 supports_json_schema_output=True,
-                openai_chat_send_back_thinking_parts=False,
+                openai_chat_thinking_field="reasoning_content",
+                openai_chat_send_back_thinking_parts="field",
             ),
-            # Workers AI defaults to 256 output tokens, which truncates cards,
-            # writer drafts and review JSON after reasoning consumes part of it.
-            settings=OpenAIChatModelSettings(openai_reasoning_effort="low", max_tokens=8192),
+            # Leave room for reasoning, writer drafts and review JSON.
+            settings=OpenAIChatModelSettings(
+                max_tokens=8192,
+                extra_body={"chat_template_kwargs": {"enable_thinking": True}},
+            ),
         )
