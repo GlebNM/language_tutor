@@ -10,6 +10,8 @@ from pathlib import Path
 
 from openai.types.shared.reasoning_effort import ReasoningEffort
 
+from .cloudflare import MODEL
+
 
 @dataclass(frozen=True)
 class AISettings:
@@ -19,7 +21,7 @@ class AISettings:
 
     def effective(self) -> AISettings:
         if self.temporary_model:
-            return AISettings("gemma4:31b", None, temporary_model=True)
+            return AISettings(MODEL, "low", temporary_model=True)
         return self
 
 

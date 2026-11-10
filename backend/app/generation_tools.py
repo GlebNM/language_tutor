@@ -7,7 +7,7 @@ from collections.abc import Callable
 from typing import Any, Literal
 
 from mcp.server.fastmcp import FastMCP
-from pydantic import Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from backend.app.learning_context import MAX_TOOL_CHARACTERS, bounded_json
 from backend.app.materials import MaterialLibrary
@@ -19,6 +19,15 @@ from backend.app.text_generation_analysis import (
     expression_page,
     vocabulary_page,
 )
+
+
+class GenerationWordQuery(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    lemma: str = Field(min_length=1, max_length=100)
+    part_of_speech: str = Field(
+        min_length=1, max_length=20, description="Universal POS tag, e.g. NOUN, VERB, ADJ"
+    )
 
 
 def _fits(value: dict[str, Any]) -> bool:
@@ -130,18 +139,18 @@ def register_generation_tools(
         return bounded_json(_expressions(library_factory(), job_id, offset, limit))
 
     @server.tool()
-    def get_generation_word_knowledge(job_id: str, words: list[dict[str, str]]) -> str:
-        """Check up to 30 lemma/part_of_speech pairs against the SAME frozen job profile."""
+    def get_generation_word_knowledge(
+        job_id: str, words: list[GenerationWordQuery] = Field(min_length=1, max_length=30)
+    ) -> str:
+        """Check up to 30 lemma/part_of_speech pairs against the SAME frozen job profile.
+        Pass words as a list of objects, each with required lemma and part_of_speech fields.
+        """
         from backend.app.text_generation_jobs import get_job_snapshot
 
-        if not 1 <= len(words) <= 30:
-            raise ValueError("Проверяйте от одного до тридцати слов.")
         snapshot = get_job_snapshot(library_factory(), job_id)
         result = []
         for word in words:
-            lemma, pos = word.get("lemma", ""), word.get("part_of_speech", "")
-            if not 1 <= len(lemma) <= 100 or not 1 <= len(pos) <= 20:
-                raise ValueError("Нужны базовая форма и часть речи слова.")
+            lemma, pos = word.lemma, word.part_of_speech
             result.append({"lemma": lemma, "part_of_speech": pos,
                            "knowledge": snapshot.knowledge(lemma, pos)})
         return bounded_json({"snapshot_id": snapshot.snapshot_id, "words": result})

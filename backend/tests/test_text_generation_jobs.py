@@ -51,21 +51,22 @@ def job_client(database, mcp_url, model):
 def test_generation_accepts_temporary_model_and_records_effective_settings(tmp_path, monkeypatch):
     from backend.app.ai_connection.settings import AISettings
 
-    monkeypatch.setenv("OLLAMA_API_KEY", "synthetic-key")
+    monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "a" * 32)
+    monkeypatch.setenv("CLOUDFLARE_API_TOKEN", "synthetic-key")
     app = create_learner_app(tmp_path / "learning.sqlite3", seed_demo=False)
     service = app.state.text_generation
     app.state.connection.settings_store.write(AISettings("gpt-6-luna", "low", True))
 
     async def hold_job(identity, settings):
-        assert settings == AISettings("gemma4:31b", None, True)
+        assert settings == AISettings("@cf/openai/gpt-oss-120b", "low", True)
 
     monkeypatch.setattr(service, "_run", hold_job)
     with TestClient(app, base_url="http://localhost") as client:
         assert client.get("/api/text-generation/settings").json()["available"] is True
         response = client.post("/api/text-generation/jobs", json={})
         assert response.status_code == 202, response.text
-        assert response.json()["model"] == "gemma4:31b"
-        assert response.json()["reasoning_effort"] is None
+        assert response.json()["model"] == "@cf/openai/gpt-oss-120b"
+        assert response.json()["reasoning_effort"] == "low"
 
 
 def wait_job(client, identity):

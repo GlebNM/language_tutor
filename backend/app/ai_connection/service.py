@@ -25,7 +25,7 @@ from pydantic_ai.providers.openai import OpenAIProvider
 
 from backend.app.agents.subscription_proof import ProofResult, run_proof
 
-from .ollama import ollama_configured, ollama_model
+from .cloudflare import cloudflare_configured, cloudflare_model
 from .settings import AISettings, AISettingsStore
 from .siwc import DIRECT_SCOPE, SIWCOAuthFlow, SubscriptionError, TokenManager
 from .siwc_model import SIWCTransport, siwc_model
@@ -180,7 +180,7 @@ class ConnectionService:
     @property
     def available(self) -> bool:
         if self.settings_store.read().temporary_model:
-            return ollama_configured()
+            return cloudflare_configured()
         return self.state.status in {"connected", "limit_reached"}
 
     async def inspect(self) -> ConnectionStatus:
@@ -446,7 +446,7 @@ class ConnectionService:
         async def connected() -> RunOutput:
             async with asyncio.timeout(timeout_seconds):
                 if snapshot.temporary_model:
-                    async with ollama_model() as temporary:
+                    async with cloudflare_model() as temporary:
                         return await operation(temporary)
                 model = await self.connected_model(snapshot)
                 return await operation(model)
@@ -473,14 +473,18 @@ class ConnectionService:
                 status = error.status if isinstance(error, SubscriptionError) else error.status_code
                 if status in (401, 403):
                     raise HTTPException(
-                        403, "Ollama Cloud отклонила ключ или доступ к модели."
+                        403, "Cloudflare Workers AI отклонила ключ или доступ к модели."
+                    ) from None
+                if status == 402:
+                    raise HTTPException(
+                        402, "Cloudflare требует оплату. Проверьте тариф Workers Free в аккаунте."
                     ) from None
                 if status == 429:
                     raise HTTPException(
-                        429, "Достигнут лимит Ollama Cloud. Повторите позже."
+                        429, "Исчерпана квота или достигнут лимит Cloudflare. Повторите позже."
                     ) from None
                 raise HTTPException(
-                    503, "Ollama Cloud временно недоступна. Повторите запрос."
+                    503, "Cloudflare Workers AI временно недоступна. Повторите запрос."
                 ) from None
             raise self.provider_failure(error) from None
         except APITimeoutError as error:

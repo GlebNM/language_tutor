@@ -472,17 +472,17 @@ export function AIModelSettings() {
           disabled={loading || saving || (!temporaryModelAvailable && !temporaryModel)}
           onChange={(event) => void toggleTemporaryModel(event.target.checked)}
         />
-        Временная модель · gemma4:31b (Ollama Cloud)
+        Временная модель · gpt-oss-120b (Cloudflare)
       </label>
       {!loading && !temporaryModelAvailable && (
-        <p>Для временной модели добавьте OLLAMA_API_KEY в .env и перезапустите приложение.</p>
+        <p>Для временной модели добавьте CLOUDFLARE_ACCOUNT_ID и CLOUDFLARE_API_TOKEN в .env и перезапустите приложение.</p>
       )}
 
       {loading ? (
         <p role="status">Загружаем доступные модели…</p>
       ) : temporaryModel ? (
         <>
-          <p role="status">Новые запросы используют gemma4:31b через Ollama Cloud.</p>
+          <p role="status">Новые запросы используют gpt-oss-120b через Cloudflare Workers AI.</p>
           <p>Выключите временную модель, чтобы вернуться к выбранной модели ChatGPT.</p>
           {error && <p role="alert" className="warning">{error}</p>}
         </>
