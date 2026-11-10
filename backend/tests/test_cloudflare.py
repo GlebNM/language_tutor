@@ -220,9 +220,13 @@ async def test_tool_round_trip_normalizes_text_parts_and_null_assistant_content(
     assert len(requests) == 2
 
 
-async def test_cloudflare_writer_uses_strict_output_tools_with_function_tools(monkeypatch):
+@pytest.mark.parametrize("request_limit", [4, 5])
+async def test_cloudflare_writer_uses_strict_output_tools_with_function_tools(
+    monkeypatch, request_limit
+):
     """Keep response_format out of mixed tool turns after live Harmony/JSON failures."""
     from pydantic_ai.toolsets import FunctionToolset
+    from pydantic_ai.usage import UsageLimits
 
     from backend.app.agents.text_generation import write_text
     from backend.app.text_generation_analysis import GenerationRequest
@@ -242,7 +246,8 @@ async def test_cloudflare_writer_uses_strict_output_tools_with_function_tools(mo
         payload = json.loads(request.content)
         payloads.append(payload)
         assert "response_format" not in payload
-        if len(payloads) == 1:
+        if len(payloads) <= 4:
+            assert any(t["function"]["name"] == "check_text_difficulty" for t in payload["tools"])
             name, arguments = "check_text_difficulty", {
                 "title": "A Bag", "paragraphs": ["We found a bag."]
             }
@@ -269,8 +274,19 @@ async def test_cloudflare_writer_uses_strict_output_tools_with_function_tools(mo
         cloudflare, "CloudflareTransport", lambda: transport(httpx2.MockTransport(respond))
     )
     async with cloudflare.cloudflare_model() as model:
-        result = await write_text(model=model, settings=GenerationRequest(),
-                                  profile={"profile_sufficiency": "provisional"}, toolsets=[tools])
-    assert result.kind == "draft"
-    assert checked == [("A Bag", ["We found a bag."])]
-    assert len(payloads) == 2
+        async def run():
+            return await write_text(
+                model=model, settings=GenerationRequest(),
+                profile={"profile_sufficiency": "provisional"}, toolsets=[tools],
+                usage_limits=UsageLimits(request_limit=request_limit),
+            )
+
+        if request_limit == 4:
+            from pydantic_ai.exceptions import UsageLimitExceeded
+
+            with pytest.raises(UsageLimitExceeded):
+                await run()
+        else:
+            assert (await run()).kind == "draft"
+    assert checked == [("A Bag", ["We found a bag."])] * 4
+    assert len(payloads) == request_limit
