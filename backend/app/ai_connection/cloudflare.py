@@ -13,7 +13,7 @@ from pydantic_ai.models.openai import OpenAIChatModel, OpenAIChatModelSettings
 from pydantic_ai.profiles.openai import OpenAIModelProfile
 from pydantic_ai.providers.openai import OpenAIProvider
 
-MODEL = "@cf/openai/gpt-oss-120b"
+MODEL = "@cf/openai/gpt-oss-20b"
 
 
 def cloudflare_configured() -> bool:

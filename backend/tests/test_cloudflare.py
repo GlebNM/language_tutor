@@ -38,7 +38,7 @@ def test_temporary_model_preserves_subscription_choice_and_requires_key(
             "temporary_model": True, "temporary_model_available": True,
         }
         assert "synthetic-cloudflare-secret" not in enabled.text
-        assert store.read().effective() == AISettings("@cf/openai/gpt-oss-120b", "low", True)
+        assert store.read().effective() == AISettings("@cf/openai/gpt-oss-20b", "low", True)
         # A different learner uses the same server key with independent settings.
         assert not AISettingsStore(tmp_path / "other-learner").read().temporary_model
         monkeypatch.delenv("CLOUDFLARE_API_TOKEN")
@@ -62,12 +62,12 @@ async def test_cloudflare_provider_sends_authenticated_cloud_request(
         )
         assert request.headers["authorization"] == "Bearer synthetic-cloudflare-secret"
         payload = json.loads(request.content)
-        assert payload["model"] == "@cf/openai/gpt-oss-120b"
+        assert payload["model"] == "@cf/openai/gpt-oss-20b"
         assert payload["reasoning_effort"] == "low"
         assert payload["max_completion_tokens"] == 8192
         return httpx2.Response(200, json={
             "id": "cloudflare-test", "object": "chat.completion", "created": 1,
-            "model": "@cf/openai/gpt-oss-120b",
+            "model": "@cf/openai/gpt-oss-20b",
             "choices": [{"index": 0, "message": {"role": "assistant", "content": "Hello!"},
                          "finish_reason": "stop"}],
         })
@@ -104,7 +104,7 @@ async def test_temporary_execution_without_subscription_keeps_snapshot(
     started, resume = asyncio.Event(), asyncio.Event()
 
     async def operation(model):
-        assert model.model_name == "@cf/openai/gpt-oss-120b"
+        assert model.model_name == "@cf/openai/gpt-oss-20b"
         started.set()
         await resume.wait()
         return "ok"

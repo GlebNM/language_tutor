@@ -58,14 +58,14 @@ def test_generation_accepts_temporary_model_and_records_effective_settings(tmp_p
     app.state.connection.settings_store.write(AISettings("gpt-6-luna", "low", True))
 
     async def hold_job(identity, settings):
-        assert settings == AISettings("@cf/openai/gpt-oss-120b", "low", True)
+        assert settings == AISettings("@cf/openai/gpt-oss-20b", "low", True)
 
     monkeypatch.setattr(service, "_run", hold_job)
     with TestClient(app, base_url="http://localhost") as client:
         assert client.get("/api/text-generation/settings").json()["available"] is True
         response = client.post("/api/text-generation/jobs", json={})
         assert response.status_code == 202, response.text
-        assert response.json()["model"] == "@cf/openai/gpt-oss-120b"
+        assert response.json()["model"] == "@cf/openai/gpt-oss-20b"
         assert response.json()["reasoning_effort"] == "low"
 
 
