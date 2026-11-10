@@ -27,7 +27,7 @@ def test_ai_settings_persist_and_reject_unsupported_reasoning(
 ) -> None:
     from backend.app.ai_connection.settings import AISettingsStore
 
-    monkeypatch.delenv("OLLAMA_API_KEY", raising=False)
+    monkeypatch.delenv("CLOUDFLARE_API_TOKEN", raising=False)
     class CatalogService:
         def __init__(self) -> None:
             self.settings_store = AISettingsStore(tmp_path)

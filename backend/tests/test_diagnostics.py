@@ -347,20 +347,20 @@ def test_revision_cannot_replace_the_verified_target(tmp_path, diagnostic_mcp, f
         assert client.get("/api/profile").json()["diagnostic_version"] == 0
 
 
-def test_ollama_question_regeneration_keeps_schema_within_round_budget(
+def test_cloudflare_question_regeneration_keeps_schema_within_round_budget(
     tmp_path, diagnostic_mcp, monkeypatch
 ):
-    """Use real MCP without requiring tool calls from a JSON-only model."""
+    """Keep structured output calls and mandatory real MCP within the round budget."""
     import httpx2
-    from openai import AsyncOpenAI
 
-    from backend.app.ai_connection import ollama
+    from backend.app.ai_connection import cloudflare
     from backend.app.ai_connection.service import ConnectionService
     from backend.app.ai_connection.settings import AISettings
     from backend.app.ai_connection.siwc import SIWCOAuthFlow
 
     monkeypatch.setattr(models, "ALLOW_MODEL_REQUESTS", True)
-    monkeypatch.setenv("OLLAMA_API_KEY", "synthetic-ollama-secret")
+    monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "a" * 32)
+    monkeypatch.setenv("CLOUDFLARE_API_TOKEN", "synthetic-cloudflare-secret")
     requests = []
     reviews = 0
 
@@ -378,8 +378,7 @@ def test_ollama_question_regeneration_keeps_schema_within_round_budget(
         nonlocal reviews
         payload = json.loads(request.content)
         requests.append(payload)
-        assert not payload.get("tools")
-        assert payload["response_format"] == {"type": "json_object"}
+        assert [tool["function"]["name"] for tool in payload["tools"]] == ["final_result"]
         data = json.loads(payload["messages"][-1]["content"])
         if "can_finish" in data:
             rank = frequency_ranks()["water"]
@@ -399,18 +398,19 @@ def test_ollama_question_regeneration_keeps_schema_within_round_budget(
                       "prompt": "They spoke about the water again today."}
         return httpx2.Response(200, json={
             "id": "placement-test", "object": "chat.completion", "created": 1,
-            "model": "gemma4:31b",
+            "model": "@cf/openai/gpt-oss-120b",
             "choices": [{"index": 0,
-                         "message": {"role": "assistant", "content": json.dumps(output)},
-                         "finish_reason": "stop"}],
+                         "message": {"role": "assistant", "content": None, "tool_calls": [{
+                             "id": "output-" + str(len(requests)), "type": "function",
+                             "function": {"name": "final_result",
+                                          "arguments": json.dumps(output)},
+                         }]}, "finish_reason": "tool_calls"}],
         })
 
-    def controlled_client(**kwargs):
-        return AsyncOpenAI(
-            **kwargs, http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(respond))
-        )
-
-    monkeypatch.setattr(ollama, "AsyncOpenAI", controlled_client)
+    transport = cloudflare.CloudflareTransport
+    monkeypatch.setattr(
+        cloudflare, "CloudflareTransport", lambda: transport(httpx2.MockTransport(respond))
+    )
     service = ConnectionService(
         data_dir=tmp_path, callback_host="127.0.0.1", callback_port=0,
         oauth_timeout=5, flow_factory=SIWCOAuthFlow,

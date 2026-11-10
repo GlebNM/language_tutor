@@ -132,7 +132,7 @@ async def run_diagnostic_step(
     limits = UsageLimits(request_limit=8, tool_calls_limit=6)
     settings = OpenAIResponsesModelSettings(openai_reasoning_effort=reasoning_effort)
     precise_settings = settings.copy()
-    if model.system == "ollama":
+    if model.model_name.startswith("@cf/"):
         precise_settings["temperature"] = 0
 
     # Keep MCP execution outside model tool calling: the selected range must be

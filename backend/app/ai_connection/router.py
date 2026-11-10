@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from backend.app.agents.subscription_proof import ProofResult
 
-from .ollama import ollama_configured
+from .cloudflare import cloudflare_configured
 from .service import CatalogModel, ConnectionService, ConnectionStatus
 from .settings import AISettings
 from .siwc import SIWCOAuthFlow
@@ -70,13 +70,16 @@ def create_ai_router(
             "model": current.model,
             "reasoning_effort": current.reasoning_effort,
             "temporary_model": current.temporary_model,
-            "temporary_model_available": ollama_configured(),
+            "temporary_model_available": cloudflare_configured(),
         }
 
     @router.put("/temporary-model")
     async def temporary_model(settings: TemporaryModelInput) -> dict[str, str | bool | None]:
-        if settings.enabled and not ollama_configured():
-            raise HTTPException(409, "Добавьте OLLAMA_API_KEY в .env и перезапустите приложение.")
+        if settings.enabled and not cloudflare_configured():
+            raise HTTPException(
+                409, "Укажите CLOUDFLARE_ACCOUNT_ID и CLOUDFLARE_API_TOKEN "
+                "и перезапустите приложение."
+            )
         service.settings_store.write(
             replace(service.settings_store.read(), temporary_model=settings.enabled)
         )
